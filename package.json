@@ -1,7 +1,7 @@
 {
-  "name": "japan-drone-map",
+  "name": "did-map",
   "version": "1.0.0",
-  "description": "日本のドローン飛行禁止エリア・地理データをオーバーレイ表示できる汎用地図ライブラリ",
+  "description": "日本の人口集中地区（DID）及び関連地理データをインタラクティブに表示する地図ライブラリ",
   "type": "module",
   "main": "./dist/lib/index.js",
   "module": "./dist/lib/index.js",
@@ -40,13 +40,15 @@
     "gis",
     "geojson",
     "did",
-    "drone",
-    "no-fly-zone",
+    "population-density",
+    "airspace",
     "restriction",
     "maplibre",
     "overlay",
     "airport",
-    "weather"
+    "weather",
+    "無人機",
+    "飛行禁止区域"
   ],
   "author": "",
   "license": "MIT",

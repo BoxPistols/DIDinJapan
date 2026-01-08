@@ -93,4 +93,4 @@ export {
 
 // Library metadata
 export const VERSION = '1.0.0'
-export const LIBRARY_NAME = 'japan-drone-map'
+export const LIBRARY_NAME = 'did-map'

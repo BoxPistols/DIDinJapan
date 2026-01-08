@@ -783,7 +783,7 @@ function App() {
           fontWeight: 700,
           color: '#333'
         }}>
-          DID in Japan
+          DID Map
         </h1>
 
         {/* Search */}

@@ -4,7 +4,9 @@
       "Bash(find:*)",
       "Bash(npm run build:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(tree:*)"
     ]
   }
 }

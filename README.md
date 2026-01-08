@@ -25,6 +25,40 @@ npm run dev
 - TypeScript
 - MapLibre GL JS
 - Vite
+- Storybook 8
+
+## 気象情報とオーバーレイ
+
+本アプリケーションは複数の気象・地理データソースを統合しています。
+
+### 実装済みのAPI
+
+| レイヤー | データソース | APIキー | 状態 |
+|---------|-----------|--------|------|
+| **雨雲レーダー** | [RainViewer API](https://www.rainviewer.com/api.html) | 不要 | ✅ 本番運用可能 |
+| 気象情報（風・気圧等） | [OpenWeatherMap](https://openweathermap.org/api) | 必須 | ⚠️ 構造実装済み |
+
+#### 雨雲レーダー (RainViewer API)
+- **エンドポイント**: `https://api.rainviewer.com/public/weather-maps.json`
+- **更新頻度**: 5分ごと自動更新
+- **データ**: 過去のレーダーデータと降水予報（nowcast）
+- **APIキー**: 不要（無料サービス）
+- **フォールバック**: API失敗時は `(見本)` マーク付きモックを表示
+- **実装**: `src/lib/services/rainViewer.ts`
+
+#### OpenWeatherMap API
+- **機能**: 風向・風速、気圧、降水量、視界情報
+- **APIキー**: 必須（別途取得が必要）
+- **実装**: `src/lib/services/openWeather.ts`
+
+### モック表示機能
+
+デモンストレーション用のモックデータを使用:
+- **建物（地物）**: `util/geo.ts`で生成
+- **LTEカバレッジ**: ローカルモック
+- **風向・風速**: APIキー未設定時にモック表示
+
+詳細は [NEXT_ACTION.md](./docs/NEXT_ACTION.md) のAPI仕様セクションを参照。
 
 ## データについて
 
