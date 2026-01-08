@@ -4,7 +4,61 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 
 const INITIAL_CENTER: [number, number] = [137.0, 36.5]
 const INITIAL_ZOOM = 5
-const MAP_STYLE = 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json'
+
+// ベースマップ設定
+const BASE_MAPS = {
+  osm: {
+    name: '標準',
+    style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json'
+  },
+  gsi: {
+    name: '地理院地図',
+    style: {
+      version: 8 as const,
+      sources: {
+        gsi: {
+          type: 'raster' as const,
+          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
+        }
+      },
+      layers: [{ id: 'gsi-layer', type: 'raster' as const, source: 'gsi' }]
+    }
+  },
+  pale: {
+    name: '淡色地図',
+    style: {
+      version: 8 as const,
+      sources: {
+        pale: {
+          type: 'raster' as const,
+          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
+        }
+      },
+      layers: [{ id: 'pale-layer', type: 'raster' as const, source: 'pale' }]
+    }
+  },
+  photo: {
+    name: '航空写真',
+    style: {
+      version: 8 as const,
+      sources: {
+        photo: {
+          type: 'raster' as const,
+          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'],
+          tileSize: 256,
+          attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>'
+        }
+      },
+      layers: [{ id: 'photo-layer', type: 'raster' as const, source: 'photo' }]
+    }
+  }
+}
+
+type BaseMapKey = keyof typeof BASE_MAPS
 
 interface LayerConfig {
   id: string
@@ -116,6 +170,7 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['関東']))
   const [mapLoaded, setMapLoaded] = useState(false)
   const [opacity, setOpacity] = useState(0.5)
+  const [baseMap, setBaseMap] = useState<BaseMapKey>('osm')
 
   // Map layer IDs to prefecture names for easier lookup
   const LAYER_ID_TO_NAME = new Map<string, string>()
@@ -126,11 +181,19 @@ function App() {
   })
 
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return
+    if (!mapContainer.current) return
 
+    // 既存のマップがあれば削除
+    if (mapRef.current) {
+      mapRef.current.remove()
+      mapRef.current = null
+      setMapLoaded(false)
+    }
+
+    const styleConfig = BASE_MAPS[baseMap].style
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: MAP_STYLE,
+      style: styleConfig as maplibregl.StyleSpecification | string,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM
     })
@@ -215,7 +278,7 @@ function App() {
       map.remove()
       mapRef.current = null
     }
-  }, [])
+  }, [baseMap])
 
   useEffect(() => {
     const map = mapRef.current
@@ -351,12 +414,38 @@ function App() {
           Japan Overlay Map
         </h1>
         <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#888' }}>
-          人口集中地区（DID）データ
+          日本の地理データオーバーレイ
         </p>
+
+        {/* ベースマップ選択 */}
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '8px' }}>
+            ベースマップ
+          </label>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {(Object.keys(BASE_MAPS) as BaseMapKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setBaseMap(key)}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '11px',
+                  backgroundColor: baseMap === key ? '#4a5568' : '#2d3748',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                {BASE_MAPS[key].name}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div style={{ marginBottom: '16px' }}>
           <label style={{ fontSize: '13px', color: '#aaa' }}>
-            透明度: {Math.round(opacity * 100)}%
+            DID透明度: {Math.round(opacity * 100)}%
           </label>
           <input
             type="range"
