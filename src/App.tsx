@@ -82,6 +82,40 @@ const GEO_OVERLAYS = [
   }
 ]
 
+// 気象情報オーバーレイ設定
+interface WeatherOverlay {
+  id: string
+  name: string
+  opacity: number
+  dynamic: boolean
+}
+
+const WEATHER_OVERLAYS: WeatherOverlay[] = [
+  {
+    id: 'rain-radar',
+    name: '雨雲レーダー',
+    opacity: 0.6,
+    dynamic: true
+  }
+]
+
+// RainViewer APIから最新のレーダータイムスタンプを取得
+async function fetchRainRadarTimestamp(): Promise<string | null> {
+  try {
+    const response = await fetch('https://api.rainviewer.com/public/weather-maps.json')
+    const data = await response.json()
+    if (data.radar && data.radar.past && data.radar.past.length > 0) {
+      // 最新のタイムスタンプを取得
+      const latest = data.radar.past[data.radar.past.length - 1]
+      return latest.path
+    }
+    return null
+  } catch (error) {
+    console.error('Failed to fetch rain radar timestamp:', error)
+    return null
+  }
+}
+
 interface LayerConfig {
   id: string
   name: string
@@ -194,6 +228,20 @@ function App() {
   const [opacity, setOpacity] = useState(0.5)
   const [baseMap, setBaseMap] = useState<BaseMapKey>('osm')
   const [overlayStates, setOverlayStates] = useState<Map<string, boolean>>(new Map())
+  const [weatherStates, setWeatherStates] = useState<Map<string, boolean>>(new Map())
+  const [rainRadarPath, setRainRadarPath] = useState<string | null>(null)
+  const [radarLastUpdate, setRadarLastUpdate] = useState<string>('')
+
+  // 検索機能用State
+  interface SearchIndexItem {
+    prefName: string
+    cityName: string
+    bbox: [number, number, number, number]
+    layerId: string
+  }
+  const [searchIndex, setSearchIndex] = useState<SearchIndexItem[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchIndexItem[]>([])
 
   // Map layer IDs to prefecture names for easier lookup
   const LAYER_ID_TO_NAME = new Map<string, string>()
@@ -202,6 +250,68 @@ function App() {
       LAYER_ID_TO_NAME.set(layer.id, layer.name)
     })
   })
+
+  // BBox計算関数
+  const calculateBBox = (geometry: any): [number, number, number, number] => {
+    let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
+    
+    const processCoord = (coord: number[]) => {
+      if (coord[0] < minLng) minLng = coord[0];
+      if (coord[0] > maxLng) maxLng = coord[0];
+      if (coord[1] < minLat) minLat = coord[1];
+      if (coord[1] > maxLat) maxLat = coord[1];
+    };
+
+    const traverse = (coords: any) => {
+      if (typeof coords[0] === 'number') {
+        processCoord(coords as number[]);
+      } else {
+        coords.forEach(traverse);
+      }
+    };
+
+    traverse(geometry.coordinates);
+    return [minLng, minLat, maxLng, maxLat];
+  }
+
+  // 検索処理
+  useEffect(() => {
+    if (!searchTerm) {
+      setSearchResults([]);
+      return;
+    }
+    const results = searchIndex.filter(item => 
+      item.cityName.includes(searchTerm) || item.prefName.includes(searchTerm)
+    );
+    // 重複排除（同じ市区町村名を表示用にはまとめる）
+    const uniqueResults = Array.from(new Map(results.map(item => [item.prefName + item.cityName, item])).values());
+    setSearchResults(uniqueResults.slice(0, 10)); // 10件まで
+  }, [searchTerm, searchIndex]);
+
+  // 指定したFeatureへ移動
+  const flyToFeature = (item: SearchIndexItem) => {
+    const map = mapRef.current;
+    if (!map) return;
+    
+    map.fitBounds(item.bbox, {
+      padding: 50,
+      maxZoom: 14
+    });
+    
+    // 該当レイヤーが表示されていなければ表示する
+    const state = layerStates.get(item.layerId);
+    if (!state || !state.visible) {
+       if (map.getLayer(item.layerId)) {
+          map.setLayoutProperty(item.layerId, 'visibility', 'visible');
+          map.setLayoutProperty(`${item.layerId}-outline`, 'visibility', 'visible');
+       }
+       setLayerStates(prev => {
+          const next = new Map(prev);
+          next.set(item.layerId, { id: item.layerId, visible: true });
+          return next;
+       });
+    }
+  }
 
   useEffect(() => {
     if (!mapContainer.current) return
@@ -321,9 +431,26 @@ function App() {
     if (map.getSource(layer.id)) return
 
     try {
+      const response = await fetch(layer.path);
+      const data = await response.json();
+
+      // 検索インデックスに追加
+      const newItems: SearchIndexItem[] = [];
+      data.features.forEach((feature: any) => {
+        if (feature.properties && feature.properties.CITYNAME) {
+          newItems.push({
+            prefName: layer.name,
+            cityName: feature.properties.CITYNAME,
+            bbox: calculateBBox(feature.geometry),
+            layerId: layer.id
+          });
+        }
+      });
+      setSearchIndex(prev => [...prev, ...newItems]);
+
       map.addSource(layer.id, {
         type: 'geojson',
-        data: layer.path
+        data: data
       })
 
       map.addLayer({
@@ -466,6 +593,114 @@ function App() {
     return overlayStates.get(overlayId) ?? false
   }
 
+  // 雨雲レーダーの更新
+  const updateRainRadar = async () => {
+    const path = await fetchRainRadarTimestamp()
+    if (path) {
+      setRainRadarPath(path)
+      const timestamp = path.split('/').pop()
+      if (timestamp) {
+        const date = new Date(parseInt(timestamp) * 1000)
+        setRadarLastUpdate(date.toLocaleTimeString('ja-JP'))
+      }
+    }
+    return path
+  }
+
+  // 気象オーバーレイの切り替え
+  const toggleWeatherOverlay = async (overlay: WeatherOverlay) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    const isVisible = weatherStates.get(overlay.id) ?? false
+
+    if (!isVisible) {
+      if (overlay.id === 'rain-radar') {
+        let path = rainRadarPath
+        if (!path) {
+          path = await updateRainRadar()
+        }
+        if (!path) {
+          console.error('Failed to get rain radar data')
+          return
+        }
+
+        const tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`
+
+        if (map.getSource('rain-radar')) {
+          map.removeLayer('rain-radar')
+          map.removeSource('rain-radar')
+        }
+
+        map.addSource('rain-radar', {
+          type: 'raster',
+          tiles: [tileUrl],
+          tileSize: 256
+        })
+        map.addLayer({
+          id: 'rain-radar',
+          type: 'raster',
+          source: 'rain-radar',
+          paint: {
+            'raster-opacity': overlay.opacity
+          }
+        }, LAYER_GROUPS.flatMap(g => g.layers).find(l => layerStates.get(l.id)?.visible)?.id)
+      }
+
+      setWeatherStates(prev => {
+        const next = new Map(prev)
+        next.set(overlay.id, true)
+        return next
+      })
+    } else {
+      if (map.getLayer(overlay.id)) {
+        map.setLayoutProperty(overlay.id, 'visibility', 'none')
+      }
+      setWeatherStates(prev => {
+        const next = new Map(prev)
+        next.set(overlay.id, false)
+        return next
+      })
+    }
+  }
+
+  const isWeatherVisible = (overlayId: string) => {
+    return weatherStates.get(overlayId) ?? false
+  }
+
+  // 雨雲レーダーの自動更新（5分ごと）
+  useEffect(() => {
+    if (!weatherStates.get('rain-radar')) return
+
+    const interval = setInterval(async () => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
+
+      const path = await updateRainRadar()
+      if (path && map.getSource('rain-radar')) {
+        const tileUrl = `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`
+        // ソースを更新
+        map.removeLayer('rain-radar')
+        map.removeSource('rain-radar')
+        map.addSource('rain-radar', {
+          type: 'raster',
+          tiles: [tileUrl],
+          tileSize: 256
+        })
+        map.addLayer({
+          id: 'rain-radar',
+          type: 'raster',
+          source: 'rain-radar',
+          paint: {
+            'raster-opacity': WEATHER_OVERLAYS.find(w => w.id === 'rain-radar')?.opacity ?? 0.6
+          }
+        })
+      }
+    }, 5 * 60 * 1000) // 5分ごと
+
+    return () => clearInterval(interval)
+  }, [weatherStates, mapLoaded])
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <aside style={{
@@ -483,6 +718,63 @@ function App() {
         <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#888' }}>
           日本の地理データオーバーレイ
         </p>
+
+        {/* 検索ボックス */}
+        <div style={{ marginBottom: '16px', position: 'relative' }}>
+          <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '4px' }}>
+            市区町村検索 (表示中の都道府県のみ)
+          </label>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="市区町村名を入力..."
+            style={{
+              width: '100%',
+              padding: '8px',
+              backgroundColor: '#2d3748',
+              border: '1px solid #4a5568',
+              borderRadius: '4px',
+              color: '#fff',
+              fontSize: '14px'
+            }}
+          />
+          {searchResults.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: '#2d3748',
+              border: '1px solid #4a5568',
+              borderRadius: '0 0 4px 4px',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              zIndex: 10
+            }}>
+              {searchResults.map((item, index) => (
+                <div
+                  key={`${item.prefName}-${item.cityName}-${index}`}
+                  onClick={() => {
+                    flyToFeature(item);
+                    setSearchTerm('');
+                  }}
+                  style={{
+                    padding: '8px',
+                    cursor: 'pointer',
+                    borderBottom: '1px solid #4a5568',
+                    fontSize: '13px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4a5568'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <span style={{ color: '#aaa', fontSize: '11px', marginRight: '4px' }}>{item.prefName}</span>
+                  {item.cityName}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ベースマップ選択 */}
         <div style={{ marginBottom: '16px' }}>
@@ -526,6 +818,40 @@ function App() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
+          {/* 気象情報オーバーレイ */}
+          <h2 style={{ margin: '0 0 12px', fontSize: '14px', color: '#888', fontWeight: 500 }}>
+            気象情報
+          </h2>
+          <div style={{ marginBottom: '16px' }}>
+            {WEATHER_OVERLAYS.map(overlay => (
+              <label
+                key={overlay.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  backgroundColor: isWeatherVisible(overlay.id) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  marginBottom: '2px'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isWeatherVisible(overlay.id)}
+                  onChange={() => toggleWeatherOverlay(overlay)}
+                />
+                <span style={{ fontSize: '13px' }}>{overlay.name}</span>
+                {overlay.id === 'rain-radar' && isWeatherVisible(overlay.id) && radarLastUpdate && (
+                  <span style={{ fontSize: '10px', color: '#888', marginLeft: 'auto' }}>
+                    {radarLastUpdate}更新
+                  </span>
+                )}
+              </label>
+            ))}
+          </div>
+
           {/* 地理情報オーバーレイ */}
           <h2 style={{ margin: '0 0 12px', fontSize: '14px', color: '#888', fontWeight: 500 }}>
             地理情報
