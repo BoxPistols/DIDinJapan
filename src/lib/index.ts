@@ -58,6 +58,9 @@ export {
   getFacilitiesByZone,
   generateRedZoneGeoJSON,
   generateYellowZoneGeoJSON,
+  generateEmergencyAirspaceGeoJSON,
+  generateMannedAircraftLandingGeoJSON,
+  generateRemoteIDZoneGeoJSON,
   isInNoFlyZone
 } from './services/noFlyZones'
 export {
@@ -82,7 +85,10 @@ export {
   mergeBBoxes,
   formatCoordinates,
   degreesToCompass,
-  degreesToJapanese
+  degreesToJapanese,
+  generateBuildingsGeoJSON,
+  generateWindFieldGeoJSON,
+  generateLTECoverageGeoJSON
 } from './utils/geo'
 
 // Library metadata

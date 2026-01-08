@@ -26,6 +26,7 @@ const TILE_BASE_URL = 'https://tilecache.rainviewer.com'
 
 /**
  * Fetch the latest rain radar timestamp from RainViewer API
+ * Returns a mock path prefixed with "(見本)" on API failure
  */
 export async function fetchRainRadarTimestamp(): Promise<string | null> {
   try {
@@ -40,7 +41,10 @@ export async function fetchRainRadarTimestamp(): Promise<string | null> {
     return null
   } catch (error) {
     console.error('Failed to fetch rain radar timestamp:', error)
-    return null
+    // Return mock path with sample marker on API failure
+    const mockDate = new Date()
+    const mockTimestamp = Math.floor(mockDate.getTime() / 1000)
+    return `(見本)/radar/${mockTimestamp}/256`
   }
 }
 
@@ -90,14 +94,17 @@ export function getTimestampFromPath(path: string): Date | null {
 
 /**
  * Format timestamp for display
+ * Includes "(見本)" prefix if this is a mock path
  */
 export function formatRadarTimestamp(path: string): string {
+  const isMock = path.includes('(見本)')
   const date = getTimestampFromPath(path)
   if (date) {
-    return date.toLocaleTimeString('ja-JP', {
+    const timeStr = date.toLocaleTimeString('ja-JP', {
       hour: '2-digit',
       minute: '2-digit'
     })
+    return isMock ? `(見本)${timeStr}` : timeStr
   }
   return ''
 }

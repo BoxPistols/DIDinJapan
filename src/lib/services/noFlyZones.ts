@@ -318,6 +318,99 @@ export function generateAllNoFlyGeoJSON(): GeoJSON.FeatureCollection {
 }
 
 /**
+ * Generate mock GeoJSON for Emergency Airspace
+ */
+export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
+  const mockEmergencies: Array<{ id: string; name: string; coordinates: [number, number]; radiusKm: number }> = [
+    {
+      id: 'emergency-1',
+      name: '災害対応エリア（見本）',
+      coordinates: [139.7500, 35.6800],
+      radiusKm: 1.0
+    },
+    {
+      id: 'emergency-2',
+      name: '警急出動エリア（見本）',
+      coordinates: [139.7400, 35.6900],
+      radiusKm: 0.8
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockEmergencies.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      radiusKm: item.radiusKm,
+      type: 'emergency'
+    },
+    geometry: createCirclePolygon(item.coordinates, item.radiusKm)
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
+ * Generate mock GeoJSON for Manned Aircraft Landing Areas
+ */
+export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollection {
+  const mockLandings: Array<{ id: string; name: string; coordinates: [number, number]; radiusKm: number }> = [
+    {
+      id: 'manned-1',
+      name: 'ヘリポート（見本）',
+      coordinates: [139.7300, 35.6700],
+      radiusKm: 0.6
+    },
+    {
+      id: 'manned-2',
+      name: '臨時着陸地（見本）',
+      coordinates: [139.7600, 35.6500],
+      radiusKm: 0.5
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockLandings.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      radiusKm: item.radiusKm,
+      type: 'manned'
+    },
+    geometry: createCirclePolygon(item.coordinates, item.radiusKm)
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
+ * Generate mock GeoJSON for Remote ID Required Zone
+ */
+export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
+  const mockRemoteID: Array<{ id: string; name: string; coordinates: [number, number]; radiusKm: number }> = [
+    {
+      id: 'remoteid-1',
+      name: 'リモートID特定区域（見本）',
+      coordinates: [139.7450, 35.6750],
+      radiusKm: 1.2
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockRemoteID.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      radiusKm: item.radiusKm,
+      type: 'remote-id'
+    },
+    geometry: createCirclePolygon(item.coordinates, item.radiusKm)
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
  * Check if a point is in a no-fly zone
  */
 export function isInNoFlyZone(

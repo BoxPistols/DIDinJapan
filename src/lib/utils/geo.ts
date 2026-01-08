@@ -189,3 +189,149 @@ export function degreesToJapanese(degrees: number): string {
   const index = Math.round(degrees / 22.5) % 16
   return directions[index]
 }
+
+/**
+ * Generate mock GeoJSON for Buildings (地物)
+ */
+export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
+  const mockBuildings: Array<{ id: string; name: string; coordinates: [number, number]; radiusKm: number }> = [
+    {
+      id: 'building-1',
+      name: '主要駅舎（見本）',
+      coordinates: [139.7650, 35.6730],
+      radiusKm: 0.3
+    },
+    {
+      id: 'building-2',
+      name: '商業施設（見本）',
+      coordinates: [139.7500, 35.6850],
+      radiusKm: 0.4
+    },
+    {
+      id: 'building-3',
+      name: 'オフィスビル（見本）',
+      coordinates: [139.7350, 35.6650],
+      radiusKm: 0.25
+    },
+    {
+      id: 'building-4',
+      name: '公共施設（見本）',
+      coordinates: [139.7300, 35.6900],
+      radiusKm: 0.35
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockBuildings.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      type: 'building'
+    },
+    geometry: createCirclePolygon(item.coordinates, item.radiusKm)
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
+ * Generate mock GeoJSON for Wind Field (風向・風量)
+ */
+export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
+  const mockWinds: Array<{ id: string; name: string; coordinates: [number, number]; direction: number; speed: number }> = [
+    {
+      id: 'wind-1',
+      name: '北西の風（見本）',
+      coordinates: [139.7500, 35.6800],
+      direction: 315,
+      speed: 5.2
+    },
+    {
+      id: 'wind-2',
+      name: '西の風（見本）',
+      coordinates: [139.7400, 35.6700],
+      direction: 270,
+      speed: 4.8
+    },
+    {
+      id: 'wind-3',
+      name: '南西の風（見本）',
+      coordinates: [139.7600, 35.6600],
+      direction: 225,
+      speed: 3.5
+    },
+    {
+      id: 'wind-4',
+      name: '北の風（見本）',
+      coordinates: [139.7300, 35.6900],
+      direction: 0,
+      speed: 6.1
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockWinds.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      direction: item.direction,
+      speed: item.speed,
+      type: 'wind'
+    },
+    geometry: {
+      type: 'Point',
+      coordinates: [item.coordinates[0], item.coordinates[1]]
+    }
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
+ * Generate mock GeoJSON for LTE Coverage (LTE)
+ */
+export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
+  const mockLTE: Array<{ id: string; name: string; coordinates: [number, number]; radiusKm: number; strength: number }> = [
+    {
+      id: 'lte-1',
+      name: '高強度エリア（見本）',
+      coordinates: [139.7500, 35.6800],
+      radiusKm: 2.0,
+      strength: 95
+    },
+    {
+      id: 'lte-2',
+      name: '中強度エリア（見本）',
+      coordinates: [139.7200, 35.6500],
+      radiusKm: 1.5,
+      strength: 75
+    },
+    {
+      id: 'lte-3',
+      name: '低強度エリア（見本）',
+      coordinates: [139.7800, 35.7000],
+      radiusKm: 1.2,
+      strength: 45
+    },
+    {
+      id: 'lte-4',
+      name: 'サービスエリア外（見本）',
+      coordinates: [139.7000, 35.6300],
+      radiusKm: 0.8,
+      strength: 20
+    }
+  ]
+
+  const features: GeoJSON.Feature[] = mockLTE.map(item => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      strength: item.strength,
+      type: 'lte'
+    },
+    geometry: createCirclePolygon(item.coordinates, item.radiusKm)
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
