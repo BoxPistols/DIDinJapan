@@ -1,17 +1,41 @@
-# DID in Japan（人口集中地区）
+# Japan Overlay Map
 
-日本の人口集中地区（DID: Densely Inhabited District）データをGeoJSON形式で提供するリポジトリです。
+日本の各種地理データをオーバーレイ表示できる汎用地図ライブラリです。
+
+## 機能
+
+- 全47都道府県の人口集中地区（DID）データを表示
+- 地域別グループ化されたレイヤー管理
+- 透明度調整スライダー
+- ホバー時のポップアップ情報（人口、面積、人口密度）
+- 一括表示/非表示切り替え
+
+## セットアップ
+
+```bash
+npm install
+npm run dev
+```
+
+ブラウザで http://localhost:5173 を開きます。
+
+## 技術スタック
+
+- React 18
+- TypeScript
+- MapLibre GL JS
+- Vite
 
 ## データについて
 
-本データは、政府統計の総合窓口（e-Stat）で公開されている「人口集中地区」データを、ウェブマップサービスで利用しやすいGeoJSON形式に変換したものです。
+本データは、政府統計の総合窓口（e-Stat）で公開されている「人口集中地区」データを、GeoJSON形式に変換したものです。
 
 - **座標系**: EPSG:4326（緯度経度座標系/WGS84）
-- **元データ**: [dronebird/DIDinJapan](https://github.com/dronebird/DIDinJapan) をフォーク
+- **データ年次**: 平成22年（2010年）国勢調査
 
 ## 参考リンク
 
-- [国土地理院 地理院地図（人口集中地区）](https://maps.gsi.go.jp/?ll=35.583059,139.55658&z=10&base=std&ls=did2010&disp=1&vs=c1j0l0u0)
+- [国土地理院 地理院地図](https://maps.gsi.go.jp/)
 - [政府統計の総合窓口（e-Stat）](https://www.e-stat.go.jp/)
 
 ## ライセンス・利用規約
