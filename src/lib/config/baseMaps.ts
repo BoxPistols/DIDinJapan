@@ -7,6 +7,14 @@ import maplibregl from 'maplibre-gl'
 
 const GSI_ATTRIBUTION = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
 
+/**
+ * Add projection to style
+ */
+const addProjection = (style: maplibregl.StyleSpecification, projection: 'mercator' | 'globe'): maplibregl.StyleSpecification => ({
+  ...style,
+  projection: { type: projection } as any
+})
+
 export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | maplibregl.StyleSpecification }> = {
   osm: {
     name: '標準',
@@ -56,6 +64,36 @@ export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | mapli
       },
       layers: [{ id: 'photo-layer', type: 'raster' as const, source: 'photo' }]
     }
+  },
+  mercator: {
+    name: 'メルカトル図法',
+    style: addProjection({
+      version: 8 as const,
+      sources: {
+        gsi: {
+          type: 'raster' as const,
+          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: GSI_ATTRIBUTION
+        }
+      },
+      layers: [{ id: 'gsi-mercator', type: 'raster' as const, source: 'gsi' }]
+    }, 'mercator')
+  },
+  globe: {
+    name: 'グローブ',
+    style: addProjection({
+      version: 8 as const,
+      sources: {
+        gsi: {
+          type: 'raster' as const,
+          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: GSI_ATTRIBUTION
+        }
+      },
+      layers: [{ id: 'gsi-globe', type: 'raster' as const, source: 'gsi' }]
+    }, 'globe')
   }
 }
 
