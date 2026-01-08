@@ -60,6 +60,28 @@ const BASE_MAPS = {
 
 type BaseMapKey = keyof typeof BASE_MAPS
 
+// 地理情報オーバーレイ設定
+const GEO_OVERLAYS = [
+  {
+    id: 'hillshade',
+    name: '陰影起伏',
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png'],
+    opacity: 0.4
+  },
+  {
+    id: 'relief',
+    name: '色別標高図',
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png'],
+    opacity: 0.5
+  },
+  {
+    id: 'slope',
+    name: '傾斜量図',
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/slopemap/{z}/{x}/{y}.png'],
+    opacity: 0.5
+  }
+]
+
 interface LayerConfig {
   id: string
   name: string
@@ -171,6 +193,7 @@ function App() {
   const [mapLoaded, setMapLoaded] = useState(false)
   const [opacity, setOpacity] = useState(0.5)
   const [baseMap, setBaseMap] = useState<BaseMapKey>('osm')
+  const [overlayStates, setOverlayStates] = useState<Map<string, boolean>>(new Map())
 
   // Map layer IDs to prefecture names for easier lookup
   const LAYER_ID_TO_NAME = new Map<string, string>()
@@ -399,6 +422,50 @@ function App() {
     })
   }
 
+  const toggleOverlay = (overlay: typeof GEO_OVERLAYS[0]) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    const isVisible = overlayStates.get(overlay.id) ?? false
+
+    if (!isVisible) {
+      // オーバーレイを追加
+      if (!map.getSource(overlay.id)) {
+        map.addSource(overlay.id, {
+          type: 'raster',
+          tiles: overlay.tiles,
+          tileSize: 256
+        })
+        map.addLayer({
+          id: overlay.id,
+          type: 'raster',
+          source: overlay.id,
+          paint: {
+            'raster-opacity': overlay.opacity
+          }
+        }, LAYER_GROUPS.flatMap(g => g.layers).find(l => layerStates.get(l.id)?.visible)?.id)
+      } else {
+        map.setLayoutProperty(overlay.id, 'visibility', 'visible')
+      }
+      setOverlayStates(prev => {
+        const next = new Map(prev)
+        next.set(overlay.id, true)
+        return next
+      })
+    } else {
+      map.setLayoutProperty(overlay.id, 'visibility', 'none')
+      setOverlayStates(prev => {
+        const next = new Map(prev)
+        next.set(overlay.id, false)
+        return next
+      })
+    }
+  }
+
+  const isOverlayVisible = (overlayId: string) => {
+    return overlayStates.get(overlayId) ?? false
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <aside style={{
@@ -459,8 +526,37 @@ function App() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
+          {/* 地理情報オーバーレイ */}
           <h2 style={{ margin: '0 0 12px', fontSize: '14px', color: '#888', fontWeight: 500 }}>
-            レイヤー
+            地理情報
+          </h2>
+          <div style={{ marginBottom: '16px' }}>
+            {GEO_OVERLAYS.map(overlay => (
+              <label
+                key={overlay.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  backgroundColor: isOverlayVisible(overlay.id) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  marginBottom: '2px'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isOverlayVisible(overlay.id)}
+                  onChange={() => toggleOverlay(overlay)}
+                />
+                <span style={{ fontSize: '13px' }}>{overlay.name}</span>
+              </label>
+            ))}
+          </div>
+
+          <h2 style={{ margin: '0 0 12px', fontSize: '14px', color: '#888', fontWeight: 500 }}>
+            人口集中地区（DID）
           </h2>
 
           {LAYER_GROUPS.map(group => (
