@@ -111,10 +111,19 @@ interface LayerState {
 function App() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const popupRef = useRef<maplibregl.Popup | null>(null)
   const [layerStates, setLayerStates] = useState<Map<string, LayerState>>(new Map())
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['関東']))
   const [mapLoaded, setMapLoaded] = useState(false)
   const [opacity, setOpacity] = useState(0.5)
+
+  // Map layer IDs to prefecture names for easier lookup
+  const LAYER_ID_TO_NAME = new Map<string, string>()
+  LAYER_GROUPS.forEach(group => {
+    group.layers.forEach(layer => {
+      LAYER_ID_TO_NAME.set(layer.id, layer.name)
+    })
+  })
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return
@@ -129,8 +138,71 @@ function App() {
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left')
 
+    popupRef.current = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      maxWidth: '300px'
+    })
+
     map.on('load', () => {
       setMapLoaded(true)
+    })
+
+    map.on('mousemove', (e) => {
+      const features = map.queryRenderedFeatures(e.point)
+      const didFeature = features.find(f => f.layer.id.startsWith('did-') && f.layer.type === 'fill')
+
+      if (didFeature && popupRef.current) {
+        map.getCanvas().style.cursor = 'pointer'
+
+        const props = didFeature.properties
+        if (!props) return
+
+        const layerId = didFeature.layer.id
+        const prefName = LAYER_ID_TO_NAME.get(layerId) || ''
+        const cityName = props.CITYNAME || ''
+        const population = props.JINKO || 0
+        const area = props.MENSEKI || 0
+        const density = area > 0 ? (population / area) : 0
+
+        const content = `
+          <div class="did-popup">
+            <div class="popup-header">
+              <span class="pref-name">${prefName}</span>
+              <span class="city-name">${cityName}</span>
+            </div>
+            <div class="popup-stats">
+              <div class="stat-row">
+                <span class="stat-label">人口</span>
+                <span class="stat-value">${population.toLocaleString()}人</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">面積</span>
+                <span class="stat-value">${area.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}km²</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">人口密度</span>
+                <span class="stat-value">${density.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}人/km²</span>
+              </div>
+            </div>
+          </div>
+        `
+
+        popupRef.current
+          .setLngLat(e.lngLat)
+          .setHTML(content)
+          .addTo(map)
+      } else if (popupRef.current) {
+        map.getCanvas().style.cursor = ''
+        popupRef.current.remove()
+      }
+    })
+
+    map.on('mouseleave', () => {
+      if (popupRef.current) {
+        map.getCanvas().style.cursor = ''
+        popupRef.current.remove()
+      }
     })
 
     mapRef.current = map
