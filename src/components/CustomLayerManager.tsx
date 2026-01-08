@@ -11,6 +11,8 @@ import {
   readGeoJSONFile,
   downloadAsFile
 } from '../lib/services/customLayers'
+import { showToast } from '../utils/toast'
+import { showConfirm } from '../utils/dialog'
 
 export interface CustomLayerManagerProps {
   onLayerAdded: (layer: CustomLayer) => void
@@ -79,18 +81,23 @@ export function CustomLayerManager({
       }
     } catch (error) {
       console.error('Failed to import GeoJSON:', error)
-      alert('GeoJSONファイルの読み込みに失敗しました')
+      showToast('GeoJSONファイルの読み込みに失敗しました', 'error')
     } finally {
       setImporting(false)
     }
   }
 
   // レイヤー削除
-  const handleRemoveLayer = (layerId: string) => {
-    if (confirm('このレイヤーを削除しますか？')) {
+  const handleRemoveLayer = async (layerId: string) => {
+    const confirmed = await showConfirm('このレイヤーを削除しますか？', {
+      confirmText: '削除',
+      cancelText: 'キャンセル'
+    })
+    if (confirmed) {
       CustomLayerService.remove(layerId)
       setCustomLayers(CustomLayerService.getAll())
       onLayerRemoved(layerId)
+      showToast('レイヤーを削除しました', 'success')
     }
   }
 
@@ -120,12 +127,12 @@ export function CustomLayerManager({
 
       if (result.success) {
         setCustomLayers(CustomLayerService.getAll())
-        alert(`${result.count}件のレイヤーをインポートしました`)
+        showToast(`${result.count}件のレイヤーをインポートしました`, 'success')
       } else {
-        alert(`インポートに失敗しました: ${result.error}`)
+        showToast(`インポートに失敗しました: ${result.error}`, 'error')
       }
     } catch (error) {
-      alert('ファイルの読み込みに失敗しました')
+      showToast('ファイルの読み込みに失敗しました', 'error')
     }
   }
 

@@ -26,6 +26,8 @@ import {
 } from './lib'
 import type { BaseMapKey, LayerConfig, LayerGroup, SearchIndexItem, LayerState, CustomLayer } from './lib'
 import { CustomLayerManager } from './components/CustomLayerManager'
+import { ToastContainer } from './components/Toast'
+import { DialogContainer } from './components/Dialog'
 
 // ============================================
 // Zone ID Constants
@@ -1181,6 +1183,12 @@ function App() {
       }}>
         出典: 政府統計の総合窓口(e-Stat) / 国土地理院
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer />
+
+      {/* Confirm Dialog */}
+      <DialogContainer />
     </div>
   )
 }
