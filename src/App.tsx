@@ -147,12 +147,21 @@ function App() {
     }
 
     const styleConfig = BASE_MAPS[baseMap].style
-    const map = new maplibregl.Map({
+    const mapConfig: maplibregl.MapOptions = {
       container: mapContainer.current,
       style: styleConfig as maplibregl.StyleSpecification | string,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM
-    })
+    }
+
+    // Set projection based on selected base map
+    if (baseMap === 'mercator') {
+      mapConfig.projection = { type: 'mercator' } as any
+    } else if (baseMap === 'globe') {
+      mapConfig.projection = { type: 'globe' } as any
+    }
+
+    const map = new maplibregl.Map(mapConfig)
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left')
