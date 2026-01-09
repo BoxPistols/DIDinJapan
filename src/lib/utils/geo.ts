@@ -62,12 +62,12 @@ function toRad(deg: number): number {
  * Create a circle polygon around a point
  * @param center [lng, lat]
  * @param radiusKm radius in kilometers
- * @param points number of points to approximate circle
+ * @param points number of points to approximate circle (default: 32 for smooth but efficient circles)
  */
 export function createCirclePolygon(
   center: [number, number],
   radiusKm: number,
-  points: number = 64
+  points: number = 32
 ): GeoJSON.Polygon {
   const coords: [number, number][] = []
   const [lng, lat] = center
