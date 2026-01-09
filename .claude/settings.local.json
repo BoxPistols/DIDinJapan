@@ -15,7 +15,8 @@
       "Bash(if [ -f /Users/ai/client/KSD/DIDinJapan/.gitignore ])",
       "Bash(then cat /Users/ai/client/KSD/DIDinJapan/.gitignore)",
       "Bash(else echo \"No .gitignore file\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(npm install:*)"
     ]
   }
 }

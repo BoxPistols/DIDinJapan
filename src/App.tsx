@@ -848,7 +848,8 @@ function App() {
           transform: 'translateY(-50%)',
           width: 24,
           height: 48,
-          background: 'rgba(255,255,255,0.95)',
+          background: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+          color: darkMode ? '#fff' : '#333',
           border: 'none',
           borderRadius: '0 4px 4px 0',
           cursor: 'pointer',
@@ -868,11 +869,11 @@ function App() {
         bottom: 0,
         width: '280px',
         padding: '12px',
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        color: '#333',
+        backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+        color: darkMode ? '#fff' : '#333',
         overflowY: 'auto',
         zIndex: 10,
-        transition: 'left 0.3s ease',
+        transition: 'left 0.3s ease, background-color 0.3s ease',
         boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
         fontSize: '14px'
       }}>
@@ -882,7 +883,7 @@ function App() {
           margin: '0 0 16px',
           fontSize: '16px',
           fontWeight: 700,
-          color: '#333'
+          color: darkMode ? '#fff' : '#333'
         }}>
           DID Map
         </h1>
@@ -897,9 +898,11 @@ function App() {
             style={{
               width: '100%',
               padding: '6px 8px',
-              border: '1px solid #ccc',
+              border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
               borderRadius: '4px',
-              fontSize: '14px'
+              fontSize: '14px',
+              backgroundColor: darkMode ? '#333' : '#fff',
+              color: darkMode ? '#fff' : '#333'
             }}
           />
           {searchResults.length > 0 && (
@@ -908,8 +911,8 @@ function App() {
               top: '100%',
               left: 0,
               right: 0,
-              backgroundColor: '#fff',
-              border: '1px solid #ccc',
+              backgroundColor: darkMode ? '#333' : '#fff',
+              border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
               borderRadius: '0 0 4px 4px',
               maxHeight: '150px',
               overflowY: 'auto',
@@ -922,13 +925,14 @@ function App() {
                   style={{
                     padding: '6px 8px',
                     cursor: 'pointer',
-                    borderBottom: '1px solid #eee',
-                    fontSize: '12px'
+                    borderBottom: `1px solid ${darkMode ? '#444' : '#eee'}`,
+                    fontSize: '12px',
+                    color: darkMode ? '#fff' : '#333'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f0f0f0'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <span style={{ color: '#888', marginRight: '4px' }}>{item.prefName}</span>
+                  <span style={{ color: darkMode ? '#aaa' : '#888', marginRight: '4px' }}>{item.prefName}</span>
                   {item.cityName}
                 </div>
               ))}
@@ -946,8 +950,8 @@ function App() {
                 style={{
                   padding: '4px 8px',
                   fontSize: '12px',
-                  backgroundColor: baseMap === key ? '#4a90d9' : '#f0f0f0',
-                  color: baseMap === key ? '#fff' : '#333',
+                  backgroundColor: baseMap === key ? '#4a90d9' : (darkMode ? '#444' : '#f0f0f0'),
+                  color: baseMap === key ? '#fff' : (darkMode ? '#fff' : '#333'),
                   border: 'none',
                   borderRadius: '3px',
                   cursor: 'pointer'
@@ -961,7 +965,7 @@ function App() {
 
         {/* Opacity slider */}
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ fontSize: '12px', color: '#666' }}>
+          <label style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666' }}>
             透明度: {Math.round(opacity * 100)}%
           </label>
           <input
@@ -988,8 +992,8 @@ function App() {
         </div>
 
         {/* Restriction Areas Section */}
-        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f8f8f8', borderRadius: '4px' }}>
-          <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: '1px solid #ddd', paddingBottom: '4px' }}>
+        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: darkMode ? '#222' : '#f8f8f8', borderRadius: '4px' }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '4px' }}>
             禁止エリア
           </h3>
 
@@ -1049,8 +1053,8 @@ function App() {
           </label>
 
           {/* No-fly law section */}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #ddd' }}>
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>小型無人機等飛行禁止法</div>
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+            <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>小型無人機等飛行禁止法</div>
 
             <label title="飛行禁止区域：許可を得ずに飛行できません" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
               <input
@@ -1084,7 +1088,8 @@ function App() {
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#f0f0f0',
+                  backgroundColor: darkMode ? '#333' : '#f0f0f0',
+                  color: darkMode ? '#fff' : '#333',
                   border: 'none',
                   borderRadius: '3px',
                   cursor: 'pointer',
@@ -1103,13 +1108,13 @@ function App() {
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
                     <button
                       onClick={() => enableAllInGroup(group)}
-                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: '#e8e8e8', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: darkMode ? '#444' : '#e8e8e8', color: darkMode ? '#fff' : '#333', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
                     >
                       全て表示
                     </button>
                     <button
                       onClick={() => disableAllInGroup(group)}
-                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: '#e8e8e8', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: darkMode ? '#444' : '#e8e8e8', color: darkMode ? '#fff' : '#333', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
                     >
                       全て非表示
                     </button>
@@ -1145,7 +1150,8 @@ function App() {
           transform: 'translateY(-50%)',
           width: 24,
           height: 48,
-          background: 'rgba(255,255,255,0.95)',
+          background: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+          color: darkMode ? '#fff' : '#333',
           border: 'none',
           borderRadius: '4px 0 0 4px',
           cursor: 'pointer',
@@ -1165,22 +1171,22 @@ function App() {
         bottom: 0,
         width: '200px',
         padding: '12px',
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        color: '#333',
+        backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+        color: darkMode ? '#fff' : '#333',
         overflowY: 'auto',
         zIndex: 10,
-        transition: 'right 0.3s ease',
+        transition: 'right 0.3s ease, background-color 0.3s ease',
         boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
         fontSize: '14px'
       }}>
 
-        <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: '1px solid #ddd', paddingBottom: '4px' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '4px' }}>
           環境情報
         </h3>
 
         {/* Geographic Info */}
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>地理情報</div>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>地理情報</div>
           {GEO_OVERLAYS.filter(o => o.id !== 'buildings').map(overlay => (
             <label key={overlay.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
               <input
@@ -1205,7 +1211,7 @@ function App() {
 
         {/* Weather Info */}
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>天候情報</div>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>天候情報</div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
             <input
@@ -1231,7 +1237,7 @@ function App() {
 
         {/* Signal Info */}
         <div>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>電波種</div>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>電波種</div>
           <label title="LTE（見本データ）：携帯電話の通信カバレッジ強度" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
             <input
               type="checkbox"

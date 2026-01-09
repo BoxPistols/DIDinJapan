@@ -57,68 +57,145 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
   useEffect(() => {
     if (!map) return
 
-    // ダブルクリックズームを無効化（描画時の競合防止）
-    map.doubleClickZoom.disable()
-
     const draw = new MapboxDraw({
       displayControlsDefault: false,
       controls: {},
-      // タッチ対応とクリック検出の改善
+      // 基本設定
+      defaultMode: 'simple_select',
+      keybindings: true,
       touchEnabled: true,
-      clickBuffer: 4,
+      boxSelect: true,
+      clickBuffer: 2,
       touchBuffer: 25,
       styles: [
-        // 飛行範囲（ポリゴン）- 青系、ハッチングパターン風
+        // ポリゴン塗りつぶし - 非アクティブ
         {
-          id: 'gl-draw-polygon-fill',
+          id: 'gl-draw-polygon-fill-inactive',
           type: 'fill',
-          filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+          filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
           paint: {
             'fill-color': '#3388ff',
+            'fill-outline-color': '#3388ff',
             'fill-opacity': 0.2
           }
         },
+        // ポリゴン塗りつぶし - アクティブ
         {
-          id: 'gl-draw-polygon-stroke',
+          id: 'gl-draw-polygon-fill-active',
+          type: 'fill',
+          filter: ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+          paint: {
+            'fill-color': '#3388ff',
+            'fill-outline-color': '#3388ff',
+            'fill-opacity': 0.3
+          }
+        },
+        // ポリゴンストローク - 非アクティブ
+        {
+          id: 'gl-draw-polygon-stroke-inactive',
           type: 'line',
-          filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+          filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
           paint: {
             'line-color': '#3388ff',
             'line-width': 2
           }
         },
-        // 飛行経路（ライン）- 青
+        // ポリゴンストローク - アクティブ
         {
-          id: 'gl-draw-line',
+          id: 'gl-draw-polygon-stroke-active',
           type: 'line',
-          filter: ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
+          filter: ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
+          paint: {
+            'line-color': '#3388ff',
+            'line-dasharray': [0.2, 2],
+            'line-width': 2
+          }
+        },
+        // ライン - 非アクティブ
+        {
+          id: 'gl-draw-line-inactive',
+          type: 'line',
+          filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
           paint: {
             'line-color': '#3388ff',
             'line-width': 3
           }
         },
-        // ウェイポイント（ポイント）
+        // ライン - アクティブ
         {
-          id: 'gl-draw-point',
-          type: 'circle',
-          filter: ['all', ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+          id: 'gl-draw-line-active',
+          type: 'line',
+          filter: ['all', ['==', '$type', 'LineString'], ['==', 'active', 'true']],
+          layout: {
+            'line-cap': 'round',
+            'line-join': 'round'
+          },
           paint: {
-            'circle-radius': 8,
-            'circle-color': '#3388ff',
-            'circle-stroke-color': '#FFFFFF',
-            'circle-stroke-width': 2
+            'line-color': '#3388ff',
+            'line-dasharray': [0.2, 2],
+            'line-width': 3
           }
         },
-        // 頂点 - 選択時に編集可能
+        // ポイント - 非アクティブ
         {
-          id: 'gl-draw-polygon-and-line-vertex-active',
+          id: 'gl-draw-point-inactive',
           type: 'circle',
-          filter: ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point']],
+          filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Point'], ['==', 'meta', 'feature'], ['!=', 'mode', 'static']],
           paint: {
             'circle-radius': 6,
-            'circle-color': '#FFFFFF',
-            'circle-stroke-color': '#3388ff',
-            'circle-stroke-width': 2
+            'circle-color': '#3388ff'
+          }
+        },
+        // ポイント - アクティブ（描画中の点）
+        {
+          id: 'gl-draw-point-active',
+          type: 'circle',
+          filter: ['all', ['==', '$type', 'Point'], ['!=', 'meta', 'midpoint'], ['==', 'active', 'true']],
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#3388ff'
+          }
+        },
+        // 描画中のポイント
+        {
+          id: 'gl-draw-point-point-stroke-inactive',
+          type: 'circle',
+          filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Point'], ['==', 'meta', 'feature'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 8,
+            'circle-opacity': 1,
+            'circle-color': '#fff'
+          }
+        },
+        // 頂点 - アクティブ
+        {
+          id: 'gl-draw-polygon-and-line-vertex-stroke-inactive',
+          type: 'circle',
+          filter: ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 6,
+            'circle-color': '#fff'
+          }
+        },
+        {
+          id: 'gl-draw-polygon-and-line-vertex-inactive',
+          type: 'circle',
+          filter: ['all', ['==', 'meta', 'vertex'], ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 4,
+            'circle-color': '#3388ff'
           }
         },
         // ミッドポイント（頂点追加用）
@@ -128,9 +205,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
           filter: ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point']],
           paint: {
             'circle-radius': 4,
-            'circle-color': '#3388ff',
-            'circle-stroke-color': '#FFFFFF',
-            'circle-stroke-width': 1
+            'circle-color': '#3388ff'
           }
         }
       ]
@@ -195,8 +270,6 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
       map.off('draw.delete', handleDelete)
       map.off('draw.selectionchange', handleSelectionChange)
       map.off('draw.modechange', handleModeChange)
-      // ダブルクリックズームを再度有効化
-      map.doubleClickZoom.enable()
       // @ts-expect-error MapLibreとMapboxの互換性
       map.removeControl(draw)
     }
@@ -411,6 +484,36 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
     setDrawMode('none')
     setIsEditing(false)
     map.getCanvas().style.cursor = ''
+  }
+
+  // 円のリサイズ
+  const handleResizeCircle = (newRadiusM: number) => {
+    if (!drawRef.current || !selectedFeatureId) return
+
+    const feature = drawRef.current.get(selectedFeatureId)
+    if (!feature || !feature.properties?.isCircle || !feature.properties?.center) return
+
+    const center = feature.properties.center as [number, number]
+    const radiusKm = newRadiusM / 1000
+
+    // 新しい円ポリゴンを作成
+    const newCirclePolygon = createCirclePolygon(center, radiusKm, 24)
+
+    // フィーチャーを更新
+    drawRef.current.delete(selectedFeatureId)
+    const newFeature = drawRef.current.add({
+      type: 'Feature',
+      properties: { isCircle: true, radiusKm, center },
+      geometry: newCirclePolygon
+    })
+
+    // 新しいフィーチャーを選択
+    if (newFeature && newFeature[0]) {
+      setSelectedFeatureId(newFeature[0])
+      drawRef.current.changeMode('simple_select', { featureIds: newFeature })
+    }
+
+    updateFeatures()
   }
 
   const bgColor = darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)'
@@ -663,6 +766,40 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
               )}
             </div>
           </div>
+
+          {/* 選択中の円のリサイズ */}
+          {selectedFeatureId && drawnFeatures.find(f => f.id === selectedFeatureId)?.type === 'circle' && (
+            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: darkMode ? '#333' : '#e8f5e9', borderRadius: '4px', border: '1px solid #4caf50' }}>
+              <label style={{ fontSize: '12px', color: '#4caf50', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
+                円のサイズ変更
+              </label>
+              <select
+                value={drawnFeatures.find(f => f.id === selectedFeatureId)?.radius || 100}
+                onChange={(e) => handleResizeCircle(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  border: `1px solid ${borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  backgroundColor: buttonBg,
+                  color: textColor
+                }}
+              >
+                <option value={10}>10m</option>
+                <option value={30}>30m</option>
+                <option value={50}>50m</option>
+                <option value={100}>100m</option>
+                <option value={150}>150m</option>
+                <option value={200}>200m</option>
+                <option value={300}>300m</option>
+                <option value={500}>500m</option>
+                <option value={1000}>1km</option>
+                <option value={2000}>2km</option>
+                <option value={5000}>5km</option>
+              </select>
+            </div>
+          )}
 
           {/* 編集・削除ボタン */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
