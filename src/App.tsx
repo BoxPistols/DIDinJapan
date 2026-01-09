@@ -632,7 +632,8 @@ function App() {
     const state = layerStates.get(layer.id)
 
     if (!state) {
-      addLayer(layer)
+      // 未ロード: ロードして表示
+      addLayer(layer, true)
       return
     }
 
@@ -664,9 +665,25 @@ function App() {
   const isLayerVisible = (layerId: string) => layerStates.get(layerId)?.visible ?? false
 
   const enableAllInGroup = (group: LayerGroup) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
     group.layers.forEach(layer => {
-      if (!isLayerVisible(layer.id)) {
-        addLayer(layer)
+      const state = layerStates.get(layer.id)
+      if (state) {
+        // 既にロード済み: 表示に切り替え
+        if (!state.visible) {
+          map.setLayoutProperty(layer.id, 'visibility', 'visible')
+          map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
+          setLayerStates(prev => {
+            const next = new Map(prev)
+            next.set(layer.id, { ...state, visible: true })
+            return next
+          })
+        }
+      } else {
+        // 未ロード: ロードして表示
+        addLayer(layer, true)
       }
     })
   }
