@@ -10,7 +10,7 @@ export function ToastContainer() {
 
   useEffect(() => {
     const unsubscribe = subscribeToToasts(setToasts)
-    return unsubscribe
+    return () => { unsubscribe() }
   }, [])
 
   return (

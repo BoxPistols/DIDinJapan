@@ -10,7 +10,7 @@ export function DialogContainer() {
 
   useEffect(() => {
     const unsubscribe = subscribeToDialogs(setDialogs)
-    return unsubscribe
+    return () => { unsubscribe() }
   }, [])
 
   return (

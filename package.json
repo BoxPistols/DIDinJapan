@@ -57,7 +57,9 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@mapbox/mapbox-gl-draw": "^1.5.1"
+  },
   "devDependencies": {
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/addon-interactions": "^8.6.14",
@@ -67,6 +69,7 @@
     "@storybook/react-vite": "^8.6.15",
     "@storybook/test": "^8.6.15",
     "@types/geojson": "^7946.0.16",
+    "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

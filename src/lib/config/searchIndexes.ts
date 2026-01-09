@@ -3,8 +3,11 @@
  * Maps prefecture to list of cities/municipalities in that prefecture
  */
 
-import { SearchIndexItem } from '../types'
+import type { SearchIndexItem as _SearchIndexItem } from '../types'
 import { LAYER_GROUPS } from './layers'
+
+// Re-export type to suppress unused warning while preserving type availability
+export type { _SearchIndexItem as SearchIndexItem }
 
 // Build mapping of layerId to prefecture information
 const layerIdToPrefecture = new Map<string, { name: string; groupName: string }>()

@@ -27,6 +27,7 @@ import {
 } from './lib'
 import type { BaseMapKey, LayerConfig, LayerGroup, SearchIndexItem, LayerState, CustomLayer } from './lib'
 import { CustomLayerManager } from './components/CustomLayerManager'
+import { DrawingTools } from './components/DrawingTools'
 import { ToastContainer } from './components/Toast'
 import { DialogContainer } from './components/Dialog'
 
@@ -79,6 +80,9 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(false)
 
   const layerIdToName = createLayerIdToNameMap()
 
@@ -1242,6 +1246,12 @@ function App() {
       {/* Map Container */}
       <div ref={mapContainer} style={{ flex: 1 }} />
 
+      {/* Drawing Tools */}
+      <DrawingTools
+        map={mapRef.current}
+        darkMode={darkMode}
+      />
+
       {/* Custom Layer Manager */}
       <CustomLayerManager
         onLayerAdded={handleCustomLayerAdded}
@@ -1249,6 +1259,29 @@ function App() {
         onLayerToggle={handleCustomLayerToggle}
         visibleLayers={customLayerVisibility}
       />
+
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        style={{
+          position: 'fixed',
+          top: 20,
+          right: showRightLegend ? 220 : 20,
+          padding: '8px 12px',
+          backgroundColor: darkMode ? '#333' : '#fff',
+          color: darkMode ? '#fff' : '#333',
+          border: '1px solid #ccc',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          zIndex: 1000,
+          transition: 'right 0.3s ease'
+        }}
+        title={darkMode ? 'ライトモードに切替' : 'ダークモードに切替'}
+      >
+        {darkMode ? '☀️' : '🌙'}
+      </button>
 
       {/* Attribution */}
       <div style={{
