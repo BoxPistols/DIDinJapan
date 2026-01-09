@@ -56,6 +56,19 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([])
   const [selectedCount, setSelectedCount] = useState(0)
+  const [continuousMode, setContinuousMode] = useState(true) // WP連続配置モード
+  const drawModeRef = useRef<DrawMode>('none') // 描画モードをrefでも保持
+  const continuousModeRef = useRef(true) // 連続モードをrefでも保持
+
+  // drawModeが変更されたらrefも更新
+  useEffect(() => {
+    drawModeRef.current = drawMode
+  }, [drawMode])
+
+  // continuousModeが変更されたらrefも更新
+  useEffect(() => {
+    continuousModeRef.current = continuousMode
+  }, [continuousMode])
 
   // Delete/Backspaceキーで選択オブジェクトを削除
   useEffect(() => {
@@ -268,6 +281,16 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
     // イベントハンドラ
     const handleCreate = (e: { features: Array<{ id: string }> }) => {
       updateFeatures()
+
+      // WP連続モードの場合は継続
+      if (drawModeRef.current === 'point' && continuousModeRef.current) {
+        // 連続モード: draw_pointモードを維持
+        setTimeout(() => {
+          draw.changeMode('draw_point')
+        }, 50)
+        return
+      }
+
       // 作成後、自動的に選択状態にして編集しやすく
       if (e.features.length > 0) {
         const newFeatureId = e.features[0].id
@@ -733,7 +756,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
         {/* Drawing Tools */}
         <div style={{ padding: '12px 16px' }}>
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', display: 'block', marginBottom: '6px' }}>
+            <label style={{ fontSize: '12px', color: darkMode ? '#ccc' : '#666', display: 'block', marginBottom: '6px' }}>
               描画ツール
             </label>
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -806,7 +829,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
               <label style={{ fontSize: '12px', color: '#3388ff', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>
                 半径: {circleRadius}m
               </label>
-              <p style={{ fontSize: '10px', color: darkMode ? '#aaa' : '#666', margin: '0 0 8px' }}>
+              <p style={{ fontSize: '10px', color: darkMode ? '#ccc' : '#666', margin: '0 0 8px' }}>
                 地図をクリックして円を配置
               </p>
               <select
@@ -837,9 +860,34 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
             </div>
           )}
 
+          {/* WP連続配置モード */}
+          {drawMode === 'point' && (
+            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: darkMode ? '#333' : '#f0f8ff', borderRadius: '4px', border: '1px solid #3388ff' }}>
+              <label style={{
+                fontSize: '12px',
+                color: darkMode ? '#eee' : '#333',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={continuousMode}
+                  onChange={(e) => setContinuousMode(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span style={{ fontWeight: 'bold' }}>連続配置モード</span>
+              </label>
+              <p style={{ fontSize: '10px', color: darkMode ? '#ccc' : '#666', margin: '6px 0 0', paddingLeft: '24px' }}>
+                {continuousMode ? 'クリックで連続してWPを配置' : 'クリックで1つ配置して終了'}
+              </p>
+            </div>
+          )}
+
           {/* 描画済みフィーチャー一覧 */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', display: 'block', marginBottom: '6px' }}>
+            <label style={{ fontSize: '12px', color: darkMode ? '#ccc' : '#666', display: 'block', marginBottom: '6px' }}>
               描画済み ({drawnFeatures.length})
             </label>
             <div style={{
@@ -849,7 +897,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
               borderRadius: '4px'
             }}>
               {drawnFeatures.length === 0 ? (
-                <p style={{ padding: '8px', fontSize: '11px', color: darkMode ? '#888' : '#888', margin: 0, textAlign: 'center' }}>
+                <p style={{ padding: '8px', fontSize: '11px', color: darkMode ? '#aaa' : '#888', margin: 0, textAlign: 'center' }}>
                   地図上をクリックして描画
                 </p>
               ) : (
@@ -873,7 +921,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
                         backgroundColor: '#3388ff'
                       }} />
                       <span>{f.name}</span>
-                      <span style={{ marginLeft: 'auto', color: darkMode ? '#888' : '#888' }}>
+                      <span style={{ marginLeft: 'auto', color: darkMode ? '#aaa' : '#888' }}>
                         {f.type === 'circle' && f.radius ? `${f.radius}m` : ''}
                       </span>
                     </div>
@@ -1017,7 +1065,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
           backgroundColor: darkMode ? '#222' : '#f8f8f8',
           borderTop: `1px solid ${borderColor}`,
           fontSize: '10px',
-          color: darkMode ? '#888' : '#666'
+          color: darkMode ? '#bbb' : '#666'
         }}>
           <p style={{ margin: '0 0 4px', fontWeight: 'bold' }}>操作ガイド:</p>
           <ul style={{ margin: 0, paddingLeft: '16px', lineHeight: 1.6 }}>
