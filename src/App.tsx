@@ -59,6 +59,7 @@ function App() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const showTooltipRef = useRef(false)
+  const restrictionStatesRef = useRef<Map<string, boolean>>(new Map())
 
   // State
   const [layerStates, setLayerStates] = useState<Map<string, LayerState>>(new Map())
@@ -126,6 +127,13 @@ function App() {
   }, [showTooltip])
 
   // ============================================
+  // Restriction states ref sync
+  // ============================================
+  useEffect(() => {
+    restrictionStatesRef.current = restrictionStates
+  }, [restrictionStates])
+
+  // ============================================
   // Keyboard shortcuts
   // ============================================
   useEffect(() => {
@@ -158,6 +166,12 @@ function App() {
           break
         case 't':
           setShowTooltip(prev => !prev)
+          break
+        case '2':
+          setIs3DMode(false)
+          break
+        case '3':
+          setIs3DMode(true)
           break
         case '?':
         case '/':
@@ -848,7 +862,8 @@ function App() {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    const isVisible = restrictionStates.get(restrictionId) ?? false
+    // refから最新の状態を取得（キーボードショートカット対応）
+    const isVisible = restrictionStatesRef.current.get(restrictionId) ?? false
 
     if (!isVisible) {
       let geojson: GeoJSON.FeatureCollection | null = null
@@ -1257,7 +1272,7 @@ function App() {
               checked={showTooltip}
               onChange={(e) => setShowTooltip(e.target.checked)}
             />
-            <span style={{ fontSize: '14px' }}>詳細情報表示</span>
+            <span style={{ fontSize: '14px' }}>ツールチップ表示 [T]</span>
           </label>
         </div>
 
@@ -1727,7 +1742,11 @@ function App() {
                 <div style={{ fontWeight: 600, marginBottom: '8px', color: darkMode ? '#4a90d9' : '#2563eb' }}>表示設定</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: '4px 8px' }}>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>T</kbd>
-                  <span>詳細情報表示の切替</span>
+                  <span>ツールチップ表示の切替</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>2</kbd>
+                  <span>2D表示</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>3</kbd>
+                  <span>3D表示</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>?</kbd>
                   <span>ヘルプ表示</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>Esc</kbd>
