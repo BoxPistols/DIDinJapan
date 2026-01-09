@@ -1266,23 +1266,28 @@ function App() {
         visibleLayers={customLayerVisibility}
       />
 
-      {/* Dark Mode Toggle */}
+      {/* Dark Mode Toggle - ナビコントロールの下に配置 */}
       <button
         onClick={() => setDarkMode(!darkMode)}
         style={{
           position: 'fixed',
-          top: 20,
-          right: showRightLegend ? 220 : 20,
-          padding: '8px 12px',
+          top: 120,
+          right: showRightLegend ? 220 : 12,
+          padding: '6px',
+          width: 30,
+          height: 30,
           backgroundColor: darkMode ? '#333' : '#fff',
           color: darkMode ? '#fff' : '#333',
-          border: '1px solid #ccc',
+          border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
-          fontSize: '12px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          fontSize: '14px',
+          boxShadow: '0 0 0 2px rgba(0,0,0,0.1)',
           zIndex: 1000,
-          transition: 'right 0.3s ease'
+          transition: 'right 0.3s ease',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
         }}
         title={darkMode ? 'ライトモードに切替' : 'ダークモードに切替'}
       >
