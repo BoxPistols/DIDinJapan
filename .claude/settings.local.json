@@ -10,7 +10,12 @@
       "Bash(gh pr view:*)",
       "Bash(jq:*)",
       "Bash(gh pr diff:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git rm:*)",
+      "Bash(if [ -f /Users/ai/client/KSD/DIDinJapan/.gitignore ])",
+      "Bash(then cat /Users/ai/client/KSD/DIDinJapan/.gitignore)",
+      "Bash(else echo \"No .gitignore file\")",
+      "Bash(fi)"
     ]
   }
 }

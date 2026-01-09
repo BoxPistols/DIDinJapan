@@ -154,11 +154,9 @@ function App() {
       zoom: DEFAULT_ZOOM
     }
 
-    // Set projection based on selected base map
+    // Set projection for Mercator map
     if (baseMap === 'mercator') {
       mapConfig.projection = { type: 'mercator' } as any
-    } else if (baseMap === 'globe') {
-      mapConfig.projection = { type: 'globe' } as any
     }
 
     const map = new maplibregl.Map(mapConfig)
@@ -173,16 +171,6 @@ function App() {
     })
 
     map.on('load', () => {
-      // Update projection after map loads
-      try {
-        if (baseMap === 'mercator') {
-          map.setProjection({ type: 'mercator' } as any)
-        } else if (baseMap === 'globe') {
-          map.setProjection({ type: 'globe' } as any)
-        }
-      } catch (e) {
-        console.warn('Failed to set projection:', e)
-      }
       setMapLoaded(true)
     })
 
