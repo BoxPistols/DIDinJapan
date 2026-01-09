@@ -28,6 +28,11 @@ export {
   createLayerIdToNameMap,
   getAllLayers
 } from './config/layers'
+export {
+  getPrefectureInfo,
+  getAllPrefectureLayerIds,
+  findLayersByPrefecture
+} from './config/searchIndexes'
 
 // Services
 export {
