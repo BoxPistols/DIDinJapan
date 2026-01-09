@@ -57,21 +57,6 @@ export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | mapli
       layers: [{ id: 'photo-layer', type: 'raster' as const, source: 'photo' }]
     }
   },
-  mercator: {
-    name: 'メルカトル図法',
-    style: {
-      version: 8 as const,
-      sources: {
-        gsi: {
-          type: 'raster' as const,
-          tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
-          tileSize: 256,
-          attribution: GSI_ATTRIBUTION
-        }
-      },
-      layers: [{ id: 'gsi-mercator', type: 'raster' as const, source: 'gsi' }]
-    }
-  }
 }
 
 export const DEFAULT_CENTER: [number, number] = [137.0, 36.5]

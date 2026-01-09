@@ -108,11 +108,12 @@ function App() {
   // Debounce search with 300ms delay
   useEffect(() => {
     const timer = setTimeout(() => {
+      console.log('Search term:', searchTerm, 'Search index size:', searchIndex.length)
       performSearch(searchTerm)
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [searchTerm, performSearch])
+  }, [searchTerm, performSearch, searchIndex.length])
 
   const flyToFeature = (item: SearchIndexItem) => {
     const map = mapRef.current
@@ -154,10 +155,6 @@ function App() {
       zoom: DEFAULT_ZOOM
     }
 
-    // Set projection for Mercator map
-    if (baseMap === 'mercator') {
-      mapConfig.projection = { type: 'mercator' } as any
-    }
 
     const map = new maplibregl.Map(mapConfig)
 
@@ -362,9 +359,11 @@ function App() {
   useEffect(() => {
     if (!mapLoaded || searchIndex.length > 0) return
 
+    console.log('Loading default layers for search...')
     // Load default layers for search to work
     const kantoGroup = LAYER_GROUPS.find(g => g.name === '関東')
     if (kantoGroup) {
+      console.log('Found Kanto group, loading layers:', kantoGroup.layers.slice(0, 3).map(l => l.name))
       kantoGroup.layers.slice(0, 3).forEach(layer => {
         addLayer(layer)
       })

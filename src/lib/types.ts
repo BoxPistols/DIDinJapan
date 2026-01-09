@@ -18,7 +18,7 @@ export interface BaseMapConfig {
 }
 
 /** Type for available base map selections */
-export type BaseMapKey = 'osm' | 'gsi' | 'pale' | 'photo' | 'mercator'
+export type BaseMapKey = 'osm' | 'gsi' | 'pale' | 'photo'
 
 // ============================================
 // Layer Types
