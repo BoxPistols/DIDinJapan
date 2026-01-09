@@ -96,6 +96,9 @@ function App() {
       setSearchResults([])
       return
     }
+    if (searchIndex.length > 0) {
+      console.log('First search item:', searchIndex[0])
+    }
     const results = searchIndex.filter(item =>
       item.cityName.includes(term) || item.prefName.includes(term)
     )
