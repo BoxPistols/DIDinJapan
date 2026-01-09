@@ -173,6 +173,16 @@ function App() {
     })
 
     map.on('load', () => {
+      // Update projection after map loads
+      try {
+        if (baseMap === 'mercator') {
+          map.setProjection({ type: 'mercator' } as any)
+        } else if (baseMap === 'globe') {
+          map.setProjection({ type: 'globe' } as any)
+        }
+      } catch (e) {
+        console.warn('Failed to set projection:', e)
+      }
       setMapLoaded(true)
     })
 
