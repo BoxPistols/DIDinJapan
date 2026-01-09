@@ -104,14 +104,12 @@ function App() {
     const uniqueResults = Array.from(
       new Map(results.map(item => [item.prefName + item.cityName, item])).values()
     )
-    console.log(`Search results for "${term}": ${uniqueResults.length} items (raw: ${results.length})`)
     setSearchResults(uniqueResults.slice(0, 10))
   }, [searchIndex])
 
   // Debounce search with 300ms delay
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('Search term:', searchTerm, 'Search index size:', searchIndex.length)
       performSearch(searchTerm)
     }, 300)
 
@@ -120,12 +118,8 @@ function App() {
 
   const flyToFeature = (item: SearchIndexItem) => {
     const map = mapRef.current
-    if (!map) {
-      console.log('Map not found!')
-      return
-    }
+    if (!map) return
 
-    console.log('Zooming to:', item.prefName, item.cityName, 'bbox:', item.bbox)
     map.fitBounds(item.bbox, { padding: 50, maxZoom: 14 })
 
     const state = layerStates.get(item.layerId)
@@ -366,12 +360,10 @@ function App() {
   useEffect(() => {
     if (!mapLoaded || searchIndex.length > 0) return
 
-    console.log('Loading default layers for search...')
     // Load multiple regions for better search coverage
     const regionsToLoad = ['関東', '近畿', '中部']
     LAYER_GROUPS.forEach(group => {
       if (regionsToLoad.includes(group.name)) {
-        console.log(`Loading region: ${group.name}`)
         group.layers.forEach(layer => {
           addLayer(layer)
         })
@@ -385,7 +377,6 @@ function App() {
   useEffect(() => {
     if (!searchTerm || searchResults.length > 0 || isLoadingForSearch) return
 
-    console.log(`Search returned 0 results for "${searchTerm}", loading unloaded layers...`)
     setIsLoadingForSearch(true)
 
     // Find layers that haven't been loaded yet
@@ -394,25 +385,19 @@ function App() {
     const unloadedLayerIds = allLayerIds.filter(id => !loadedLayerIds.has(id))
 
     if (unloadedLayerIds.length === 0) {
-      console.log('All layers already loaded, no more prefectures to load')
       setIsLoadingForSearch(false)
       return
     }
 
-    console.log(`Found ${unloadedLayerIds.length} unloaded prefectures, loading...`)
-
     // Find and load all unloaded layers
-    let loadCount = 0
     LAYER_GROUPS.forEach(group => {
       group.layers.forEach(layer => {
         if (unloadedLayerIds.includes(layer.id)) {
           addLayer(layer)
-          loadCount++
         }
       })
     })
 
-    console.log(`Requested loading of ${loadCount} unloaded layers`)
     setIsLoadingForSearch(false)
   }, [searchTerm, searchResults.length, isLoadingForSearch, layerStates, addLayer])
 
@@ -913,10 +898,6 @@ function App() {
               fontSize: '14px'
             }}
           />
-          {/* Debug info */}
-          <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-            検索インデックス: {searchIndex.length} | 結果: {searchResults.length}
-          </div>
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute',
