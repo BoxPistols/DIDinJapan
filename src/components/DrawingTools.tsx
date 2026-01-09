@@ -265,13 +265,21 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
     map.on('draw.modechange', handleModeChange)
 
     return () => {
-      map.off('draw.create', handleCreate)
-      map.off('draw.update', handleUpdate)
-      map.off('draw.delete', handleDelete)
-      map.off('draw.selectionchange', handleSelectionChange)
-      map.off('draw.modechange', handleModeChange)
-      // @ts-expect-error MapLibreとMapboxの互換性
-      map.removeControl(draw)
+      try {
+        // マップが有効な場合のみクリーンアップ
+        if (map && map.getCanvas()) {
+          map.off('draw.create', handleCreate)
+          map.off('draw.update', handleUpdate)
+          map.off('draw.delete', handleDelete)
+          map.off('draw.selectionchange', handleSelectionChange)
+          map.off('draw.modechange', handleModeChange)
+          // @ts-expect-error MapLibreとMapboxの互換性
+          map.removeControl(draw)
+        }
+      } catch {
+        // マップが既に破棄されている場合は無視
+      }
+      drawRef.current = null
     }
   }, [map])
 
@@ -302,8 +310,14 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false }: Drawin
     map.getCanvas().style.cursor = 'crosshair'
 
     return () => {
-      map.off('click', handleClick)
-      map.getCanvas().style.cursor = ''
+      try {
+        if (map && map.getCanvas()) {
+          map.off('click', handleClick)
+          map.getCanvas().style.cursor = ''
+        }
+      } catch {
+        // マップが既に破棄されている場合は無視
+      }
     }
   }, [map, drawMode, circleRadius])
 
