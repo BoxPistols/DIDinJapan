@@ -299,12 +299,33 @@ function App() {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
+    // DIDレイヤーに透明度を適用
     layerStates.forEach((state) => {
       if (state.visible && map.getLayer(state.id)) {
         map.setPaintProperty(state.id, 'fill-opacity', opacity)
       }
     })
-  }, [opacity, layerStates, mapLoaded])
+
+    // 禁止エリアレイヤーにも透明度を適用
+    restrictionStates.forEach((isVisible, restrictionId) => {
+      if (!isVisible) return
+
+      if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
+        // 全国DIDの各レイヤー
+        const allLayers = getAllLayers()
+        allLayers.forEach(layer => {
+          const sourceId = `${restrictionId}-${layer.id}`
+          if (map.getLayer(sourceId)) {
+            map.setPaintProperty(sourceId, 'fill-opacity', opacity)
+          }
+        })
+      } else {
+        if (map.getLayer(restrictionId)) {
+          map.setPaintProperty(restrictionId, 'fill-opacity', opacity)
+        }
+      }
+    })
+  }, [opacity, layerStates, restrictionStates, mapLoaded])
 
   // ============================================
   // Layer management
@@ -697,7 +718,7 @@ function App() {
                 id: sourceId,
                 type: 'fill',
                 source: sourceId,
-                paint: { 'fill-color': color, 'fill-opacity': 0.4 }
+                paint: { 'fill-color': color, 'fill-opacity': opacity }
               })
               map.addLayer({
                 id: `${sourceId}-outline`,
@@ -723,7 +744,7 @@ function App() {
           id: restrictionId,
           type: 'fill',
           source: restrictionId,
-          paint: { 'fill-color': color, 'fill-opacity': 0.4 }
+          paint: { 'fill-color': color, 'fill-opacity': opacity }
         })
         map.addLayer({
           id: `${restrictionId}-outline`,
