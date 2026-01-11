@@ -593,6 +593,14 @@ function App() {
 
       map.addSource(layer.id, { type: 'geojson', data })
 
+      // レイヤーが既に存在する場合は削除
+      if (map.getLayer(layer.id)) {
+        map.removeLayer(layer.id)
+      }
+      if (map.getLayer(`${layer.id}-outline`)) {
+        map.removeLayer(`${layer.id}-outline`)
+      }
+
       map.addLayer({
         id: layer.id,
         type: 'fill',
@@ -981,6 +989,15 @@ function App() {
               const sourceId = `${restrictionId}-${layer.id}`
 
               map.addSource(sourceId, { type: 'geojson', data })
+
+              // レイヤーが既に存在する場合は削除
+              if (map.getLayer(sourceId)) {
+                map.removeLayer(sourceId)
+              }
+              if (map.getLayer(`${sourceId}-outline`)) {
+                map.removeLayer(`${sourceId}-outline`)
+              }
+
               map.addLayer({
                 id: sourceId,
                 type: 'fill',
