@@ -52,6 +52,12 @@ const ZONE_IDS = {
 } as const
 
 // ============================================
+// UI Settings Constants
+// ============================================
+const SETTINGS_EXPIRATION_DAYS = 30
+const SETTINGS_EXPIRATION_MS = SETTINGS_EXPIRATION_DAYS * 24 * 60 * 60 * 1000
+
+// ============================================
 // Main App Component
 // ============================================
 function App() {
@@ -101,10 +107,9 @@ function App() {
       if (stored) {
         const { darkMode: savedDarkMode, timestamp } = JSON.parse(stored)
         const now = Date.now()
-        const oneMonth = 30 * 24 * 60 * 60 * 1000 // 30日
 
         // 期限内なら保存された設定を使用
-        if (timestamp && (now - timestamp) < oneMonth) {
+        if (timestamp && (now - timestamp) < SETTINGS_EXPIRATION_MS) {
           return savedDarkMode ?? false
         }
 

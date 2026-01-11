@@ -42,6 +42,9 @@ interface DrawnFeature {
   radius?: number // 円の場合の半径(m)
   center?: [number, number] // 円の中心座標
   properties?: Record<string, unknown>
+  elevation?: number // 標高（メートル）- 国土地理院から取得
+  flightHeight?: number // 飛行高度（メートル）- 相対高度
+  maxAltitude?: number // 上限海抜高度（メートル）= 標高 + 飛行高度
 }
 
 export interface DrawingToolsProps {
@@ -464,6 +467,11 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
         ? (f.properties?.name as string)
         : `${type}-${id.slice(0, 6)}`
 
+      // 高度情報を取得
+      const elevation = f.properties?.elevation as number | undefined
+      const flightHeight = f.properties?.flightHeight as number | undefined
+      const maxAltitude = f.properties?.maxAltitude as number | undefined
+
       return {
         id,
         type,
@@ -472,6 +480,9 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
         radius: f.properties?.radiusKm ? (f.properties.radiusKm as number) * 1000 : undefined,
         center: f.properties?.center as [number, number] | undefined,
         properties: f.properties || {},
+        elevation,
+        flightHeight,
+        maxAltitude,
       }
     })
 
@@ -603,23 +614,103 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
   const handleRenameFeature = (featureId: string, newName: string) => {
     if (!drawRef.current) return
 
+    // setFeaturePropertyを使用して効率的にプロパティを更新
+    drawRef.current.setFeatureProperty(featureId, 'name', newName)
+
+    // UIの表示を更新
+    updateFeatures()
+  }
+
+  // エリアの中心座標を取得
+  const getFeatureCenter = (feature: DrawnFeature): [number, number] | null => {
+    if (feature.type === 'circle' && feature.center) {
+      return feature.center
+    } else if (feature.type === 'point' && Array.isArray(feature.coordinates)) {
+      return feature.coordinates as [number, number]
+    } else if (feature.type === 'polygon' && Array.isArray(feature.coordinates) && feature.coordinates.length > 0) {
+      const outerRing = feature.coordinates[0] as [number, number][]
+      if (outerRing.length > 0) {
+        // ポリゴンの重心を計算
+        let sumLng = 0, sumLat = 0
+        outerRing.forEach(coord => {
+          sumLng += coord[0]
+          sumLat += coord[1]
+        })
+        return [sumLng / outerRing.length, sumLat / outerRing.length]
+      }
+    } else if (feature.type === 'line' && Array.isArray(feature.coordinates) && feature.coordinates.length > 0) {
+      const lineCoords = feature.coordinates as [number, number][]
+      // ラインの中点
+      const midIndex = Math.floor(lineCoords.length / 2)
+      return lineCoords[midIndex]
+    }
+    return null
+  }
+
+  // 国土地理院APIから標高を取得
+  const handleFetchElevation = async (featureId: string) => {
+    if (!drawRef.current) return
+
+    const drawnFeature = drawnFeatures.find(f => f.id === featureId)
+    if (!drawnFeature) return
+
+    const center = getFeatureCenter(drawnFeature)
+    if (!center) {
+      alert('座標の取得に失敗しました')
+      return
+    }
+
+    const [lng, lat] = center
+
+    try {
+      // 国土地理院の標高API
+      const response = await fetch(
+        `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`
+      )
+      const data = await response.json()
+
+      if (data.elevation !== null && data.elevation !== undefined) {
+        const elevation = Math.round(data.elevation)
+
+        const feature = drawRef.current.get(featureId)
+        if (!feature) return
+
+        // setFeaturePropertyを使用して効率的にプロパティを更新
+        drawRef.current.setFeatureProperty(featureId, 'elevation', elevation)
+
+        // 飛行高度が設定されている場合は上限高度を再計算
+        const flightHeight = feature.properties?.flightHeight as number | undefined
+        if (flightHeight !== undefined) {
+          drawRef.current.setFeatureProperty(featureId, 'maxAltitude', elevation + flightHeight)
+        }
+
+        updateFeatures()
+      } else {
+        alert('標高データの取得に失敗しました')
+      }
+    } catch (error) {
+      console.error('標高取得エラー:', error)
+      alert('標高の取得中にエラーが発生しました')
+    }
+  }
+
+  // 飛行高度を更新（上限高度を自動計算）
+  const handleUpdateFlightHeight = (featureId: string, flightHeight: number | undefined) => {
+    if (!drawRef.current) return
+
     const feature = drawRef.current.get(featureId)
     if (!feature) return
 
-    // プロパティを更新
-    feature.properties = {
-      ...feature.properties,
-      name: newName
-    }
+    const elevation = feature.properties?.elevation as number | undefined
 
-    // フィーチャーを更新（削除して再追加）
-    drawRef.current.delete(featureId)
-    const updatedIds = drawRef.current.add(feature)
+    // setFeaturePropertyを使用して効率的にプロパティを更新
+    drawRef.current.setFeatureProperty(featureId, 'flightHeight', flightHeight)
 
-    // 選択状態を維持
-    if (updatedIds && updatedIds.length > 0) {
-      setSelectedFeatureId(String(updatedIds[0]))
-    }
+    // 上限高度を自動計算
+    const maxAltitude = elevation !== undefined && flightHeight !== undefined
+      ? elevation + flightHeight
+      : undefined
+    drawRef.current.setFeatureProperty(featureId, 'maxAltitude', maxAltitude)
 
     updateFeatures()
   }
@@ -635,6 +726,19 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
       type: 'FeatureCollection',
       features: features.map(f => {
         const props = { ...f.properties }
+
+        // 高度情報を取得
+        const drawnFeature = drawnFeatures.find(df => String(df.id) === String(f.id))
+        if (drawnFeature?.maxAltitude !== undefined) {
+          props.maxAltitude = drawnFeature.maxAltitude
+        }
+        if (drawnFeature?.elevation !== undefined) {
+          props.elevation = drawnFeature.elevation
+        }
+        if (drawnFeature?.flightHeight !== undefined) {
+          props.flightHeight = drawnFeature.flightHeight
+        }
+
         // 円の場合は中心点と半径のみを出力
         if (props.isCircle && props.center) {
           return {
@@ -642,7 +746,10 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
             properties: {
               type: 'circle',
               radiusM: (props.radiusKm as number) * 1000,
-              center: props.center
+              center: props.center,
+              ...(props.maxAltitude !== undefined && { maxAltitude: props.maxAltitude }),
+              ...(props.elevation !== undefined && { elevation: props.elevation }),
+              ...(props.flightHeight !== undefined && { flightHeight: props.flightHeight })
             },
             geometry: {
               type: 'Point',
@@ -650,7 +757,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
             }
           }
         }
-        return f
+        return { ...f, properties: props }
       }),
       metadata: {
         exportedAt: new Date().toISOString(),
@@ -665,24 +772,38 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
     const kmlFeatures = features.map(f => {
       const props = f.properties || {}
       const name = props.name || f.id || 'Unnamed'
+
+      // 高度情報を取得
+      const drawnFeature = drawnFeatures.find(df => String(df.id) === String(f.id))
+      const maxAlt = drawnFeature?.maxAltitude ?? 0
+      const elevation = drawnFeature?.elevation
+      const flightHeight = drawnFeature?.flightHeight
+
       let coordinatesKML = ''
+      let extendedData = ''
+
+      // ExtendedDataで高度情報を含める
+      if (elevation !== undefined || flightHeight !== undefined || drawnFeature?.maxAltitude !== undefined) {
+        extendedData = `      <ExtendedData>
+${elevation !== undefined ? `        <Data name="elevation"><value>${elevation}</value></Data>\n` : ''}${flightHeight !== undefined ? `        <Data name="flightHeight"><value>${flightHeight}</value></Data>\n` : ''}${drawnFeature?.maxAltitude !== undefined ? `        <Data name="maxAltitude"><value>${drawnFeature.maxAltitude}</value></Data>\n` : ''}      </ExtendedData>\n`
+      }
 
       if (f.geometry.type === 'Point') {
         const coords = f.geometry.coordinates as [number, number]
-        coordinatesKML = `<Point><coordinates>${coords[0]},${coords[1]},0</coordinates></Point>`
+        coordinatesKML = `<Point><coordinates>${coords[0]},${coords[1]},${maxAlt}</coordinates></Point>`
       } else if (f.geometry.type === 'LineString') {
         const coords = f.geometry.coordinates as [number, number][]
-        const coordStr = coords.map(c => `${c[0]},${c[1]},0`).join(' ')
+        const coordStr = coords.map(c => `${c[0]},${c[1]},${maxAlt}`).join(' ')
         coordinatesKML = `<LineString><coordinates>${coordStr}</coordinates></LineString>`
       } else if (f.geometry.type === 'Polygon') {
         const coords = f.geometry.coordinates[0] as [number, number][]
-        const coordStr = coords.map(c => `${c[0]},${c[1]},0`).join(' ')
+        const coordStr = coords.map(c => `${c[0]},${c[1]},${maxAlt}`).join(' ')
         coordinatesKML = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordStr}</coordinates></LinearRing></outerBoundaryIs></Polygon>`
       }
 
       return `    <Placemark>
       <name>${name}</name>
-      ${coordinatesKML}
+${extendedData}      ${coordinatesKML}
     </Placemark>`
     }).join('\n')
 
@@ -698,25 +819,29 @@ ${kmlFeatures}
 
   // CSVフォーマットに変換
   const convertToCSV = (features: GeoJSON.Feature[]): string => {
-    const rows = ['Type,Name,Latitude,Longitude,Radius(m)']
+    const rows = ['Type,Name,Latitude,Longitude,Radius(m),MaxAltitude(m)']
 
     features.forEach(f => {
       const props = f.properties || {}
       const name = props.name || f.id || 'Unnamed'
 
+      // 高度情報を取得
+      const drawnFeature = drawnFeatures.find(df => String(df.id) === String(f.id))
+      const maxAlt = drawnFeature?.maxAltitude !== undefined ? drawnFeature.maxAltitude : ''
+
       if (f.geometry.type === 'Point') {
         const coords = f.geometry.coordinates as [number, number]
         const radius = props.isCircle && props.radiusKm ? (props.radiusKm * 1000).toFixed(0) : ''
-        rows.push(`Point,${name},${coords[1]},${coords[0]},${radius}`)
+        rows.push(`Point,${name},${coords[1]},${coords[0]},${radius},${maxAlt}`)
       } else if (f.geometry.type === 'LineString') {
         const coords = f.geometry.coordinates as [number, number][]
         coords.forEach((c, i) => {
-          rows.push(`LinePoint,${name}_${i + 1},${c[1]},${c[0]},`)
+          rows.push(`LinePoint,${name}_${i + 1},${c[1]},${c[0]},,${maxAlt}`)
         })
       } else if (f.geometry.type === 'Polygon') {
         const coords = f.geometry.coordinates[0] as [number, number][]
         coords.forEach((c, i) => {
-          rows.push(`PolygonPoint,${name}_${i + 1},${c[1]},${c[0]},`)
+          rows.push(`PolygonPoint,${name}_${i + 1},${c[1]},${c[0]},,${maxAlt}`)
         })
       }
     })
@@ -748,6 +873,16 @@ ${kmlFeatures}
       const props = f.properties || {}
       const name = props.name || f.id || `範囲${featureIndex}`
 
+      // 高度情報を取得
+      const drawnFeature = drawnFeatures.find(df => String(df.id) === String(f.id))
+      const maxAlt = drawnFeature?.maxAltitude
+
+      // 高度情報の文字列を生成（下限：地表面、上限：海抜高度）
+      let altitudeStr = ''
+      if (maxAlt !== undefined) {
+        altitudeStr = ` (下限：地表面、上限：${maxAlt}m)`
+      }
+
       const coords: [number, number][] = []
 
       if (f.geometry.type === 'Point') {
@@ -762,7 +897,7 @@ ${kmlFeatures}
       }
 
       if (coords.length > 0) {
-        lines.push(`【${name}】`)
+        lines.push(`【${name}】${altitudeStr}`)
         coords.forEach((coord) => {
           const lat = decimalToDMS(coord[1], true)
           const lng = decimalToDMS(coord[0], false)
@@ -840,7 +975,7 @@ ${kmlFeatures}
   }
 
   // 座標をテキスト形式でコピー
-  const handleCopyCoordinates = () => {
+  const handleCopyCoordinates = async () => {
     const coordText = drawnFeatures.map(f => {
       if (f.type === 'point') {
         const coords = f.coordinates as GeoJSON.Position
@@ -863,8 +998,18 @@ ${kmlFeatures}
       }
     }).join('\n\n')
 
-    navigator.clipboard.writeText(coordText)
-    alert('座標をクリップボードにコピーしました')
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      alert('このブラウザではクリップボードへのコピーがサポートされていません')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(coordText)
+      alert('座標をクリップボードにコピーしました')
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error)
+      alert('クリップボードへのコピーに失敗しました')
+    }
   }
 
   // 選択フィーチャーの編集モードに入る / 編集完了
@@ -1431,6 +1576,156 @@ ${kmlFeatures}
             )
           })()}
 
+          {/* 飛行高度設定 */}
+          {selectedFeatureId && (() => {
+            const currentFeature = drawnFeatures.find(f => f.id === selectedFeatureId)
+            const elevation = currentFeature?.elevation
+            const flightHeight = currentFeature?.flightHeight
+            const maxAltitude = currentFeature?.maxAltitude
+
+            return (
+              <div style={{
+                marginBottom: '12px',
+                padding: '8px',
+                backgroundColor: darkMode ? '#333' : '#f0f7ff',
+                borderRadius: '4px',
+                border: `1px solid ${darkMode ? '#555' : '#2196f3'}`
+              }}>
+                <label style={{
+                  fontSize: '12px',
+                  color: darkMode ? '#64b5f6' : '#2196f3',
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold'
+                }}>
+                  飛行高度設定
+                </label>
+
+                {/* 標高表示と取得ボタン */}
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{
+                    fontSize: '11px',
+                    color: darkMode ? '#aaa' : '#666',
+                    display: 'block',
+                    marginBottom: '4px'
+                  }}>
+                    標高（国土地理院）
+                  </label>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={elevation !== undefined ? `${elevation}m` : '未取得'}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        backgroundColor: darkMode ? '#222' : '#f5f5f5',
+                        color: textColor,
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={() => handleFetchElevation(selectedFeatureId)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#4caf50',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      取得
+                    </button>
+                  </div>
+                </div>
+
+                {/* 飛行高度入力 */}
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{
+                    fontSize: '11px',
+                    color: darkMode ? '#aaa' : '#666',
+                    display: 'block',
+                    marginBottom: '4px'
+                  }}>
+                    飛行高度（相対高度）
+                  </label>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      value={flightHeight ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? undefined : Number(e.target.value)
+                        handleUpdateFlightHeight(selectedFeatureId, val)
+                      }}
+                      placeholder="例: 150"
+                      disabled={elevation === undefined}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        border: `1px solid ${borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        backgroundColor: elevation === undefined ? (darkMode ? '#222' : '#f5f5f5') : buttonBg,
+                        color: elevation === undefined ? (darkMode ? '#666' : '#999') : textColor,
+                        outline: 'none'
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: darkMode ? '#aaa' : '#666', whiteSpace: 'nowrap' }}>m</span>
+                  </div>
+                  {elevation === undefined && (
+                    <p style={{ fontSize: '10px', color: '#f44336', margin: '4px 0 0' }}>
+                      ※ 先に標高を取得してください
+                    </p>
+                  )}
+                </div>
+
+                {/* 上限高度表示 */}
+                <div>
+                  <label style={{
+                    fontSize: '11px',
+                    color: darkMode ? '#aaa' : '#666',
+                    display: 'block',
+                    marginBottom: '4px'
+                  }}>
+                    上限（海抜高度）
+                  </label>
+                  <input
+                    type="text"
+                    value={maxAltitude !== undefined ? `${maxAltitude}m` : '未設定'}
+                    readOnly
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      border: `1px solid ${borderColor}`,
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      backgroundColor: darkMode ? '#222' : '#f5f5f5',
+                      color: maxAltitude !== undefined ? (darkMode ? '#4caf50' : '#2e7d32') : textColor,
+                      fontWeight: maxAltitude !== undefined ? 'bold' : 'normal',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* 説明 */}
+                <p style={{
+                  fontSize: '10px',
+                  color: darkMode ? '#aaa' : '#666',
+                  margin: '8px 0 0',
+                  lineHeight: 1.4
+                }}>
+                  下限：地表面、上限：標高+飛行高度
+                </p>
+              </div>
+            )
+          })()}
+
           {/* 編集・削除ボタン */}
           <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
             <button
@@ -1708,9 +2003,18 @@ ${kmlFeatures}
         footer={
           <>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(previewData)
-                alert('クリップボードにコピーしました')
+              onClick={async () => {
+                if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                  alert('このブラウザではクリップボードへのコピーがサポートされていません')
+                  return
+                }
+                try {
+                  await navigator.clipboard.writeText(previewData)
+                  alert('クリップボードにコピーしました')
+                } catch (error) {
+                  console.error('Failed to copy to clipboard:', error)
+                  alert('クリップボードへのコピーに失敗しました')
+                }
               }}
               style={{
                 padding: '8px 16px',

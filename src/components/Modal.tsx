@@ -71,6 +71,8 @@ export function Modal({
 
   if (!isOpen) return null
 
+  const modalTitleId = 'modal-title'
+
   return (
     <div
       style={{
@@ -88,6 +90,9 @@ export function Modal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
         style={{
           backgroundColor: darkMode ? '#1e1e1e' : '#fff',
           borderRadius: '8px',
@@ -111,7 +116,7 @@ export function Modal({
             alignItems: 'center'
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '16px', color: darkMode ? '#fff' : '#333' }}>
+          <h3 id={modalTitleId} style={{ margin: 0, fontSize: '16px', color: darkMode ? '#fff' : '#333' }}>
             {title}
           </h3>
           <button
