@@ -84,7 +84,7 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['関東']))
   const [mapLoaded, setMapLoaded] = useState(false)
   const [opacity, setOpacity] = useState(0.5)
-  const [baseMap, setBaseMap] = useState<BaseMapKey>(() => {
+  const [baseMap] = useState<BaseMapKey>(() => {
     // localStorageから保存されたベースマップを読み込み
     try {
       const stored = localStorage.getItem('ui-settings')

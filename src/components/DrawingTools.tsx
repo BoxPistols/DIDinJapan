@@ -472,7 +472,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
     // マップスタイルがロードされた後にデータを復元
     let styleLoaded = false
     try {
-      styleLoaded = map.isStyleLoaded()
+      styleLoaded = !!map.isStyleLoaded()
     } catch (e) {
       // スタイルがまだ追加されていない場合はfalse
       styleLoaded = false
