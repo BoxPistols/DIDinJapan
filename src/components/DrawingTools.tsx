@@ -52,6 +52,7 @@ export interface DrawingToolsProps {
   onFeaturesChange?: (features: DrawnFeature[]) => void
   darkMode?: boolean
   embedded?: boolean // サイドバー内に埋め込む場合true
+  mapLoaded?: boolean // マップロード状態
 }
 
 // localStorage用のキー
@@ -60,9 +61,11 @@ const STORAGE_KEY = 'did-map-drawn-features'
 // localStorageへの保存
 const saveToLocalStorage = (features: GeoJSON.FeatureCollection) => {
   try {
+    console.log('[saveToLocalStorage] Saving', features.features?.length || 0, 'features')
     localStorage.setItem(STORAGE_KEY, JSON.stringify(features))
+    console.log('[saveToLocalStorage] Saved successfully')
   } catch (error) {
-    console.error('Failed to save to localStorage:', error)
+    console.error('[saveToLocalStorage] Failed to save to localStorage:', error)
   }
 }
 
@@ -70,10 +73,13 @@ const saveToLocalStorage = (features: GeoJSON.FeatureCollection) => {
 const loadFromLocalStorage = (): GeoJSON.FeatureCollection | null => {
   try {
     const data = localStorage.getItem(STORAGE_KEY)
+    console.log('[loadFromLocalStorage] Raw data:', data ? `${data.length} chars` : 'null')
     if (!data) return null
-    return JSON.parse(data) as GeoJSON.FeatureCollection
+    const parsed = JSON.parse(data) as GeoJSON.FeatureCollection
+    console.log('[loadFromLocalStorage] Parsed features:', parsed.features?.length || 0)
+    return parsed
   } catch (error) {
-    console.error('Failed to load from localStorage:', error)
+    console.error('[loadFromLocalStorage] Failed to load from localStorage:', error)
     return null
   }
 }
@@ -82,7 +88,7 @@ const loadFromLocalStorage = (): GeoJSON.FeatureCollection | null => {
  * DrawingTools Component
  * 飛行経路・飛行範囲の描画ツール
  */
-export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded = false }: DrawingToolsProps) {
+export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded = false, mapLoaded = false }: DrawingToolsProps) {
   const [isOpen, setIsOpen] = useState(embedded) // 埋め込み時はデフォルトで開く
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   const [drawnFeatures, setDrawnFeatures] = useState<DrawnFeature[]>([])
@@ -100,6 +106,7 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
   const [continuousMode, setContinuousMode] = useState(true) // WP連続配置モード
   const drawModeRef = useRef<DrawMode>('none') // 描画モードをrefでも保持
   const continuousModeRef = useRef(true) // 連続モードをrefでも保持
+  const isRestoringRef = useRef(false) // データ復元中フラグ
 
   // drawModeが変更されたらrefも更新
   useEffect(() => {
@@ -110,6 +117,57 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
   useEffect(() => {
     continuousModeRef.current = continuousMode
   }, [continuousMode])
+
+  // drawnFeaturesが変更されたらlocalStorageに保存（バックアップ）
+  useEffect(() => {
+    // データ復元中はスキップ（復元処理自体が保存するため）
+    if (isRestoringRef.current) {
+      console.log('[DrawingTools] Backup: Skipping save during restore')
+      return
+    }
+
+    // 初回マウント時はスキップ（空の状態で上書きしないため）
+    if (drawnFeatures.length === 0 && !drawRef.current) return
+
+    console.log('[DrawingTools] Backup: Saving', drawnFeatures.length, 'features from state')
+
+    // drawnFeaturesからGeoJSONを再構築
+    const featureCollection: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: drawnFeatures.map(f => {
+        // プロパティに名前とその他の情報を含める
+        const properties: Record<string, unknown> = {
+          ...f.properties,
+          name: f.name
+        }
+
+        // 円の場合は追加プロパティを含める
+        if (f.type === 'circle' && f.radius && f.center) {
+          properties.isCircle = true
+          properties.radiusKm = f.radius / 1000
+          properties.center = f.center
+        }
+
+        // 高度情報を含める
+        if (f.elevation !== undefined) properties.elevation = f.elevation
+        if (f.flightHeight !== undefined) properties.flightHeight = f.flightHeight
+        if (f.maxAltitude !== undefined) properties.maxAltitude = f.maxAltitude
+
+        return {
+          type: 'Feature',
+          id: f.id,
+          properties,
+          geometry: f.type === 'point'
+            ? { type: 'Point', coordinates: f.coordinates as GeoJSON.Position }
+            : f.type === 'line'
+            ? { type: 'LineString', coordinates: f.coordinates as GeoJSON.Position[] }
+            : { type: 'Polygon', coordinates: f.coordinates as GeoJSON.Position[][] }
+        }
+      })
+    }
+
+    saveToLocalStorage(featureCollection)
+  }, [drawnFeatures])
 
   // Delete/Backspaceキーで選択オブジェクトを削除
   useEffect(() => {
@@ -159,7 +217,12 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
 
   // Draw初期化
   useEffect(() => {
-    if (!map) return
+    if (!map || !mapLoaded) {
+      console.log('[DrawingTools] Skipping init - map:', !!map, 'mapLoaded:', mapLoaded)
+      return
+    }
+
+    console.log('[DrawingTools] Initializing draw control')
 
     const draw = new MapboxDraw({
       displayControlsDefault: false,
@@ -319,6 +382,8 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
     map.addControl(draw, 'top-left')
     drawRef.current = draw
 
+    console.log('[DrawingTools] Draw control initialized')
+
     // イベントハンドラ
     const handleCreate = (e: { features: Array<{ id: string }> }) => {
       updateFeatures()
@@ -379,30 +444,84 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
     map.on('draw.modechange', handleModeChange)
 
     // localStorageからデータを復元
-    const savedData = loadFromLocalStorage()
-    if (savedData && savedData.features.length > 0) {
-      draw.set(savedData)
-      updateFeatures()
+    const restoreData = () => {
+      const savedData = loadFromLocalStorage()
+      console.log('[DrawingTools] Attempting to restore data:', savedData?.features.length, 'features')
+
+      if (savedData && savedData.features.length > 0) {
+        try {
+          isRestoringRef.current = true
+          draw.set(savedData)
+          console.log('[DrawingTools] Data restored successfully, current features:', draw.getAll().features.length)
+          updateFeatures()
+
+          // 復元完了後、フラグをリセット
+          setTimeout(() => {
+            isRestoringRef.current = false
+            console.log('[DrawingTools] Restore completed, backup enabled')
+          }, 500)
+        } catch (error) {
+          console.error('[DrawingTools] Failed to restore drawing data:', error)
+          isRestoringRef.current = false
+        }
+      } else {
+        console.log('[DrawingTools] No saved data to restore')
+      }
+    }
+
+    // マップスタイルがロードされた後にデータを復元
+    let styleLoaded = false
+    try {
+      styleLoaded = map.isStyleLoaded()
+    } catch (e) {
+      // スタイルがまだ追加されていない場合はfalse
+      styleLoaded = false
+    }
+
+    if (styleLoaded) {
+      console.log('[DrawingTools] Style already loaded, restoring data')
+      // スタイルがロード済みなら少し遅延させて復元
+      setTimeout(restoreData, 200)
+    } else {
+      console.log('[DrawingTools] Waiting for style load')
+      // スタイルロードを待ってから復元
+      map.once('styledata', () => {
+        console.log('[DrawingTools] Style loaded, restoring data')
+        setTimeout(restoreData, 200)
+      })
     }
 
     return () => {
-      try {
-        // マップが有効な場合のみクリーンアップ
-        if (map && map.getCanvas()) {
+      console.log('[DrawingTools] Cleanup started')
+
+      // イベントリスナーを削除
+      if (map) {
+        try {
           map.off('draw.create', handleCreate)
           map.off('draw.update', handleUpdate)
           map.off('draw.delete', handleDelete)
           map.off('draw.selectionchange', handleSelectionChange)
           map.off('draw.modechange', handleModeChange)
-          // @ts-expect-error MapLibreとMapboxの互換性
-          map.removeControl(draw)
+          console.log('[DrawingTools] Event listeners removed')
+        } catch (e) {
+          console.warn('[DrawingTools] Failed to remove event listeners:', e)
         }
-      } catch {
-        // マップが既に破棄されている場合は無視
+
+        // Drawコントロールを削除（マップが有効な場合のみ）
+        if (map.getCanvas() && drawRef.current) {
+          try {
+            // @ts-expect-error MapLibreとMapboxの互換性
+            map.removeControl(draw)
+            console.log('[DrawingTools] Draw control removed')
+          } catch (e) {
+            console.warn('[DrawingTools] Failed to remove draw control:', e)
+          }
+        }
       }
+
       drawRef.current = null
     }
-  }, [map])
+  }, [map, mapLoaded])
 
   // 円描画モードのクリックハンドラ
   useEffect(() => {
