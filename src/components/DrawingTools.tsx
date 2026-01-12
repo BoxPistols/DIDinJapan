@@ -30,7 +30,7 @@ const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
   geojson: 'GeoJSON',
   kml: 'KML',
   csv: 'CSV',
-  dms: 'DMS (NOTAM)'
+  dms: 'NOTAM'
 }
 
 // 描画されたフィーチャーの型
@@ -377,6 +377,20 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
         }
       })
 
+      // 円形の背景
+      map.addLayer({
+        id: 'vertex-labels-background',
+        type: 'circle',
+        source: 'vertex-labels',
+        paint: {
+          'circle-radius': 12,
+          'circle-color': '#3388ff',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        }
+      })
+
+      // テキストラベル
       map.addLayer({
         id: 'vertex-labels',
         type: 'symbol',
@@ -384,14 +398,11 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
         layout: {
           'text-field': ['get', 'label'],
           'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-size': 14,
-          'text-offset': [0, -1.5],
+          'text-size': 13,
           'text-anchor': 'center'
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#3388ff',
-          'text-halo-width': 2
+          'text-color': '#ffffff'
         }
       })
     }
@@ -511,6 +522,13 @@ export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded
             map.removeLayer('vertex-labels')
           } catch (e) {
             console.warn('Failed to remove vertex labels layer:', e)
+          }
+        }
+        if (map.getLayer('vertex-labels-background')) {
+          try {
+            map.removeLayer('vertex-labels-background')
+          } catch (e) {
+            console.warn('Failed to remove vertex labels background layer:', e)
           }
         }
         if (map.getSource('vertex-labels')) {
@@ -1045,7 +1063,7 @@ ${kmlFeatures}
     return `${direction}${degrees}°${minutes}'${seconds}"`
   }
 
-  // DMS (NOTAM)フォーマットに変換
+  // NOTAMフォーマットに変換
   const convertToDMS = (features: GeoJSON.Feature[]): string => {
     const lines: string[] = []
     let featureIndex = 1
@@ -1074,7 +1092,8 @@ ${kmlFeatures}
         coords.push(...lineCoords)
       } else if (f.geometry.type === 'Polygon') {
         const polygonCoords = f.geometry.coordinates[0] as [number, number][]
-        coords.push(...polygonCoords)
+        // ポリゴンの場合、最後の座標は最初の座標と同じ（閉じるため）なので除外
+        coords.push(...polygonCoords.slice(0, -1))
       }
 
       if (coords.length > 0) {
