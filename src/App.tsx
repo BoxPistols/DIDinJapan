@@ -67,6 +67,7 @@ function App() {
   const popupRef = useRef<maplibregl.Popup | null>(null)
   const showTooltipRef = useRef(false)
   const restrictionStatesRef = useRef<Map<string, boolean>>(new Map())
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const mapStateRef = useRef<{
     center: [number, number]
     zoom: number
@@ -237,12 +238,29 @@ function App() {
   // ============================================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 入力中は無視
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      const isInputFocused = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+      const key = e.key.toLowerCase()
+      const isMod = e.metaKey || e.ctrlKey
+
+      // Modifier key combinations (work even in input fields)
+      if (isMod && key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
         return
       }
 
-      const key = e.key.toLowerCase()
+      // 入力中は他のショートカット無視
+      if (isInputFocused) {
+        // Escapeで検索入力からフォーカスを外す
+        if (key === 'escape') {
+          (e.target as HTMLElement).blur()
+          setSearchTerm('')
+          setSearchResults([])
+          setGeoSearchResults([])
+        }
+        return
+      }
 
       switch (key) {
         case 'd':
@@ -266,6 +284,23 @@ function App() {
         case 't':
           setShowTooltip(prev => !prev)
           break
+        case 's':
+          // サイドバートグル（左）
+          setShowLeftLegend(prev => !prev)
+          break
+        case 'p':
+          // サイドバートグル（右）
+          setShowRightLegend(prev => !prev)
+          break
+        case 'm':
+          // マップスタイル切替（循環）
+          {
+            const keys = Object.keys(BASE_MAPS) as BaseMapKey[]
+            const currentIndex = keys.indexOf(baseMap)
+            const nextIndex = (currentIndex + 1) % keys.length
+            handleBaseMapChange(keys[nextIndex])
+          }
+          break
         case '2':
           // 2Dモードに切り替え
           if (mapRef.current) {
@@ -286,6 +321,7 @@ function App() {
           break
         case '?':
         case '/':
+          e.preventDefault()
           setShowHelp(prev => !prev)
           break
         case 'escape':
@@ -296,7 +332,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mapLoaded])
+  }, [mapLoaded, baseMap, handleBaseMapChange])
 
   // ============================================
   // Search functionality (DID + Geocoding)
@@ -1385,10 +1421,11 @@ function App() {
         {/* Search */}
         <div style={{ marginBottom: '12px', position: 'relative' }}>
           <input
+            ref={searchInputRef}
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="市区町村検索..."
+            placeholder="検索... (⌘K)"
             style={{
               width: '100%',
               padding: '6px 8px',
@@ -2020,7 +2057,7 @@ function App() {
 
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontWeight: 600, marginBottom: '8px', color: darkMode ? '#4a90d9' : '#2563eb' }}>禁止エリア表示</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: '4px 8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '4px 8px' }}>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>D</kbd>
                   <span>人口集中地区（DID）</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>A</kbd>
@@ -2037,8 +2074,22 @@ function App() {
               </div>
 
               <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', color: darkMode ? '#4a90d9' : '#2563eb' }}>クイックアクセス</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '4px 8px' }}>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontSize: '11px' }}>⌘K</kbd>
+                  <span>検索にフォーカス</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>S</kbd>
+                  <span>左サイドバー開閉</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>P</kbd>
+                  <span>右サイドバー開閉</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>M</kbd>
+                  <span>マップスタイル切替</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
                 <div style={{ fontWeight: 600, marginBottom: '8px', color: darkMode ? '#4a90d9' : '#2563eb' }}>表示設定</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: '4px 8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '4px 8px' }}>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>T</kbd>
                   <span>ツールチップ表示の切替</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>L</kbd>
@@ -2050,7 +2101,7 @@ function App() {
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>?</kbd>
                   <span>ヘルプ表示</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center' }}>Esc</kbd>
-                  <span>ヘルプを閉じる</span>
+                  <span>ヘルプ/検索を閉じる</span>
                 </div>
               </div>
 
