@@ -1675,21 +1675,24 @@ ${kmlFeatures}
             borderBottom: `1px solid ${isEditing ? '#4caf50' : '#ff9800'}`,
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            gap: '12px'
           }}>
-            <span style={{ fontSize: '12px', fontWeight: 'bold', color: isEditing ? '#2e7d32' : '#e65100' }}>
-              {isEditing ? '編集中 - 頂点をドラッグで移動、選択してDeleteで削除' : MODE_LABELS[drawMode]}
+            <span style={{ fontSize: '12px', fontWeight: 'bold', color: isEditing ? '#2e7d32' : '#e65100', flex: 1 }}>
+              {isEditing ? '編集中' : MODE_LABELS[drawMode]}
             </span>
             <button
               onClick={handleCancelMode}
               style={{
-                padding: '4px 8px',
-                backgroundColor: 'transparent',
-                border: '1px solid currentColor',
+                padding: '4px 12px',
+                backgroundColor: isEditing ? '#4caf50' : 'transparent',
+                border: isEditing ? 'none' : '1px solid currentColor',
                 borderRadius: '4px',
-                color: isEditing ? '#2e7d32' : '#e65100',
+                color: isEditing ? '#fff' : '#e65100',
                 cursor: 'pointer',
-                fontSize: '11px'
+                fontSize: '11px',
+                fontWeight: 'bold',
+                flexShrink: 0
               }}
             >
               {isEditing ? '完了' : 'キャンセル'}
