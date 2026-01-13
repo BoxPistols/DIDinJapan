@@ -2489,9 +2489,9 @@ ${kmlFeatures}
               style={{
                 flex: 1,
                 padding: '8px',
-                backgroundColor: isEditing ? '#4caf50' : (selectedFeatureId ? '#e3f2fd' : buttonBg),
-                color: isEditing ? '#fff' : (selectedFeatureId ? '#1565c0' : (darkMode ? '#666' : '#999')),
-                border: `1px solid ${isEditing ? '#4caf50' : borderColor}`,
+                backgroundColor: isEditing ? '#4caf50' : (selectedFeatureId ? (darkMode ? '#1e3a5f' : '#e3f2fd') : buttonBg),
+                color: isEditing ? '#fff' : (selectedFeatureId ? (darkMode ? '#64b5f6' : '#1565c0') : (darkMode ? '#666' : '#999')),
+                border: `1px solid ${isEditing ? '#4caf50' : (selectedFeatureId ? (darkMode ? '#1565c0' : borderColor) : borderColor)}`,
                 borderRadius: '4px',
                 cursor: selectedFeatureId ? 'pointer' : 'not-allowed',
                 fontSize: '11px',
@@ -2506,9 +2506,9 @@ ${kmlFeatures}
               style={{
                 flex: 1,
                 padding: '8px',
-                backgroundColor: selectedFeatureId ? '#ffebee' : buttonBg,
-                color: selectedFeatureId ? '#c62828' : (darkMode ? '#666' : '#999'),
-                border: `1px solid ${borderColor}`,
+                backgroundColor: selectedFeatureId ? (darkMode ? '#4a2020' : '#ffebee') : buttonBg,
+                color: selectedFeatureId ? (darkMode ? '#ef9a9a' : '#c62828') : (darkMode ? '#666' : '#999'),
+                border: `1px solid ${selectedFeatureId ? (darkMode ? '#c62828' : borderColor) : borderColor}`,
                 borderRadius: '4px',
                 cursor: selectedFeatureId ? 'pointer' : 'not-allowed',
                 fontSize: '11px'
