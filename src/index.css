@@ -65,3 +65,11 @@ body {
 .maplibregl-ctrl-top-right {
   top: 50px !important;
 }
+
+/* チェックボックスを大きく */
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #3388ff;
+}
