@@ -253,9 +253,8 @@ npm run build
 │   ├── main.tsx     # エントリーポイント
 │   └── index.css    # スタイル
 ├── public/
-│   └── GeoJSON/     # DIDデータ（GeoJSON形式）
-│       ├── 2020/    # 令和2年国勢調査
-│       └── *.geojson # 平成22年国勢調査
+│   └── GeoJSON/
+│       └── 2020/    # 令和2年国勢調査DIDデータ
 ├── rawdata/         # ダウンロードしたシェープファイル（.gitignore対象）
 ├── docs/            # ドキュメント
 └── scripts/         # データ取得・変換スクリプト

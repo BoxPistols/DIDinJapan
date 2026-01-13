@@ -18,7 +18,18 @@
       "Bash(fi)",
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "WebSearch",
+      "WebFetch(domain:nlftp.mlit.go.jp)",
+      "WebFetch(domain:qiita.com)",
+      "Bash(python3:*)",
+      "Bash(npm run convert:did:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.e-stat.go.jp)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh pr edit:*)",
+      "Bash(ls:*)"
     ]
   }
 }
