@@ -2684,46 +2684,55 @@ ${kmlFeatures}
           setPendingDeleteIds([])
         }}>
           <div style={{
-            backgroundColor: '#fff',
-            borderRadius: '8px',
-            width: '360px',
+            backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+            borderRadius: '16px',
+            width: '400px',
             maxWidth: '90vw',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
             overflow: 'hidden'
           }} onClick={e => e.stopPropagation()}>
             <div style={{
-              padding: '20px',
+              padding: '32px 24px 24px',
               textAlign: 'center'
             }}>
+              {/* アイコン: 外側リング + 内側円 + ! */}
               <div style={{
-                width: '48px',
-                height: '48px',
+                width: '72px',
+                height: '72px',
                 borderRadius: '50%',
-                backgroundColor: '#ffebee',
+                backgroundColor: darkMode ? 'rgba(239, 83, 80, 0.1)' : 'rgba(239, 83, 80, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 16px',
-                fontSize: '24px'
+                margin: '0 auto 20px'
               }}>
-                ×
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  border: `2px solid ${darkMode ? '#ef5350' : '#ef5350'}`,
+                  backgroundColor: darkMode ? 'rgba(239, 83, 80, 0.15)' : 'rgba(239, 83, 80, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: '#ef5350'
+                }}>
+                  !
+                </div>
               </div>
-              <h3 style={{ margin: '0 0 8px', fontSize: '18px', color: '#333' }}>
-                オブジェクトを削除しますか？
+              <h3 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 600, color: darkMode ? '#fff' : '#333' }}>
+                削除しますか？
               </h3>
-              <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-                選択された {selectedCount} 個のオブジェクトを削除します。
-                <br />
-                この操作は取り消せません。
+              <p style={{ margin: 0, fontSize: '14px', color: darkMode ? '#999' : '#666', lineHeight: 1.5 }}>
+                選択された {selectedCount} 個のオブジェクトを削除します
               </p>
             </div>
             <div style={{
-              padding: '16px 20px',
-              backgroundColor: '#f8f8f8',
-              borderTop: '1px solid #eee',
+              padding: '16px 24px 24px',
               display: 'flex',
-              gap: '12px',
-              justifyContent: 'center'
+              gap: '12px'
             }}>
               <button
                 onClick={() => {
@@ -2731,14 +2740,15 @@ ${kmlFeatures}
                   setPendingDeleteIds([])
                 }}
                 style={{
-                  padding: '10px 24px',
-                  backgroundColor: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
+                  flex: 1,
+                  padding: '14px 24px',
+                  backgroundColor: darkMode ? '#3a3a3a' : '#fff',
+                  border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  fontSize: '14px',
+                  fontSize: '15px',
                   fontWeight: 500,
-                  color: '#333'
+                  color: darkMode ? '#ccc' : '#333'
                 }}
               >
                 キャンセル
@@ -2746,17 +2756,18 @@ ${kmlFeatures}
               <button
                 onClick={handleConfirmDeleteWithClear}
                 style={{
-                  padding: '10px 24px',
-                  backgroundColor: '#dc3545',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
+                  flex: 1,
+                  padding: '14px 24px',
+                  backgroundColor: darkMode ? 'rgba(239, 83, 80, 0.15)' : 'rgba(239, 83, 80, 0.08)',
+                  color: '#ef5350',
+                  border: '1px solid #ef5350',
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
+                  fontSize: '15px',
+                  fontWeight: 600
                 }}
               >
-                削除する
+                削除
               </button>
             </div>
           </div>
