@@ -2,6 +2,14 @@
 
 日本の各種地理データをオーバーレイ表示できる汎用地図ライブラリです。
 
+## Acknowledgements / 謝辞
+
+本プロジェクトは [dronebird/DIDinJapan](https://github.com/dronebird/DIDinJapan) をベースにしています。
+
+オリジナルプロジェクトの作者である **Taichi FURUHASHI ([@mapconcierge](https://github.com/mapconcierge))** 氏、**Nobusuke IWASAKI ([@wata909](https://github.com/wata909))** 氏に深く感謝いたします。
+
+DIDデータのGeoJSON変換という基盤を構築していただいたことで、本プロジェクトの開発が可能となりました。
+
 ## 機能
 
 ### ベースマップ
@@ -244,13 +252,39 @@ npm run build
 │   ├── App.tsx      # メインアプリケーション
 │   ├── main.tsx     # エントリーポイント
 │   └── index.css    # スタイル
-├── GeoJSON/         # DIDデータ（GeoJSON形式）
+├── public/
+│   └── GeoJSON/     # DIDデータ（GeoJSON形式）
+│       ├── 2020/    # 令和2年国勢調査
+│       └── *.geojson # 平成22年国勢調査
+├── rawdata/         # ダウンロードしたシェープファイル（.gitignore対象）
 ├── docs/            # ドキュメント
-│   ├── PROJECT_REQUIREMENTS.md
-│   └── UPDATE_REQUIREMENTS.md
-└── scripts/         # ユーティリティスクリプト
-    └── download_did_2020.sh
+└── scripts/         # データ取得・変換スクリプト
+    ├── download_did_2020.py  # e-Statからダウンロード
+    └── convert_did_2020.js   # シェープファイル→GeoJSON変換
 ```
+
+## DIDデータの更新
+
+e-Stat（政府統計の総合窓口）から最新のDIDデータを取得し、GeoJSON形式に変換できます。
+
+### 手順
+
+```bash
+# 1. e-Statから全47都道府県のDIDデータをダウンロード
+npm run download:did
+
+# 2. シェープファイルをGeoJSONに変換
+npm run convert:did
+```
+
+### 仕様
+
+- **ダウンロード**: e-Stat公式ダウンロードAPIを使用（スクレイピングではない）
+- **レート制限**: サーバー負荷軽減のため3秒間隔で取得
+- **既存スキップ**: ダウンロード済みファイルは自動的にスキップ
+- **変換ツール**: mapshaper（JGD2011→WGS84座標変換）
+
+詳細は [docs/DID_DATA_UPDATE_GUIDE.md](./docs/DID_DATA_UPDATE_GUIDE.md) を参照してください。
 
 ## データソース
 
@@ -263,23 +297,34 @@ npm run build
 
 ## ライセンス・利用規約
 
+### 本プロジェクト
+
+MIT License
+
+本プロジェクトは [dronebird/DIDinJapan](https://github.com/dronebird/DIDinJapan) を基にしています。
+
 ### DIDデータ
+
 本データは[政府統計の総合窓口（e-Stat）利用規約](https://www.e-stat.go.jp/terms-of-use)に基づき利用可能です。
 
 - **自由利用可能**: 複製、公衆送信、翻訳・変形等が可能
 - **商用利用可能**
+- **出典表示必須**
 
 利用する際は出典を記載してください：
+
 ```
 出典：政府統計の総合窓口(e-Stat)（https://www.e-stat.go.jp/）
 「人口集中地区」データを加工して作成
 ```
 
 ### 地理院タイル
+
 [国土地理院コンテンツ利用規約](https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html)に基づき利用可能です。
 
 ## 参考リンク
 
+- [dronebird/DIDinJapan](https://github.com/dronebird/DIDinJapan) - 本プロジェクトのベース
 - [国土地理院 地理院地図](https://maps.gsi.go.jp/)
 - [政府統計の総合窓口（e-Stat）](https://www.e-stat.go.jp/)
 - [国土数値情報](https://nlftp.mlit.go.jp/ksj/)
