@@ -109,9 +109,10 @@ export const RESTRICTION_ZONES: RestrictionZone[] = [
     name: '空港など周辺空域',
     type: 'airport',
     color: RESTRICTION_COLORS.airport,
-    opacity: 0.4,
+    opacity: 0.6,
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/kokuarea/{z}/{x}/{y}.png'],
     path: '/GeoJSON/airports/airport_surfaces.geojson',
-    description: '空港等の敷地範囲（国土数値情報 C28）'
+    description: '空港等の周辺空域（航空局提供：進入表面・転移表面等）および敷地範囲'
   },
   {
     id: 'did-area',

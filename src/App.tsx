@@ -8,6 +8,7 @@ import {
   LAYER_GROUPS,
   GEO_OVERLAYS,
   RESTRICTION_COLORS,
+  getAllRestrictionZones,
   createLayerIdToNameMap,
   fetchRainRadarTimestamp,
   buildRainTileUrl,
@@ -24,6 +25,7 @@ import {
   generateRadioInterferenceGeoJSON,
   generateMannedAircraftZonesGeoJSON,
   calculateBBox,
+  mergeBBoxes,
   getCustomLayers,
   getAllLayers,
   getAllPrefectureLayerIds,
@@ -37,7 +39,7 @@ import type { BaseMapKey, LayerConfig, LayerGroup, SearchIndexItem, LayerState, 
 import { CustomLayerManager } from './components/CustomLayerManager'
 import { DrawingTools } from './components/DrawingTools'
 import { CoordinateDisplay } from './components/CoordinateDisplay'
-import { IsikawaNotoComparisonPanel } from './components/IsikawaNotoComparisonPanel'
+// NOTE: 右下の比較パネル（重複ボタン）は廃止し、隆起表示は右上UIに統一
 import { ToastContainer } from './components/Toast'
 import { DialogContainer } from './components/Dialog'
 import { fetchGeoJSONWithCache, clearOldCaches } from './lib/cache'
@@ -62,6 +64,15 @@ const SETTINGS_EXPIRATION_DAYS = 30
 const SETTINGS_EXPIRATION_MS = SETTINGS_EXPIRATION_DAYS * 24 * 60 * 60 * 1000
 
 // ============================================
+// Comparison (Ishikawa 2020 vs Noto 2024) Constants
+// ============================================
+const COMPARISON_ALLOWED_IDS = new Set(ISHIKAWA_NOTO_COMPARISON_LAYERS.map(l => l.id))
+const COMPARISON_VIS_URL_PARAM = 'cmpv'
+
+// DID UI state persistence
+const DID_EXPANDED_GROUPS_KEY = 'did-expanded-groups'
+
+// ============================================
 // Main App Component
 // ============================================
 function App() {
@@ -84,10 +95,30 @@ function App() {
   })
   const previousFeaturesRef = useRef<any[]>([])
   const enableCoordinateDisplayRef = useRef(true)
+  const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(new Map())
+  const debugRunIdRef = useRef<string>('')
+  const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
+  const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
 
   // State
   const [layerStates, setLayerStates] = useState<Map<string, LayerState>>(new Map())
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['関東']))
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(DID_EXPANDED_GROUPS_KEY)
+      if (!raw) return new Set<string>(['関東'])
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return new Set<string>(['関東'])
+      const names = parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      const allowed = new Set(LAYER_GROUPS.map(g => g.name))
+      const filtered = names.filter(n => allowed.has(n))
+      return new Set<string>(filtered.length > 0 ? filtered : ['関東'])
+    } catch {
+      return new Set<string>(['関東'])
+    }
+  })
+  const [didGroupColorMode, setDidGroupColorMode] = useState<Map<string, 'default' | 'red'>>(
+    () => new Map()
+  )
   const [mapLoaded, setMapLoaded] = useState(false)
   const [opacity, setOpacity] = useState(0.5)
   const [baseMap] = useState<BaseMapKey>(() => {
@@ -143,13 +174,106 @@ function App() {
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
 
   // Ishikawa Noto Comparison layers
-  const [comparisonLayerVisibility, setComparisonLayerVisibility] = useState<Set<string>>(new Set())
-  const [comparisonLayerOpacity, setComparisonLayerOpacity] = useState<Map<string, number>>(
-    new Map([
-      ['did-17-ishikawa-2020', 0.5],
+  type ComparisonSettings = {
+    opacity: Record<string, number>
+    timestamp: number
+  }
+
+  const COMPARISON_SETTINGS_KEY = 'comparison-settings'
+
+  const loadComparisonSettings = (): { visible: Set<string>; opacity: Map<string, number> } => {
+    // 初期は必ずOFF（ユーザー要望）。地図切替時の保持は URL パラメータで実現する。
+    const visible = new Set<string>()
+
+    try {
+      const raw = localStorage.getItem(COMPARISON_SETTINGS_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<ComparisonSettings>
+        const opacityObj = parsed.opacity && typeof parsed.opacity === 'object' ? parsed.opacity : {}
+        const opacityMap = new Map<string, number>()
+        for (const [k, v] of Object.entries(opacityObj as Record<string, unknown>)) {
+          if (typeof v === 'number' && Number.isFinite(v)) {
+            opacityMap.set(k, Math.min(1, Math.max(0, v)))
+          }
+        }
+        return { visible, opacity: opacityMap }
+      }
+    } catch {
+      // ignore
+    }
+
+    // デフォルト: いきなり地図が変わるのを避けるためOFF
+    return {
+      visible: new Set<string>(),
+      opacity: new Map<string, number>([
+        ['terrain-2024-noto', 0.5]
+      ])
+    }
+  }
+
+  const initialComparison = loadComparisonSettings()
+  const readComparisonVisibilityFromUrl = (): Set<string> => {
+    try {
+      const url = new URL(window.location.href)
+      const raw = url.searchParams.get(COMPARISON_VIS_URL_PARAM)
+      if (!raw) return new Set<string>()
+      const decoded = decodeURIComponent(raw)
+      const parts = decoded.split(',').map(s => s.trim()).filter(Boolean)
+      const filtered = parts.filter(id => COMPARISON_ALLOWED_IDS.has(id))
+      const set = new Set<string>(filtered)
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:readComparisonVisibilityFromUrl',message:'read',data:{hasParam:true,count:set.size,values:Array.from(set.values())},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'K'})}).catch(()=>{});
+      // #endregion agent log (debug)
+      return set
+    } catch {
+      return new Set<string>()
+    }
+  }
+
+  const [comparisonLayerVisibility, setComparisonLayerVisibility] = useState<Set<string>>(() => {
+    const fromUrl = readComparisonVisibilityFromUrl()
+    return fromUrl.size > 0 ? fromUrl : initialComparison.visible
+  })
+  const [comparisonLayerOpacity, setComparisonLayerOpacity] = useState<Map<string, number>>(() => {
+    // 欠けているキーがあっても最低限のデフォルトを補完
+    const base = new Map<string, number>([
       ['terrain-2024-noto', 0.5]
     ])
-  )
+    initialComparison.opacity.forEach((v, k) => base.set(k, v))
+    return base
+  })
+
+  // 最新の比較可視状態をrefに同期（地図切替の直前退避でクロージャが古くならないように）
+  useEffect(() => {
+    comparisonLayerVisibilityRef.current = comparisonLayerVisibility
+  }, [comparisonLayerVisibility])
+
+  // 簡易モード：比較は「標準(osm)」ベースマップのみ対応
+  const isComparisonSupported = baseMap === 'osm'
+
+  // 非対応ベースマップでは比較レイヤーを強制OFF（挙動を最低限にする）
+  useEffect(() => {
+    if (isComparisonSupported) return
+    if (comparisonLayerVisibility.size === 0) return
+    const next = new Set<string>()
+    comparisonLayerVisibilityRef.current = next
+    setComparisonLayerVisibility(next)
+  }, [isComparisonSupported, comparisonLayerVisibility])
+
+  // URLに載った比較状態はロード後に消す（手動リロードで初期OFFに戻す）
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href)
+      if (!url.searchParams.has(COMPARISON_VIS_URL_PARAM)) return
+      url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
+      window.history.replaceState({}, '', url.toString())
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:clearCmpvParam',message:'cleared',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'K'})}).catch(()=>{});
+      // #endregion agent log (debug)
+    } catch {
+      // ignore
+    }
+  }, [])
 
   // Dark mode
   const [darkMode, setDarkMode] = useState(() => {
@@ -199,7 +323,7 @@ function App() {
     } catch (e) {
       console.error('Failed to load coordinate display setting:', e)
     }
-    return true // デフォルトはオン
+    return false // デフォルトはオフ
   })
 
   // 2D/3D切り替え
@@ -225,6 +349,21 @@ function App() {
   const handleBaseMapChange = useCallback((newBaseMap: BaseMapKey) => {
     if (newBaseMap === baseMap) return
 
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleBaseMapChange',message:'before-reload',data:{from:baseMap,to:newBaseMap,comparisonVisible:Array.from(comparisonLayerVisibilityRef.current.values())},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion agent log (debug)
+
+    const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
+    const url = new URL(window.location.href)
+    if (currentVisible.length > 0) {
+      url.searchParams.set(COMPARISON_VIS_URL_PARAM, encodeURIComponent(currentVisible.join(',')))
+    } else {
+      url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
+    }
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleBaseMapChange',message:'set-cmpv-param',data:{to:newBaseMap,currentVisibleCount:currentVisible.length,hasParam:url.searchParams.has(COMPARISON_VIS_URL_PARAM)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'I'})}).catch(()=>{});
+    // #endregion agent log (debug)
+
     // 設定を保存
     try {
       const settings = {
@@ -238,8 +377,8 @@ function App() {
       console.error('Failed to save settings:', e)
     }
 
-    // ページをリロード
-    window.location.reload()
+    // URLパラメータに比較状態を載せてリロード
+    window.location.assign(url.toString())
   }, [baseMap, darkMode])
 
   // ============================================
@@ -258,6 +397,24 @@ function App() {
       console.error('Failed to save UI settings:', e)
     }
   }, [darkMode, baseMap, enableCoordinateDisplay])
+
+  // ============================================
+  // Save comparison settings (persist across baseMap reload)
+  // ============================================
+  useEffect(() => {
+    try {
+      const payload: ComparisonSettings = {
+        opacity: Object.fromEntries(Array.from(comparisonLayerOpacity.entries())),
+        timestamp: Date.now()
+      }
+      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:saveComparisonSettings',message:'saved',data:{visibleCount:comparisonLayerVisibility.size,opacityKeys:Object.keys(payload.opacity),visibleStorage:'none',opacityStorage:'local'},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion agent log (debug)
+    } catch {
+      // ignore
+    }
+  }, [comparisonLayerVisibility, comparisonLayerOpacity])
 
   // ============================================
   // Tooltip ref sync
@@ -279,6 +436,12 @@ function App() {
   useEffect(() => {
     enableCoordinateDisplayRef.current = enableCoordinateDisplay
   }, [enableCoordinateDisplay])
+
+  // 座標表示をOFFにしたら、表示中の座標パネルも連動して閉じる（UX改善）
+  useEffect(() => {
+    if (enableCoordinateDisplay) return
+    if (displayCoordinates) setDisplayCoordinates(null)
+  }, [enableCoordinateDisplay, displayCoordinates])
 
   // ============================================
   // Keyboard shortcuts
@@ -489,6 +652,18 @@ function App() {
   // Cache cleanup on app initialization
   // ============================================
   useEffect(() => {
+    // #region agent log (debug)
+    if (!debugRunIdRef.current) {
+      debugRunIdRef.current = `run-${Date.now()}`
+      try {
+        sessionStorage.setItem('debug-run-id', debugRunIdRef.current)
+      } catch {
+        // ignore
+      }
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:boot',message:'run-start',data:{runId:debugRunIdRef.current,baseMap},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current,hypothesisId:'Z'})}).catch(()=>{});
+    }
+    // #endregion agent log (debug)
+
     clearOldCaches().catch(err => {
       console.warn('Failed to clear old caches:', err)
     })
@@ -536,6 +711,14 @@ function App() {
     })
 
     map.on('load', () => {
+      // #region agent log (debug)
+      try {
+        const style = map.getStyle()
+        fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:map.on(load)',message:'style-loaded',data:{baseMap,hasGlyphs:!!style.glyphs,layerCount:Array.isArray(style.layers)?style.layers.length:0,sourceCount:style.sources?Object.keys(style.sources).length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H'})}).catch(()=>{});
+      } catch {
+        // ignore
+      }
+      // #endregion agent log (debug)
       // スタイルにglyphsプロパティが存在しない場合は追加
       const style = map.getStyle()
       if (!style.glyphs) {
@@ -860,36 +1043,273 @@ function App() {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
+    type GeoJSONGeometryType =
+      | 'Point'
+      | 'MultiPoint'
+      | 'LineString'
+      | 'MultiLineString'
+      | 'Polygon'
+      | 'MultiPolygon'
+      | 'GeometryCollection'
+
+    const getPrimaryGeometryType = (
+      geojson: GeoJSON.FeatureCollection
+    ): GeoJSONGeometryType | null => {
+      for (const f of geojson.features) {
+        const t = f.geometry?.type
+        if (typeof t === 'string' && t.length > 0) {
+          return t as GeoJSONGeometryType
+        }
+      }
+      return null
+    }
+
+    const shouldRenderAsCircle = (t: GeoJSONGeometryType | null): boolean => {
+      return t === 'Point' || t === 'MultiPoint'
+    }
+
+    const getNumericRange = (
+      geojson: GeoJSON.FeatureCollection,
+      key: string
+    ): { min: number; max: number } | null => {
+      let min = Infinity
+      let max = -Infinity
+      for (const f of geojson.features) {
+        const v = (f.properties as Record<string, unknown> | null | undefined)?.[key]
+        if (typeof v === 'number' && Number.isFinite(v)) {
+          min = Math.min(min, v)
+          max = Math.max(max, v)
+        }
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return null
+      if (min === max) return { min, max: min + 1 } // 範囲0回避
+      return { min, max }
+    }
+
+    const computeCollectionBounds = (
+      geojson: GeoJSON.FeatureCollection
+    ): [[number, number], [number, number]] | null => {
+      let bbox: [number, number, number, number] | null = null
+      for (const f of geojson.features) {
+        try {
+          const b = calculateBBox(f.geometry)
+          bbox = bbox ? mergeBBoxes([bbox, b]) : b
+        } catch {
+          // ignore invalid geometry
+        }
+      }
+      if (!bbox) return null
+      return [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]]
+      ]
+    }
+
+    const applyComparisonLayerState = (layerId: string) => {
+      const isVisible = comparisonLayerVisibility.has(layerId)
+      const visibility = isVisible ? 'visible' : 'none'
+      const opacity = comparisonLayerOpacity.get(layerId) ?? 0.5
+
+      // layout visibility
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility)
+      }
+      if (map.getLayer(`${layerId}-heat`)) {
+        map.setLayoutProperty(`${layerId}-heat`, 'visibility', visibility)
+      }
+      if (map.getLayer(`${layerId}-outline`)) {
+        map.setLayoutProperty(`${layerId}-outline`, 'visibility', visibility)
+      }
+      if (map.getLayer(`${layerId}-label`)) {
+        map.setLayoutProperty(`${layerId}-label`, 'visibility', visibility)
+      }
+
+      // paint opacity
+      const heat = map.getLayer(`${layerId}-heat`)
+      if (heat && heat.type === 'heatmap') {
+        map.setPaintProperty(`${layerId}-heat`, 'heatmap-opacity', opacity)
+      }
+      const layer = map.getLayer(layerId)
+      if (layer?.type === 'circle') {
+        map.setPaintProperty(layerId, 'circle-opacity', opacity)
+        map.setPaintProperty(layerId, 'circle-stroke-opacity', Math.min(1, opacity * 0.95))
+      } else if (layer?.type === 'fill') {
+        map.setPaintProperty(layerId, 'fill-opacity', opacity)
+        if (map.getLayer(`${layerId}-outline`)) {
+          map.setPaintProperty(`${layerId}-outline`, 'line-opacity', Math.min(1, opacity * 0.9))
+        }
+      }
+
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:applyComparisonLayerState',message:'applied',data:{baseMap,layerId,isVisible,visibility,opacity,hasLayer:!!map.getLayer(layerId),hasHeat:!!map.getLayer(`${layerId}-heat`)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'J'})}).catch(()=>{});
+      // #endregion agent log (debug)
+
+      // #region agent log (debug)
+      // 反映直後はまだ描画フレームが回っていない可能性があるため、idle後に「本当に描画できているか」を検証する
+      if (isVisible) {
+        const runKey = debugRunIdRef.current || 'unknown'
+        const key = `${runKey}:${baseMap}:${layerId}`
+        if (!comparisonIdleDebugKeysRef.current.has(key)) {
+          comparisonIdleDebugKeysRef.current.add(key)
+          map.once('idle', () => {
+            const safeRendered = (layers: string[]): number => {
+              try {
+                return map.queryRenderedFeatures(undefined, { layers }).length
+              } catch {
+                return -1
+              }
+            }
+            const safeSource = (sourceId: string): number => {
+              try {
+                // GeoJSON sourceの場合も0以上が返ることがある。失敗時は -1 にする
+                return map.querySourceFeatures(sourceId).length
+              } catch {
+                return -1
+              }
+            }
+            const layerIds = [layerId, `${layerId}-heat`, `${layerId}-label`, `${layerId}-outline`]
+            const styleLayers = map.getStyle().layers ?? []
+            const idx = (id: string): number => styleLayers.findIndex(l => l.id === id)
+            const rasterMaxIndex = styleLayers.reduce((acc, l, i) => {
+              if ((l.type as string) === 'raster') return Math.max(acc, i)
+              return acc
+            }, -1)
+
+            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:applyComparisonLayerState',message:'idle-render-check',data:{baseMap,layerId,sourceFeatureCount:safeSource(layerId),renderedMain:safeRendered([layerId]),renderedHeat:safeRendered([`${layerId}-heat`]),renderedLabel:safeRendered([`${layerId}-label`]),layerOrder:{rasterMaxIndex,indices:Object.fromEntries(layerIds.map(id=>[id,idx(id)]))}},timestamp:Date.now(),sessionId:'debug-session',runId:runKey,hypothesisId:'M'})}).catch(()=>{});
+          })
+        }
+      }
+      // #endregion agent log (debug)
+    }
+
     async function initComparisonLayers() {
       if (!map) return
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'enter',data:{mapLoaded,layerCount:ISHIKAWA_NOTO_COMPARISON_LAYERS.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion agent log (debug)
       for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
-        if (map.getSource(layerConfig.id)) continue
+        const hasSource = !!map.getSource(layerConfig.id)
 
         try {
-          const geojson = await fetchGeoJSONWithCache(layerConfig.path)
-
-          map.addSource(layerConfig.id, {
-            type: 'geojson',
-            data: geojson
-          })
-
-          // Circle レイヤー（ポイントデータ用）
-          map.addLayer({
-            id: layerConfig.id,
-            type: 'circle',
-            source: layerConfig.id,
-            paint: {
-              'circle-radius': 6,
-              'circle-color': layerConfig.color,
-              'circle-opacity': comparisonLayerOpacity.get(layerConfig.id) ?? 0.5,
-              'circle-stroke-width': 2,
-              'circle-stroke-color': layerConfig.color,
-              'circle-stroke-opacity': 0.8
-            },
-            layout: {
-              visibility: 'none'
+          if (!hasSource) {
+            const geojson = await fetchGeoJSONWithCache(layerConfig.path)
+            // #region agent log (debug)
+            {
+              const sampleTypes = geojson.features
+                .slice(0, 50)
+                .map(f => f.geometry?.type ?? 'null')
+              const typeCounts = sampleTypes.reduce<Record<string, number>>((acc, t) => {
+                acc[t] = (acc[t] ?? 0) + 1
+                return acc
+              }, {})
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'geojson-loaded',data:{layerId:layerConfig.id,path:layerConfig.path,features:geojson.features.length,sampleTypeCounts:typeCounts},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
             }
-          })
+            // #endregion agent log (debug)
+
+            map.addSource(layerConfig.id, {
+              type: 'geojson',
+              data: geojson
+            })
+
+            const bounds = computeCollectionBounds(geojson)
+            if (bounds) {
+              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)
+              // #region agent log (debug)
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'bounds-computed',data:{layerId:layerConfig.id,bounds},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+              // #endregion agent log (debug)
+            }
+
+            const primaryType = getPrimaryGeometryType(geojson)
+            const layerOpacity = comparisonLayerOpacity.get(layerConfig.id) ?? 0.5
+            const renderAsCircle = shouldRenderAsCircle(primaryType)
+
+            if (renderAsCircle) {
+              // Heatmap（面として見せる）+ circle（クリック用）
+              const elevRange = getNumericRange(geojson, 'elevation') ?? { min: 0, max: 100 }
+              const heatId = `${layerConfig.id}-heat`
+
+              map.addLayer({
+                id: heatId,
+                type: 'heatmap',
+                source: layerConfig.id,
+                paint: {
+                  'heatmap-weight': [
+                    'interpolate',
+                    ['linear'],
+                    ['coalesce', ['get', 'elevation'], elevRange.min],
+                    elevRange.min, 0,
+                    elevRange.max, 1
+                  ],
+                  'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 1.8],
+                  'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 9, 18, 14, 55],
+                  'heatmap-opacity': layerOpacity,
+                  'heatmap-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['heatmap-density'],
+                    0, 'rgba(0,0,0,0)',
+                    0.2, 'rgba(255, 245, 157, 0.55)',
+                    0.4, 'rgba(255, 183, 77, 0.75)',
+                    0.6, 'rgba(239, 108, 0, 0.80)',
+                    0.8, 'rgba(229, 57, 53, 0.85)',
+                    1, 'rgba(183, 28, 28, 0.90)'
+                  ]
+                },
+                layout: {
+                  visibility: 'none'
+                }
+              })
+              // #region agent log (debug)
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'heatmap-added',data:{layerId:layerConfig.id,heatId,elevationRange:elevRange},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion agent log (debug)
+
+              // Circle レイヤー（ポイントデータ用）
+              map.addLayer({
+                id: layerConfig.id,
+                type: 'circle',
+                source: layerConfig.id,
+                paint: {
+                  'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 7, 14, 14],
+                  'circle-color': layerConfig.color,
+                  // 航空写真でも視認できるよう最小不透明度を上げる
+                  'circle-opacity': Math.min(1, Math.max(0.75, layerOpacity)),
+                  'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 14, 4],
+                  'circle-stroke-color': '#ffffff',
+                  'circle-stroke-opacity': 0.95,
+                  'circle-blur': 0.15
+                },
+                layout: {
+                  visibility: 'none'
+                }
+              })
+            } else {
+              // Fill + outline（ポリゴンDID等）
+              map.addLayer({
+                id: layerConfig.id,
+                type: 'fill',
+                source: layerConfig.id,
+                paint: {
+                  'fill-color': layerConfig.color,
+                  'fill-opacity': layerOpacity
+                },
+                layout: {
+                  visibility: 'none'
+                }
+              })
+              map.addLayer({
+                id: `${layerConfig.id}-outline`,
+                type: 'line',
+                source: layerConfig.id,
+                paint: {
+                  'line-color': layerConfig.color,
+                  'line-width': 1.5,
+                  'line-opacity': Math.min(1, layerOpacity * 0.9)
+                },
+                layout: {
+                  visibility: 'none'
+                }
+              })
+            }
 
           // ラベルレイヤー（年度表示）
           map.addLayer({
@@ -908,14 +1328,25 @@ function App() {
               'text-halo-width': 1
             }
           })
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'layer-added',data:{layerId:layerConfig.id,primaryType,renderAsCircle,addedType:renderAsCircle?'circle':'fill',hasLayer:!!map.getLayer(layerConfig.id),hasOutline:!!map.getLayer(`${layerConfig.id}-outline`),hasLabel:!!map.getLayer(`${layerConfig.id}-label`)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion agent log (debug)
+
+            // 非同期ロード後に、現在のON/OFFを即反映（初期表示の空振り防止）
+            applyComparisonLayerState(layerConfig.id)
+          } else {
+            // 既にソースがある場合でも、現在の状態を再適用
+            applyComparisonLayerState(layerConfig.id)
+          }
         } catch (error) {
           console.error(`Failed to load comparison layer ${layerConfig.id}:`, error)
         }
       }
     }
 
+    console.log('🔵 Initializing comparison layers. mapLoaded:', mapLoaded, 'Comparison layers:', ISHIKAWA_NOTO_COMPARISON_LAYERS.map(l => l.id))
     initComparisonLayers()
-  }, [mapLoaded, comparisonLayerOpacity])
+  }, [mapLoaded, comparisonLayerOpacity, comparisonLayerVisibility])
   // Load default layers on map load
   // ============================================
   useEffect(() => {
@@ -978,15 +1409,43 @@ function App() {
     setIsLoadingForSearch(false)
   }, [searchTerm, searchResults.length, isLoadingForSearch, layerStates, addLayer])
 
+  // DID: グループ単位の色モード（default / red）
+  const getDidGroupMode = (groupName: string): 'default' | 'red' => {
+    return didGroupColorMode.get(groupName) ?? 'default'
+  }
+
+  const applyDidLayerColor = (layerId: string, color: string) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    if (map.getLayer(layerId)) {
+      map.setPaintProperty(layerId, 'fill-color', color)
+    }
+    const outlineId = `${layerId}-outline`
+    if (map.getLayer(outlineId)) {
+      map.setPaintProperty(outlineId, 'line-color', color)
+    }
+  }
+
+  const applyDidGroupColors = (group: LayerGroup, mode: 'default' | 'red') => {
+    const red = '#ff0000'
+    group.layers.forEach(layer => {
+      applyDidLayerColor(layer.id, mode === 'red' ? red : layer.color)
+    })
+  }
+
   const toggleLayer = (layer: LayerConfig) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
     const state = layerStates.get(layer.id)
+    const group = LAYER_GROUPS.find(g => g.layers.some(l => l.id === layer.id))
+    const groupMode: 'default' | 'red' = group ? getDidGroupMode(group.name) : 'default'
 
     if (!state) {
       // 未ロード: ロードして表示
-      addLayer(layer, true)
+      void addLayer(layer, true).then(() => {
+        applyDidLayerColor(layer.id, groupMode === 'red' ? '#ff0000' : layer.color)
+      })
       return
     }
 
@@ -995,6 +1454,9 @@ function App() {
 
     map.setLayoutProperty(layer.id, 'visibility', visibility)
     map.setLayoutProperty(`${layer.id}-outline`, 'visibility', visibility)
+    if (newVisibility) {
+      applyDidLayerColor(layer.id, groupMode === 'red' ? '#ff0000' : layer.color)
+    }
 
     setLayerStates(prev => {
       const next = new Map(prev)
@@ -1015,11 +1477,21 @@ function App() {
     })
   }
 
+  // DID: 地域ごとのopen/close状態をlocalStorageに保存
+  useEffect(() => {
+    try {
+      localStorage.setItem(DID_EXPANDED_GROUPS_KEY, JSON.stringify(Array.from(expandedGroups.values())))
+    } catch {
+      // ignore
+    }
+  }, [expandedGroups])
+
   const isLayerVisible = (layerId: string) => layerStates.get(layerId)?.visible ?? false
 
   const enableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
+    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'default'))
 
     group.layers.forEach(layer => {
       const state = layerStates.get(layer.id)
@@ -1039,11 +1511,40 @@ function App() {
         addLayer(layer, true)
       }
     })
+    applyDidGroupColors(group, 'default')
+  }
+
+  const enableAllInGroupRed = (group: LayerGroup) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'red'))
+
+    group.layers.forEach(layer => {
+      const state = layerStates.get(layer.id)
+      if (state) {
+        if (!state.visible) {
+          map.setLayoutProperty(layer.id, 'visibility', 'visible')
+          map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
+          setLayerStates(prev => {
+            const next = new Map(prev)
+            next.set(layer.id, { ...state, visible: true })
+            return next
+          })
+        }
+        applyDidLayerColor(layer.id, '#ff0000')
+      } else {
+        void addLayer(layer, true).then(() => {
+          applyDidLayerColor(layer.id, '#ff0000')
+        })
+      }
+    })
   }
 
   const disableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
+    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'default'))
+    applyDidGroupColors(group, 'default')
 
     group.layers.forEach(layer => {
       const state = layerStates.get(layer.id)
@@ -1067,6 +1568,14 @@ function App() {
     if (!map || !mapLoaded) return
 
     const isVisible = overlayStates.get(overlay.id) ?? false
+
+    // #region agent log (debug)
+    {
+      const hasTiles = 'tiles' in overlay
+      const hasGeojson = 'geojson' in overlay
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:toggleOverlay',message:'toggle-click',data:{id:overlay.id,name:overlay.name,isVisibleBefore:isVisible,hasTiles,tilesLen:hasTiles?((overlay as typeof GEO_OVERLAYS[0]).tiles?.length ?? null):null,hasGeojson,geojsonPath:hasGeojson?((overlay as typeof GEO_OVERLAYS[0]).geojson ?? null):null,mapLoaded},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'N'})}).catch(()=>{});
+    }
+    // #endregion agent log (debug)
 
     if (!isVisible) {
       if (!map.getSource(overlay.id)) {
@@ -1128,6 +1637,9 @@ function App() {
             source: overlay.id,
             paint: { 'raster-opacity': overlay.opacity }
           })
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:toggleOverlay',message:'raster-added',data:{id:overlay.id,tilesLen:overlay.tiles.length,opacity:overlay.opacity,hasLayer:!!map.getLayer(overlay.id),hasSource:!!map.getSource(overlay.id)},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'N'})}).catch(()=>{});
+          // #endregion agent log (debug)
         }
       } else {
         map.setLayoutProperty(overlay.id, 'visibility', 'visible')
@@ -1253,11 +1765,157 @@ function App() {
       let geojson: GeoJSON.FeatureCollection | null = null
       let color = ''
 
-      if (restrictionId === 'airport-airspace') {
-        geojson = generateAirportGeoJSON()
-        color = RESTRICTION_COLORS.airport
-      } else if (restrictionId === 'ZONE_IDS.NO_FLY_RED') {
-        geojson = generateRedZoneGeoJSON()
+                      if (restrictionId === 'airport-airspace') {
+
+                        const zone = getAllRestrictionZones().find(z => z.id === restrictionId);
+
+                        
+
+                        // 1. Load official GSI tiles (Restriction Zones)
+
+                        if (zone?.tiles && !map.getSource(`${restrictionId}-tiles`)) {
+
+                          map.addSource(`${restrictionId}-tiles`, {
+
+                            type: 'raster',
+
+                            tiles: zone.tiles,
+
+                            tileSize: 256,
+
+                            attribution: '国土地理院'
+
+                          });
+
+                          map.addLayer({
+
+                            id: `${restrictionId}-tiles`,
+
+                            type: 'raster',
+
+                            source: `${restrictionId}-tiles`,
+
+                            paint: { 'raster-opacity': 0.5 }
+
+                          });
+
+                        } else if (map.getLayer(`${restrictionId}-tiles`)) {
+
+                          map.setLayoutProperty(`${restrictionId}-tiles`, 'visibility', 'visible');
+
+                        }
+
+              
+
+                        // 2. Load accurate boundary GeoJSON (C28) - "The Site"
+
+                        let siteGeoJSON = null;
+
+                        if (zone?.path) {
+
+                          try {
+
+                            siteGeoJSON = await fetchGeoJSONWithCache(zone.path);
+
+                          } catch (e) {
+
+                            console.error('Failed to load airport GeoJSON:', e);
+
+                          }
+
+                        }
+
+              
+
+                        // 3. Generate standard circles (Radius based) - "The Warning Zone"
+
+                        const circleGeoJSON = generateAirportGeoJSON();
+
+              
+
+                        // Merge or handle separately? 
+
+                        // Strategy: Use C28 for the main 'fill' layer, but also add circles as a separate transparent layer for coverage.
+
+                        // However, for simplicity in this function's structure, we will assign one to 'geojson' variable (the main one),
+
+                        // and add the other manually here.
+
+                        
+
+                        // Let's use the C28 data as the main 'geojson' (for popup/click etc if we add later),
+
+                        // and add the Circles as a background layer "airport-circles".
+
+              
+
+                        if (!map.getSource(`${restrictionId}-circles`)) {
+
+                          map.addSource(`${restrictionId}-circles`, { type: 'geojson', data: circleGeoJSON });
+
+                          map.addLayer({
+
+                            id: `${restrictionId}-circles`,
+
+                            type: 'fill',
+
+                            source: `${restrictionId}-circles`,
+
+                            paint: { 
+
+                              'fill-color': RESTRICTION_COLORS.airport, 
+
+                              'fill-opacity': 0.2 // Very transparent
+
+                            },
+
+                            layout: {},
+
+                            beforeId: `${restrictionId}-tiles` // Put behind tiles if possible
+
+                          });
+
+                          map.addLayer({
+
+                            id: `${restrictionId}-circles-outline`,
+
+                            type: 'line',
+
+                            source: `${restrictionId}-circles`,
+
+                            paint: { 
+
+                              'line-color': RESTRICTION_COLORS.airport, 
+
+                              'line-width': 1,
+
+                              'line-dasharray': [2, 2], // Dashed line for "Approximate"
+
+                              'line-opacity': 0.5
+
+                            }
+
+                          });
+
+                        } else {
+
+                           map.setLayoutProperty(`${restrictionId}-circles`, 'visibility', 'visible');
+
+                           map.setLayoutProperty(`${restrictionId}-circles-outline`, 'visibility', 'visible');
+
+                        }
+
+              
+
+                        // Use C28 (or fallback to circles if C28 failed) for the main layer ID 'airport-airspace'
+
+                        geojson = siteGeoJSON || circleGeoJSON;
+
+                        color = RESTRICTION_COLORS.airport; // This will be used for the main C28 fill
+
+              
+
+                      } else if (restrictionId === 'ZONE_IDS.NO_FLY_RED') {        geojson = generateRedZoneGeoJSON()
         color = RESTRICTION_COLORS.no_fly_red
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_YELLOW') {
         geojson = generateYellowZoneGeoJSON()
@@ -1384,6 +2042,16 @@ function App() {
         if (map.getLayer(`${restrictionId}-labels`)) {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'none')
         }
+        // Hide airport tiles and circles if they exist
+        if (restrictionId === 'airport-airspace') {
+          if (map.getLayer(`${restrictionId}-tiles`)) {
+            map.setLayoutProperty(`${restrictionId}-tiles`, 'visibility', 'none')
+          }
+          if (map.getLayer(`${restrictionId}-circles`)) {
+             map.setLayoutProperty(`${restrictionId}-circles`, 'visibility', 'none')
+             map.setLayoutProperty(`${restrictionId}-circles-outline`, 'visibility', 'none')
+          }
+        }
       }
       setRestrictionStates(prev => new Map(prev).set(restrictionId, false))
     }
@@ -1425,7 +2093,14 @@ function App() {
       map.removeLayer(`${layerId}-outline`)
     }
     if (map.getSource(layerId)) {
-
+      map.removeSource(layerId)
+    }
+    setCustomLayerVisibility(prev => {
+      const next = new Set(prev)
+      next.delete(layerId)
+      return next
+    })
+  }, [])
 
   // ============================================
   // Comparison Layer Visibility Control
@@ -1441,10 +2116,72 @@ function App() {
       if (map.getLayer(layerConfig.id)) {
         map.setLayoutProperty(layerConfig.id, 'visibility', visibility)
       }
+      if (map.getLayer(`${layerConfig.id}-heat`)) {
+        map.setLayoutProperty(`${layerConfig.id}-heat`, 'visibility', visibility)
+      }
+      if (map.getLayer(`${layerConfig.id}-outline`)) {
+        map.setLayoutProperty(`${layerConfig.id}-outline`, 'visibility', visibility)
+      }
       if (map.getLayer(`${layerConfig.id}-label`)) {
         map.setLayoutProperty(`${layerConfig.id}-label`, 'visibility', visibility)
       }
     })
+    // #region agent log (debug)
+    {
+      const states = ISHIKAWA_NOTO_COMPARISON_LAYERS.map(cfg => {
+        const l = map.getLayer(cfg.id)
+        const heat = map.getLayer(`${cfg.id}-heat`)
+        const outline = map.getLayer(`${cfg.id}-outline`)
+        const label = map.getLayer(`${cfg.id}-label`)
+        const safeVis = (id: string): string | null => {
+          try {
+            return map.getLayoutProperty(id, 'visibility') as string
+          } catch {
+            return null
+          }
+        }
+        return {
+          id: cfg.id,
+          targetVisible: comparisonLayerVisibility.has(cfg.id),
+          layerType: l?.type ?? null,
+          layerVis: l ? safeVis(cfg.id) : null,
+          heatType: heat?.type ?? null,
+          heatVis: heat ? safeVis(`${cfg.id}-heat`) : null,
+          outlineType: outline?.type ?? null,
+          outlineVis: outline ? safeVis(`${cfg.id}-outline`) : null,
+          labelType: label?.type ?? null,
+          labelVis: label ? safeVis(`${cfg.id}-label`) : null
+        }
+      })
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:comparison-visibility-effect',message:'applied',data:{baseMap,visible:Array.from(comparisonLayerVisibility.values()),states},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H'})}).catch(()=>{});
+    }
+    // #endregion agent log (debug)
+
+    // #region agent log (debug)
+    {
+      const safeRenderedCount = (layers: string[]): number => {
+        try {
+          return map.queryRenderedFeatures(undefined, { layers }).length
+        } catch {
+          return -1
+        }
+      }
+      const center = map.getCenter()
+      const b = map.getBounds()
+      const bounds: [[number, number], [number, number]] = [
+        [b.getWest(), b.getSouth()],
+        [b.getEast(), b.getNorth()]
+      ]
+      const rendered = ISHIKAWA_NOTO_COMPARISON_LAYERS.map(cfg => ({
+        id: cfg.id,
+        targetVisible: comparisonLayerVisibility.has(cfg.id),
+        renderedMain: safeRenderedCount([cfg.id]),
+        renderedHeat: safeRenderedCount([`${cfg.id}-heat`]),
+        renderedLabel: safeRenderedCount([`${cfg.id}-label`])
+      }))
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:comparison-visibility-effect',message:'render-check',data:{baseMap,zoom:map.getZoom(),center:[center.lng,center.lat],bounds,rendered},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'L'})}).catch(()=>{});
+    }
+    // #endregion agent log (debug)
   }, [comparisonLayerVisibility, mapLoaded])
 
   // ============================================
@@ -1455,20 +2192,27 @@ function App() {
     if (!map || !mapLoaded) return
 
     comparisonLayerOpacity.forEach((opacity, layerId) => {
-      if (map.getLayer(layerId)) {
+      const layer = map.getLayer(layerId)
+      const heat = map.getLayer(`${layerId}-heat`)
+      if (heat && heat.type === 'heatmap') {
+        map.setPaintProperty(`${layerId}-heat`, 'heatmap-opacity', opacity)
+      }
+      if (!layer) return
+
+      if (layer.type === 'circle') {
         map.setPaintProperty(layerId, 'circle-opacity', opacity)
         map.setPaintProperty(layerId, 'circle-stroke-opacity', opacity * 0.8)
+        return
+      }
+
+      if (layer.type === 'fill') {
+        map.setPaintProperty(layerId, 'fill-opacity', opacity)
+        if (map.getLayer(`${layerId}-outline`)) {
+          map.setPaintProperty(`${layerId}-outline`, 'line-opacity', Math.min(1, opacity * 0.9))
+        }
       }
     })
   }, [comparisonLayerOpacity, mapLoaded])
-      map.removeSource(layerId)
-    }
-    setCustomLayerVisibility(prev => {
-      const next = new Set(prev)
-      next.delete(layerId)
-      return next
-    })
-  }, [])
 
   const handleCustomLayerToggle = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current
@@ -1507,17 +2251,34 @@ function App() {
   const handleComparisonLayerToggle = useCallback((layerId: string, visible: boolean) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
+    if (baseMap !== 'osm') return
+
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleComparisonLayerToggle',message:'toggle',data:{layerId,visible,mapLoaded,hasLayer:!!map.getLayer(layerId)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion agent log (debug)
+
+    if (visible) {
+      const bounds = comparisonLayerBoundsRef.current.get(layerId)
+      if (bounds) {
+        try {
+          map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
+          // #region agent log (debug)
+          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleComparisonLayerToggle',message:'fitBounds',data:{layerId,bounds},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+          // #endregion agent log (debug)
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     setComparisonLayerVisibility(prev => {
       const next = new Set(prev)
-      if (visible) {
-        next.add(layerId)
-      } else {
-        next.delete(layerId)
-      }
+      if (visible) next.add(layerId)
+      else next.delete(layerId)
+      comparisonLayerVisibilityRef.current = next
       return next
     })
-  }, [mapLoaded])
+  }, [mapLoaded, baseMap])
 
   const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
     setComparisonLayerOpacity(prev => new Map(prev).set(layerId, opacity))
@@ -1794,7 +2555,11 @@ function App() {
             <input
               type="checkbox"
               checked={enableCoordinateDisplay}
-              onChange={(e) => setEnableCoordinateDisplay(e.target.checked)}
+              onChange={(e) => {
+                const next = e.target.checked
+                setEnableCoordinateDisplay(next)
+                if (!next) setDisplayCoordinates(null)
+              }}
             />
             <span style={{ fontSize: '14px' }}>座標表示</span>
           </label>
@@ -1833,7 +2598,7 @@ function App() {
                 center = lineCoords[midIndex]
               }
               
-              if (center) {
+              if (center && enableCoordinateDisplay) {
                 setDisplayCoordinates({
                   lng: center[0],
                   lat: center[1]
@@ -1994,15 +2759,50 @@ function App() {
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
                     <button
                       onClick={() => enableAllInGroup(group)}
-                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: darkMode ? '#444' : '#e8e8e8', color: darkMode ? '#fff' : '#333', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+                      style={{
+                        flex: 1,
+                        padding: '4px 6px',
+                        fontSize: '12px',
+                        backgroundColor: darkMode ? '#3a3a3a' : '#f2f2f2',
+                        color: darkMode ? '#fff' : '#333',
+                        border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
                     >
-                      全て表示
+                      全表示
+                    </button>
+                    <button
+                      onClick={() => enableAllInGroupRed(group)}
+                      title="この地域のDIDを一律赤色で表示"
+                      style={{
+                        flex: 1,
+                        padding: '4px 6px',
+                        fontSize: '12px',
+                        backgroundColor: darkMode ? 'rgba(255, 82, 82, 0.18)' : 'rgba(255, 82, 82, 0.12)',
+                        color: darkMode ? '#ff8a80' : '#d32f2f',
+                        border: `1px solid ${darkMode ? 'rgba(255, 138, 128, 0.65)' : 'rgba(211, 47, 47, 0.55)'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      全赤色
                     </button>
                     <button
                       onClick={() => disableAllInGroup(group)}
-                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: darkMode ? '#444' : '#e8e8e8', color: darkMode ? '#fff' : '#333', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+                      style={{
+                        flex: 1,
+                        padding: '4px 6px',
+                        fontSize: '12px',
+                        backgroundColor: darkMode ? '#3a3a3a' : '#f2f2f2',
+                        color: darkMode ? '#fff' : '#333',
+                        border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
                     >
-                      全て非表示
+                      全非表示
                     </button>
                   </div>
                   {group.layers.map(layer => (
@@ -2015,7 +2815,14 @@ function App() {
                         checked={isLayerVisible(layer.id)}
                         onChange={() => toggleLayer(layer)}
                       />
-                      <span style={{ width: '10px', height: '10px', backgroundColor: layer.color, borderRadius: '2px' }} />
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          backgroundColor: getDidGroupMode(group.name) === 'red' ? '#ff0000' : layer.color,
+                          borderRadius: '2px'
+                        }}
+                      />
                       <span>{layer.name}</span>
                     </label>
                   ))}
@@ -2099,33 +2906,62 @@ function App() {
         {/* Geographic Info */}
         <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>地理情報</div>
-          {GEO_OVERLAYS.filter(o => o.id !== 'buildings').map(overlay => (
-            <label key={overlay.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
-              <input
-                type="checkbox"
-                checked={isOverlayVisible(overlay.id)}
-                onChange={() => toggleOverlay(overlay)}
-              />
-              <span>{overlay.name}</span>
-            </label>
-          ))}
-
-          {/* 地物 */}
-          <label title="地物（見本データ）：建物・駅舎などの建造物" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
-            <input
-              type="checkbox"
-              checked={isOverlayVisible('buildings')}
-              onChange={() => toggleOverlay({ id: 'buildings', name: '(見本)地物' })}
-            />
-            <span>(見本)地物</span>
-          </label>
+          {GEO_OVERLAYS.map(overlay => {
+            const isNotoUplift = overlay.id === 'terrain-2024-noto'
+            const checked = isNotoUplift
+              ? comparisonLayerVisibility.has('terrain-2024-noto')
+              : isOverlayVisible(overlay.id)
+            const disabled = isNotoUplift ? baseMap !== 'osm' : false
+            const tooltip = isNotoUplift
+              ? (disabled ? '標準マップ（osm）のみ利用できます。' : '2024年能登半島地震後の隆起を示す点サンプル（赤い点/ヒート）を表示します。')
+              : (('description' in overlay && typeof overlay.description === 'string' && overlay.description.trim().length > 0)
+                ? overlay.description
+                : overlay.name)
+            return (
+              <label
+                key={overlay.id}
+                title={tooltip}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '4px',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  opacity: disabled ? 0.45 : 1,
+                  filter: disabled ? 'grayscale(60%)' : 'none'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => {
+                    if (isNotoUplift) {
+                      handleComparisonLayerToggle('terrain-2024-noto', !comparisonLayerVisibility.has('terrain-2024-noto'))
+                      return
+                    }
+                    toggleOverlay(overlay)
+                  }}
+                />
+                <span style={{ color: disabled ? (darkMode ? '#777' : '#888') : 'inherit' }}>
+                  {overlay.name}
+                  {disabled && (
+                    <span style={{ marginLeft: '6px', fontSize: '10px', opacity: 0.9 }}>
+                      （標準のみ）
+                    </span>
+                  )}
+                </span>
+              </label>
+            )
+          })}
         </div>
 
         {/* Weather Info */}
         <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>天候情報</div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          <label title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
             <input
               type="checkbox"
               checked={isWeatherVisible('rain-radar')}
@@ -2172,14 +3008,7 @@ function App() {
         visibleLayers={customLayerVisibility}
       />
 
-      {/* Ishikawa Noto Comparison Panel */}
-      <IsikawaNotoComparisonPanel
-        onLayerToggle={handleComparisonLayerToggle}
-        onOpacityChange={handleComparisonLayerOpacityChange}
-        visibleLayers={comparisonLayerVisibility}
-        opacityLayers={comparisonLayerOpacity}
-        darkMode={darkMode}
-      />
+      {/* NOTE: 右下の重複ボタンは廃止（隆起表示は右上チェックに統一） */}
 
       {/* Dark Mode Toggle - ナビコントロールの下に配置 [L] */}
       <button
