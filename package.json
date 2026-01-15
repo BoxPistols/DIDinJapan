@@ -30,7 +30,9 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "convert:did": "node scripts/convert_did_2020.js",
-    "download:did": "python3 scripts/download_did_2020.py"
+    "download:did": "python3 scripts/download_did_2020.py",
+    "convert:gsi2024": "node scripts/convert_gsi_2024.js",
+    "download:gsi2024": "python3 scripts/download_gsi_2024.py"
   },
   "repository": {
     "type": "git",

@@ -156,3 +156,113 @@ export function createLayerIdToNameMap(): Map<string, string> {
 export function getAllLayers() {
   return LAYER_GROUPS.flatMap(g => g.layers)
 }
+
+// ============================================
+// 2024年ポスト災害データレイヤーグループ
+// 2024年能登半島地震後の地形変化を可視化するためのレイヤー
+// ============================================
+
+export const TERRAIN_2024_COLOR = '#FF4444' // 地震後の地形：赤
+export const TERRAIN_2020_COLOR = '#4444FF' // 地震前の地形：青
+
+export interface TerrainLayer extends Omit<any, 'color'> {
+  id: string
+  name: string
+  path: string
+  year: 2020 | 2024
+  region: string
+  description: string
+}
+
+// 2024年地形データレイヤー（能登半島対応）
+export const TERRAIN_2024_LAYERS: TerrainLayer[] = [
+  {
+    id: 'terrain-2024-noto',
+    name: '能登半島地形 (2024年)',
+    path: '/GeoJSON/2024/noto_2024_elevation.geojson',
+    year: 2024,
+    region: 'noto',
+    description: '2024年能登半島地震後の地形データ（GSI DEM）',
+    color: TERRAIN_2024_COLOR
+  }
+]
+
+// 地震前の2020年DID参照用（比較対象）
+export const TERRAIN_2020_REFERENCE = {
+  id: 'terrain-2020-ishikawa',
+  name: '石川県 (2020年基準)',
+  path: '/GeoJSON/2020/r02_did_17_ishikawa.geojson',
+  year: 2020,
+  region: 'ishikawa',
+  description: '2020年国勢調査DID（地震前基準）',
+  color: TERRAIN_2020_COLOR
+}
+
+/**
+ * 2024年地形データをフィルター取得
+ * @param region - 地域キー (オプション: 'noto' など)
+ */
+export function getTerrain2024Layers(region?: string): TerrainLayer[] {
+  if (!region) return TERRAIN_2024_LAYERS
+  return TERRAIN_2024_LAYERS.filter(layer => layer.region === region)
+}
+
+
+// ============================================
+// 石川県地震前後比較用レイヤー
+// ドローン飛行申請で2020年と2024年のデータを同時比較
+// ============================================
+
+export interface ComparisonLayerConfig {
+  id: string
+  name: string
+  path: string
+  year: 2020 | 2024
+  color: string
+  region: string
+  description: string
+  helpText: string
+}
+
+/**
+ * 石川県比較用レイヤー
+ * 2024年能登地震による地形変化を視覚的に比較
+ */
+export const ISHIKAWA_NOTO_COMPARISON_LAYERS: ComparisonLayerConfig[] = [
+  {
+    id: 'did-17-ishikawa-2020',
+    name: '石川県 (2020年)',
+    path: '/GeoJSON/2020/r02_did_17_ishikawa.geojson',
+    year: 2020,
+    color: TERRAIN_2020_COLOR,
+    region: 'ishikawa',
+    description: '2020年国勢調査DID（地震前基準データ）',
+    helpText: '青色で表示される2020年の人口集中地区を参照用に表示'
+  },
+  {
+    id: 'terrain-2024-noto',
+    name: '能登半島 (2024年)',
+    path: '/GeoJSON/2024/noto_2024_elevation.geojson',
+    year: 2024,
+    color: TERRAIN_2024_COLOR,
+    region: 'noto',
+    description: '2024年能登半島地震後の地形データ',
+    helpText: '赤色で表示される2024年のデータ（隆起地域を反映）'
+  }
+]
+
+/**
+ * 比較レイヤーの設定を取得
+ * @param region - 地域キー ('ishikawa', 'noto', 'all')
+ */
+export function getComparisonLayers(region: string = 'all'): ComparisonLayerConfig[] {
+  if (region === 'all') return ISHIKAWA_NOTO_COMPARISON_LAYERS
+  return ISHIKAWA_NOTO_COMPARISON_LAYERS.filter(layer => layer.region === region || region === 'all')
+}
+
+/**
+ * 比較レイヤーのメタデータを取得
+ */
+export function getComparisonLayerMetadata(layerId: string): ComparisonLayerConfig | undefined {
+  return ISHIKAWA_NOTO_COMPARISON_LAYERS.find(layer => layer.id === layerId)
+}

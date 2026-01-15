@@ -173,6 +173,28 @@ export function formatCoordinates(lng: number, lat: number): string {
 }
 
 /**
+ * Convert decimal degrees to degrees, minutes, seconds format (DMS)
+ * Useful for NOTAM applications that require DMS format
+ * Example: 35.681200°, 139.767100° → 35°40'52.32"N, 139°46'01.56"E
+ */
+export function formatCoordinatesDMS(lng: number, lat: number): string {
+  const decimalToDMS = (decimal: number, isLat: boolean): string => {
+    const abs = Math.abs(decimal)
+    const degrees = Math.floor(abs)
+    const minutes = Math.floor((abs - degrees) * 60)
+    const seconds = ((abs - degrees) * 60 - minutes) * 60
+    
+    const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W')
+    return `${degrees}°${minutes}'${seconds.toFixed(2)}"${dir}`
+  }
+  
+  const latDMS = decimalToDMS(lat, true)
+  const lngDMS = decimalToDMS(lng, false)
+  
+  return `${latDMS}, ${lngDMS}`
+}
+
+/**
  * Convert wind direction in degrees to compass direction
  */
 export function degreesToCompass(degrees: number): string {

@@ -9,6 +9,15 @@ import { GeoOverlay, WeatherOverlay, RestrictionCategory, RestrictionZone } from
 // ============================================
 export const GEO_OVERLAYS: GeoOverlay[] = [
   {
+    id: 'terrain-2024',
+    name: '2024年地形データ（ポスト災害）',
+    tiles: [],
+    geojson: '/GeoJSON/2024/noto_2024_elevation.geojson',
+    opacity: 0.6,
+    category: 'geo',
+    description: '2024年能登半島地震後の地形データ（GSI DEM）'
+  },
+  {
     id: 'hillshade',
     name: '陰影起伏',
     tiles: ['https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png'],

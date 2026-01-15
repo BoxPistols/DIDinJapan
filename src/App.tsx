@@ -29,12 +29,16 @@ import {
   getAllPrefectureLayerIds,
   searchAddress,
   getZoomBounds,
-  quickSearch
+  quickSearch,
+  formatCoordinatesDMS
 } from './lib'
 import type { GeocodingResult } from './lib'
 import type { BaseMapKey, LayerConfig, LayerGroup, SearchIndexItem, LayerState, CustomLayer } from './lib'
 import { CustomLayerManager } from './components/CustomLayerManager'
 import { DrawingTools } from './components/DrawingTools'
+import { CoordinateDisplay } from './components/CoordinateDisplay'
+import { CoordinateInfoPanel } from './components/CoordinateInfoPanel'
+import { IsikawaNotoComparisonPanel } from './components/IsikawaNotoComparisonPanel'
 import { ToastContainer } from './components/Toast'
 import { DialogContainer } from './components/Dialog'
 import { fetchGeoJSONWithCache, clearOldCaches } from './lib/cache'
@@ -79,6 +83,8 @@ function App() {
     pitch: 0,
     bearing: 0
   })
+  const previousFeaturesRef = useRef<any[]>([])
+  const enableCoordinateDisplayRef = useRef(true)
 
   // State
   const [layerStates, setLayerStates] = useState<Map<string, LayerState>>(new Map())
@@ -123,6 +129,10 @@ function App() {
   const [showLeftLegend, setShowLeftLegend] = useState(true)
   const [showRightLegend, setShowRightLegend] = useState(true)
 
+
+  // Coordinate Info Panel
+  const [showCoordinatePanel, setShowCoordinatePanel] = useState(false)
+  const [clickedCoordinates, setClickedCoordinates] = useState<{ lng: number; lat: number } | null>(null)
   // Sidebar Resizing
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(280)
   const [rightSidebarWidth, setRightSidebarWidth] = useState(250) // 初期値を少し広く
@@ -134,6 +144,15 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  // Ishikawa Noto Comparison layers
+  const [comparisonLayerVisibility, setComparisonLayerVisibility] = useState<Set<string>>(new Set())
+  const [comparisonLayerOpacity, setComparisonLayerOpacity] = useState<Map<string, number>>(
+    new Map([
+      ['did-17-ishikawa-2020', 0.5],
+      ['terrain-2024-noto', 0.5]
+    ])
+  )
 
   // Dark mode
   const [darkMode, setDarkMode] = useState(() => {
@@ -164,6 +183,28 @@ function App() {
   // Help modal
   const [showHelp, setShowHelp] = useState(false)
 
+  // Coordinate display
+  const [displayCoordinates, setDisplayCoordinates] = useState<{ lng: number; lat: number } | null>(null)
+
+  // Enable coordinate display on map click
+  const [enableCoordinateDisplay, setEnableCoordinateDisplay] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { enableCoordinateDisplay: savedSetting, timestamp } = JSON.parse(stored)
+        const now = Date.now()
+
+        // 期限内なら保存された設定を使用
+        if (timestamp && (now - timestamp) < SETTINGS_EXPIRATION_MS) {
+          return savedSetting ?? true
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load coordinate display setting:', e)
+    }
+    return true // デフォルトはオン
+  })
+
   // 2D/3D切り替え
   const toggle3DMode = useCallback(() => {
     const map = mapRef.current
@@ -192,6 +233,7 @@ function App() {
       const settings = {
         darkMode,
         baseMap: newBaseMap,
+        enableCoordinateDisplay,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -211,13 +253,14 @@ function App() {
       const settings = {
         darkMode,
         baseMap,
+        enableCoordinateDisplay,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
     } catch (e) {
       console.error('Failed to save UI settings:', e)
     }
-  }, [darkMode, baseMap])
+  }, [darkMode, baseMap, enableCoordinateDisplay])
 
   // ============================================
   // Tooltip ref sync
@@ -232,6 +275,13 @@ function App() {
   useEffect(() => {
     restrictionStatesRef.current = restrictionStates
   }, [restrictionStates])
+
+  // ============================================
+  // Enable coordinate display ref sync
+  // ============================================
+  useEffect(() => {
+    enableCoordinateDisplayRef.current = enableCoordinateDisplay
+  }, [enableCoordinateDisplay])
 
   // ============================================
   // Keyboard shortcuts
@@ -637,6 +687,16 @@ function App() {
       map.getCanvas().style.cursor = ''
       if (popupRef.current) {
         popupRef.current.remove()
+      }
+    })
+
+    // Handle map click to display coordinates
+    map.on('click', (e) => {
+      if (enableCoordinateDisplayRef.current) {
+        setDisplayCoordinates({
+          lng: e.lngLat.lng,
+          lat: e.lngLat.lat
+        })
       }
     })
 
@@ -1300,6 +1360,28 @@ function App() {
   }, [mapLoaded, handleCustomLayerAdded])
 
   // ============================================
+  // Ishikawa Noto Comparison Layer Handlers
+  // ============================================
+  const handleComparisonLayerToggle = useCallback((layerId: string, visible: boolean) => {
+    const map = mapRef.current
+    if (!map || !mapLoaded) return
+
+    setComparisonLayerVisibility(prev => {
+      const next = new Set(prev)
+      if (visible) {
+        next.add(layerId)
+      } else {
+        next.delete(layerId)
+      }
+      return next
+    })
+  }, [mapLoaded])
+
+  const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
+    setComparisonLayerOpacity(prev => new Map(prev).set(layerId, opacity))
+  }, [])
+
+  // ============================================
   // Sidebar Resizing Logic
   // ============================================
   useEffect(() => {
@@ -1426,6 +1508,7 @@ function App() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="検索... (⌘K)"
+            title="DID（人口集中地区）と地名・建物名を検索します。市区町村名や地名を入力してください"
             style={{
               width: '100%',
               padding: '6px 8px',
@@ -1513,7 +1596,7 @@ function App() {
         </div>
 
         {/* Base map selector */}
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: '12px' }} title="マップの背景地図スタイルを変更します">
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {(Object.keys(BASE_MAPS) as BaseMapKey[]).map((key) => (
               <button
@@ -1536,7 +1619,7 @@ function App() {
         </div>
 
         {/* Opacity slider */}
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: '12px' }} title="DIDレイヤーと制限エリアレイヤーの透明度を調整します">
           <label style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666' }}>
             透明度: {Math.round(opacity * 100)}%
           </label>
@@ -1552,7 +1635,7 @@ function App() {
         </div>
 
         {/* Tooltip toggle */}
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: '12px' }} title="マップ上にマウスをホバーした時に、DID情報や制限区域の詳細をポップアップ表示します">
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -1563,12 +1646,60 @@ function App() {
           </label>
         </div>
 
+        {/* Coordinate Display toggle */}
+        <div style={{ marginBottom: '12px' }} title="マップをクリックした時に、クリック位置の緯度経度を10進数と度分秒形式で表示します">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={enableCoordinateDisplay}
+              onChange={(e) => setEnableCoordinateDisplay(e.target.checked)}
+            />
+            <span style={{ fontSize: '14px' }}>座標表示</span>
+          </label>
+        </div>
+
         {/* Drawing Tools - サイドバー内に埋め込み */}
         <DrawingTools
           map={mapRef.current}
           mapLoaded={mapLoaded}
           darkMode={darkMode}
           embedded={true}
+          onFeaturesChange={(features) => {
+            // Display coordinates when a new feature is added
+            if (features.length > previousFeaturesRef.current.length) {
+              const lastFeature = features[features.length - 1]
+              // Use center for circles and point, or first coordinate for lines
+              let center: [number, number] | null = null
+              
+              if (lastFeature.type === 'circle' && lastFeature.center) {
+                center = lastFeature.center
+              } else if (lastFeature.type === 'point' && Array.isArray(lastFeature.coordinates)) {
+                center = lastFeature.coordinates as [number, number]
+              } else if (lastFeature.type === 'polygon' && Array.isArray(lastFeature.coordinates) && lastFeature.coordinates.length > 0) {
+                const outerRing = lastFeature.coordinates[0] as [number, number][]
+                if (outerRing.length > 0) {
+                  let sumLng = 0, sumLat = 0
+                  outerRing.forEach(coord => {
+                    sumLng += coord[0]
+                    sumLat += coord[1]
+                  })
+                  center = [sumLng / outerRing.length, sumLat / outerRing.length]
+                }
+              } else if (lastFeature.type === 'line' && Array.isArray(lastFeature.coordinates) && lastFeature.coordinates.length > 0) {
+                const lineCoords = lastFeature.coordinates as [number, number][]
+                const midIndex = Math.floor(lineCoords.length / 2)
+                center = lineCoords[midIndex]
+              }
+              
+              if (center) {
+                setDisplayCoordinates({
+                  lng: center[0],
+                  lat: center[1]
+                })
+              }
+            }
+            previousFeaturesRef.current = features
+          }}
         />
 
         {/* Restriction Areas Section */}
@@ -1899,6 +2030,15 @@ function App() {
         visibleLayers={customLayerVisibility}
       />
 
+      {/* Ishikawa Noto Comparison Panel */}
+      <IsikawaNotoComparisonPanel
+        onLayerToggle={handleComparisonLayerToggle}
+        onOpacityChange={handleComparisonLayerOpacityChange}
+        visibleLayers={comparisonLayerVisibility}
+        opacityLayers={comparisonLayerOpacity}
+        darkMode={darkMode}
+      />
+
       {/* Dark Mode Toggle - ナビコントロールの下に配置 [L] */}
       <button
         onClick={() => setDarkMode(!darkMode)}
@@ -2139,6 +2279,16 @@ function App() {
 
       {/* Confirm Dialog */}
       <DialogContainer />
+
+      {/* Coordinate Display */}
+      {displayCoordinates && (
+        <CoordinateDisplay
+          lng={displayCoordinates.lng}
+          lat={displayCoordinates.lat}
+          darkMode={darkMode}
+          onClose={() => setDisplayCoordinates(null)}
+        />
+      )}
     </div>
   )
 }

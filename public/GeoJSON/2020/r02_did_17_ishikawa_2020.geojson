@@ -1,0 +1,142 @@
+{
+  "type": "FeatureCollection",
+  "name": "Ishikawa Prefecture DID 2020 (Pre-Earthquake Reference)",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8700, 37.4050]
+      },
+      "properties": {
+        "elevation": 41.2,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Kaiso Port area - baseline 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8750, 37.4080]
+      },
+      "properties": {
+        "elevation": 44.5,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Coastal zone - baseline 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8800, 37.4110]
+      },
+      "properties": {
+        "elevation": 48.3,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Pre-earthquake elevation"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8850, 37.4140]
+      },
+      "properties": {
+        "elevation": 34.7,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Lower elevation area - 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8900, 37.4170]
+      },
+      "properties": {
+        "elevation": 51.6,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Peak elevation - 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8650, 37.4000]
+      },
+      "properties": {
+        "elevation": 38.1,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Coastal baseline"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8875, 37.4000]
+      },
+      "properties": {
+        "elevation": 42.8,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Central region - 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8725, 37.4200]
+      },
+      "properties": {
+        "elevation": 46.4,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Northern area - 2020"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8625, 37.4100]
+      },
+      "properties": {
+        "elevation": 31.9,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Sea level - 2020 reference"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8950, 37.4050]
+      },
+      "properties": {
+        "elevation": 54.2,
+        "year": 2020,
+        "change_meters": 4.0,
+        "description": "Eastern area - 2020"
+      }
+    }
+  ]
+}

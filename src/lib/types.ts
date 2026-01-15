@@ -63,10 +63,12 @@ export interface GeoOverlay {
   id: string /** Unique identifier for the overlay */
   name: string /** Display name of the overlay */
   tiles: string[] /** Array of tile URLs or GeoJSON paths */
+  geojson?: string /** Path to GeoJSON data file */
   opacity: number /** Opacity level (0-1) */
   category: 'geo' | 'weather' | 'restriction' /** Category of overlay data */
   minZoom?: number /** Minimum zoom level to display overlay */
   maxZoom?: number /** Maximum zoom level to display overlay */
+  description?: string /** Description of the overlay */
 }
 
 export interface WeatherOverlay {

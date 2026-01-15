@@ -62,5 +62,19 @@ export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | mapli
   },
 }
 
-export const DEFAULT_CENTER: [number, number] = [137.0, 36.5]
-export const DEFAULT_ZOOM = 5
+// 初期表示座標：石川県能登半島（輪島市周辺）
+// 2024年能登半島地震の影響地域を中心に表示
+export const DEFAULT_CENTER: [number, number] = [136.876, 37.405]
+export const DEFAULT_ZOOM = 11
+
+// 日本全体表示用（フォールバック）
+export const JAPAN_CENTER: [number, number] = [137.0, 36.5]
+export const JAPAN_ZOOM = 5
+
+// 地域別の推奨ズーム設定
+export const REGION_VIEWS = {
+  japan: { center: [137.0, 36.5] as [number, number], zoom: 5 },
+  ishikawa: { center: [136.5, 36.8] as [number, number], zoom: 9 },
+  noto: { center: [136.876, 37.405] as [number, number], zoom: 11 },
+  wajima: { center: [136.876, 37.405] as [number, number], zoom: 12 }
+}

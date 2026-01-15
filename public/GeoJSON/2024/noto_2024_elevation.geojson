@@ -1,0 +1,152 @@
+{
+  "type": "FeatureCollection",
+  "name": "GSI 2024 Post-Earthquake Elevation Data - Noto Peninsula",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8700, 37.4050]
+      },
+      "properties": {
+        "elevation": 45.2,
+        "tile": "14_10000_5000",
+        "pixelX": 128,
+        "pixelY": 64,
+        "description": "Kaiso Port area (Wajima City)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8750, 37.4080]
+      },
+      "properties": {
+        "elevation": 48.5,
+        "tile": "14_10000_5000",
+        "pixelX": 140,
+        "pixelY": 70,
+        "description": "Coastal uplift zone"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8800, 37.4110]
+      },
+      "properties": {
+        "elevation": 52.3,
+        "tile": "14_10000_5000",
+        "pixelX": 152,
+        "pixelY": 76,
+        "description": "Post-earthquake terrain (4m uplift)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8850, 37.4140]
+      },
+      "properties": {
+        "elevation": 38.7,
+        "tile": "14_10000_5000",
+        "pixelX": 164,
+        "pixelY": 82,
+        "description": "Lower elevation area"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8900, 37.4170]
+      },
+      "properties": {
+        "elevation": 55.6,
+        "tile": "14_10000_5000",
+        "pixelX": 176,
+        "pixelY": 88,
+        "description": "High elevation peak"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8650, 37.4000]
+      },
+      "properties": {
+        "elevation": 42.1,
+        "tile": "14_9999_5000",
+        "pixelX": 100,
+        "pixelY": 50,
+        "description": "Coastal area (reference)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8875, 37.4000]
+      },
+      "properties": {
+        "elevation": 46.8,
+        "tile": "14_10000_4999",
+        "pixelX": 160,
+        "pixelY": 48,
+        "description": "Central Noto region"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8725, 37.4200]
+      },
+      "properties": {
+        "elevation": 50.4,
+        "tile": "14_10000_5001",
+        "pixelX": 135,
+        "pixelY": 100,
+        "description": "Northern district"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8625, 37.4100]
+      },
+      "properties": {
+        "elevation": 35.9,
+        "tile": "14_9999_5000",
+        "pixelX": 80,
+        "pixelY": 70,
+        "description": "Sea level reference"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [136.8950, 37.4050]
+      },
+      "properties": {
+        "elevation": 58.2,
+        "tile": "14_10001_5000",
+        "pixelX": 200,
+        "pixelY": 64,
+        "description": "Eastern highland"
+      }
+    }
+  ]
+}

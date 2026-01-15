@@ -26,8 +26,17 @@ export {
   LAYER_GROUPS,
   PREFECTURE_COLORS,
   createLayerIdToNameMap,
-  getAllLayers
+  getAllLayers,
+  TERRAIN_2024_LAYERS,
+  TERRAIN_2024_COLOR,
+  TERRAIN_2020_COLOR,
+  TERRAIN_2020_REFERENCE,
+  getTerrain2024Layers,
+  ISHIKAWA_NOTO_COMPARISON_LAYERS,
+  getComparisonLayers,
+  getComparisonLayerMetadata
 } from './config/layers'
+export type { ComparisonLayerConfig } from './config/layers'
 export {
   getPrefectureInfo,
   getAllPrefectureLayerIds,
@@ -96,6 +105,15 @@ export {
   MAJOR_CITIES
 } from './services/geocoding'
 export type { GeocodingResult, SearchOptions } from './services/geocoding'
+export {
+  fetchElevationFromGSI,
+  getCoordinateInfo,
+  fetchElevationBatch,
+  getRecommendedFlightAltitude,
+  clearElevationCache,
+  getCacheInfo
+} from './services/elevationService'
+export type { ElevationData, CoordinateInfo } from './services/elevationService'
 
 // Utilities
 export {
@@ -105,6 +123,7 @@ export {
   pointInPolygon,
   mergeBBoxes,
   formatCoordinates,
+  formatCoordinatesDMS,
   degreesToCompass,
   degreesToJapanese,
   generateBuildingsGeoJSON,
