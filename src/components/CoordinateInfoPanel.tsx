@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react'
 import { getCoordinateInfo, getRecommendedFlightAltitude, CoordinateInfo } from '../lib/services/elevationService'
 import styles from './CoordinateInfoPanel.module.css'
+import { toast } from '../utils/toast'
 
 interface CoordinatePanelProps {
   isVisible: boolean
@@ -88,7 +89,7 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
             onClick={() => {
               const text = `${coordInfo.lat.toFixed(6)},${coordInfo.lng.toFixed(6)}`
               navigator.clipboard.writeText(text)
-              alert('座標をコピーしました')
+              toast.success('座標をコピーしました')
             }}
           >
             📋 座標をコピー

@@ -104,17 +104,9 @@ async function queryGSIDEMTile(
     // GSI DEM5b タイルサービスへのリクエスト
     // このスタブは、実装時に実際のタイル座標計算とデータ取得に置き換える
     
-    // 例: Google Elevation API (比較参照)
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/elevation/json?locations=${lat},${lng}`
-    )
-    
-    if (!response.ok) return null
-    
-    const data = await response.json()
-    if (data.results && data.results.length > 0) {
-      return Math.round(data.results[0].elevation)
-    }
+    // TODO: GSI DEM5bのテキストタイルまたはPNGタイルを取得して標高を計算する実装が必要
+    // 現在は外部APIの不適切な使用を避けるため、意図的にnullを返す
+    console.warn('GSI DEM tile fetching is not yet implemented.', { lng, lat })
     
     return null
   } catch (error) {
