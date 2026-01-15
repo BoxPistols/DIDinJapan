@@ -4,3 +4,6 @@ tsconfig.tsbuildinfo
 .gemini-clipboard/
 rawdata/
 .claude/
+
+.gemini/
+gha-creds-*.json

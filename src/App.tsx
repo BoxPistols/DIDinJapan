@@ -930,7 +930,6 @@ function App() {
 
     initComparisonLayers()
   }, [mapLoaded])
-  }, [mapLoaded])
   // Load default layers on map load
   // ============================================
   useEffect(() => {
@@ -2018,6 +2017,12 @@ function App() {
                       style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: darkMode ? '#444' : '#e8e8e8', color: darkMode ? '#fff' : '#333', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
                     >
                       全て非表示
+                    </button>
+                    <button
+                      onClick={() => applyGroupRedMode(group)}
+                      style={{ flex: 1, padding: '2px 4px', fontSize: '12px', backgroundColor: redDIDGroups.has(group.name) ? '#FF0000' : (darkMode ? '#555' : '#d8d8d8'), color: redDIDGroups.has(group.name) ? '#fff' : (darkMode ? '#fff' : '#333'), border: 'none', borderRadius: '2px', cursor: 'pointer', fontWeight: redDIDGroups.has(group.name) ? 600 : 400 }}
+                    >
+                      赤色表示
                     </button>
                   </div>
                   {group.layers.map(layer => (
