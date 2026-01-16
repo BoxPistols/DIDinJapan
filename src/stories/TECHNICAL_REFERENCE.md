@@ -15,6 +15,7 @@
 7. [ドローン固有の概念](#ドローン固有の概念)
 8. [LocalStorage スキーマ](#localstorage-スキーマ)
 9. [パフォーマンス考慮事項](#パフォーマンス考慮事項)
+10. [制限表面（空港周辺空域）](#制限表面空港周辺空域)
 
 ---
 
@@ -874,7 +875,492 @@ const filteredFeatures = useMemo(() => {
 
 ---
 
-## 参考資料・外部リンク
+## 制限表面（空港周辺空域）
+
+### 概要
+
+日本の航空法（航空法第131条～133条）および ICAO (国際民間航空機関) の規定に基づき、空港周辺には**4つの制限表面（空域）**が定義されています。ドローンを含む小型無人機は、国土交通大臣の許可・承認を得ない限り、これらの空域では飛行できません。
+
+本アプリケーションでは、国土数値情報（MLIT 提供・A32「航空法施行規則で定められた進入表面等」）のデータを用い、これらの制限表面を**精確な多角形**として可視化します。
+
+### 航空法の規定
+
+| 項目 | 詳細 |
+|------|------|
+| **法的根拠** | 航空法 第131条（進入表面等）、第132条（小型無人機の飛行制限） |
+| **対象** | 25kg 以上の有人航空機、およびドローン等の小型無人機 |
+| **許可・承認** | 国土交通省空港事務所（または地方航空局）に申請 |
+| **データソース** | 国土数値情報 A32（GeoJSON 形式・更新頻度: 年1回） |
+
+---
+
+### 4つの制限表面の幾何学的定義
+
+すべての制限表面は、**「着陸帯（Runway Strip）」**と呼ばれる長方形を基準として計算されます。
+
+#### A. 着陸帯（Runway Strip）
+
+着陸帯はすべての制限表面の基準となる長方形です。実際の滑走路を囲むように定義されます。
+
+**座標計算アルゴリズム:**
+
+```
+入力:
+  - runway_start: [lng, lat]  // 滑走路北端（または北西端）
+  - runway_end: [lng, lat]    // 滑走路南端（または南東端）
+  - strip_width: number       // 着陸帯の幅（m、例: 300m）
+  - extension_before: number  // 滑走路北端の前方延長（m、例: 60m）
+  - extension_after: number   // 滑走路南端の後方延長（m、例: 60m）
+
+処理:
+1. 滑走路中心線の方位角を計算: bearing = atan2(Δlng, Δlat)
+2. 着陸帯の4隅を計算:
+   - P1 = runway_start から bearing-90° 方向に strip_width/2 移動
+   - P2 = runway_start から bearing+90° 方向に strip_width/2 移動
+   - P3' = runway_start から bearing-180° 方向に extension_before 移動、その後 bearing-90° 方向に strip_width/2 移動
+   - P4' = runway_start から bearing-180° 方向に extension_before 移動、その後 bearing+90° 方向に strip_width/2 移動
+   - P3  = runway_end から bearing 方向に extension_after 移動、その後 bearing-90° 方向に strip_width/2 移動
+   - P4  = runway_end から bearing 方向に extension_after 移動、その後 bearing+90° 方向に strip_width/2 移動
+
+3. 着陸帯 = [P3', P4', P4, P3, P3'] （反時計回り閉鎖ポリゴン）
+```
+
+**実装例（TypeScript + Turf.js）:**
+
+```typescript
+import * as turf from '@turf/turf';
+
+interface RunwayDefinition {
+  start: [number, number];       // [lng, lat]
+  end: [number, number];         // [lng, lat]
+  stripWidth: number;            // m
+  extensionBefore: number;       // m
+  extensionAfter: number;        // m
+}
+
+function generateRunwayStrip(runway: RunwayDefinition): GeoJSON.Polygon {
+  const bearing = turf.bearing(runway.start, runway.end);
+  const distBefore = runway.extensionBefore / 1000; // km
+  const distAfter = runway.extensionAfter / 1000;   // km
+  const halfWidth = runway.stripWidth / 2000;        // km
+
+  // 滑走路北端の前方・後方を計算
+  const p1Before = turf.destination(runway.start, distBefore, bearing - 180);
+  const p1Left = turf.destination(p1Before, halfWidth, bearing - 90);
+  const p1Right = turf.destination(p1Before, halfWidth, bearing + 90);
+
+  // 滑走路南端の後方を計算
+  const p2After = turf.destination(runway.end, distAfter, bearing);
+  const p2Left = turf.destination(p2After, halfWidth, bearing - 90);
+  const p2Right = turf.destination(p2After, halfWidth, bearing + 90);
+
+  // ポリゴン作成（反時計回り）
+  return turf.polygon([[
+    p1Left.geometry.coordinates,
+    p1Right.geometry.coordinates,
+    p2Right.geometry.coordinates,
+    p2Left.geometry.coordinates,
+    p1Left.geometry.coordinates  // 閉じる
+  ]]);
+}
+```
+
+**典型的な値（日本の民間空港）:**
+- 幅: 300m ～ 450m
+- 前方延長: 60m
+- 後方延長: 60m
+
+---
+
+#### B. 進入表面（Approach Surface）
+
+進入表面は、着陸帯の短辺（滑走路端）から外側へ広がる**台形またはくさび型**の領域です。航空機が着陸に向けて下降する空域です。
+
+**幾何学的性質:**
+
+| 項目 | 詳細 |
+|------|------|
+| **始端** | 着陸帯の短辺（幅 = strip_width） |
+| **終端** | 始端から一定距離（例: 2,400m ～ 3,000m）進んだ地点 |
+| **幅の拡大** | 距離に応じて線形に拡大（勾配: 例 15%） |
+| **高さ勾配** | 1/50（下降勾配、実装では 3D 表示時に使用） |
+
+**計算アルゴリズム:**
+
+```
+入力:
+  - runway_strip: Polygon        // 着陸帯（上記参照）
+  - approach_length: number      // 進入表面の長さ（m、例: 3000）
+  - slope_ratio: number          // 開き勾配（%、例: 0.15 = 15%）
+  - runway_bearing: number       // 滑走路の方位角（度）
+
+処理:
+1. 着陸帯の短辺を特定
+   - 終端（滑走路南端側）の幅を持つ辺を取得
+   - その中点 midpoint_end を計算
+
+2. 距離 approach_length だけ runway_bearing 方向に進んだ点を計算
+   - far_center = midpoint_end から runway_bearing 方向に approach_length 移動
+
+3. 進入表面の4隅を計算
+   - P1_left = 着陸帯終端左隅
+   - P1_right = 着陸帯終端右隅
+   -
+   - 終端での幅 = strip_width + (approach_length * slope_ratio)
+   - P2_left = far_center から bearing-90° 方向に 終端での幅/2 移動
+   - P2_right = far_center から bearing+90° 方向に 終端での幅/2 移動
+
+4. ポリゴン生成
+   - polygon = [P1_left, P1_right, P2_right, P2_left, P1_left]（反時計回り）
+```
+
+**実装例:**
+
+```typescript
+function generateApproachSurface(
+  runwayStrip: GeoJSON.Polygon,
+  bearing: number,
+  approachLength: number,
+  slopeRatio: number
+): GeoJSON.Polygon {
+  const stripCoords = runwayStrip.coordinates[0];
+
+  // 着陸帯の終端を取得（南端）
+  const endLeft = stripCoords[2];    // P2_left
+  const endRight = stripCoords[3];   // P2_right
+  const midpointEnd = turf.midpoint(endLeft, endRight);
+
+  // 遠点（進入表面の終端中心）
+  const approachLengthKm = approachLength / 1000;
+  const farCenter = turf.destination(midpointEnd, approachLengthKm, bearing);
+
+  // 始端での幅（着陸帯の幅）
+  const halfWidthStart = turf.distance(endLeft, endRight) / 2;
+
+  // 終端での幅（開き勾配を適用）
+  const halfWidthEnd = halfWidthStart + (approachLength * slopeRatio) / 2000; // km
+
+  // 4隅
+  const p1Left = turf.destination(midpointEnd, halfWidthStart / 1000, bearing - 90);
+  const p1Right = turf.destination(midpointEnd, halfWidthStart / 1000, bearing + 90);
+  const p2Left = turf.destination(farCenter, halfWidthEnd, bearing - 90);
+  const p2Right = turf.destination(farCenter, halfWidthEnd, bearing + 90);
+
+  return turf.polygon([[
+    p1Left.geometry.coordinates,
+    p1Right.geometry.coordinates,
+    p2Right.geometry.coordinates,
+    p2Left.geometry.coordinates,
+    p1Left.geometry.coordinates
+  ]]);
+}
+```
+
+**典型的な値（日本）:**
+- 長さ: 2,400m（ILS あり）～ 3,000m（ILS なし）
+- 開き勾配: 15%（1:6.67）
+- 高さ勾配: 1/50（実装では 3D 表示）
+
+---
+
+#### C. 転移表面（Transitional Surface）
+
+転移表面は、着陸帯および進入表面の側面から、外側へ**傾斜した側面**として立ち上がる領域です。進入表面と水平表面を接続する役割を果たします。
+
+**幾何学的性質:**
+
+| 項目 | 詳細 |
+|------|------|
+| **源線** | 着陸帯の長辺 + 進入表面の斜辺 |
+| **終線** | 水平表面の外周 |
+| **勾配** | 約 1/7（水平距離 7m あたり 1m 上昇） |
+| **高さ** | 始端: 0m → 終端: 45m（地上高） |
+
+**計算アルゴリズム:**
+
+```
+入力:
+  - runway_strip: Polygon
+  - approach_surface: Polygon
+  - horizontal_radius: number   // 水平表面の半径（m、例: 4000）
+  - bearing: number             // 滑走路方位角
+
+処理:
+1. 着陸帯の長辺を取得（左右の側線）
+   - strip_left_line = 着陸帯の左側面
+   - strip_right_line = 着陸帯の右側面
+
+2. 進入表面の斜辺（左右）を取得
+   - approach_left_edge = 進入表面左側面の最外周
+   - approach_right_edge = 進入表面右側面の最外周
+
+3. 転移表面の「外周」を計算
+   - 着陸帯の側線から垂直に、勾配 1/7 で距離 45m * 7 = 315m 外側に進んだ線
+   - 進入表面の斜辺から同様に 315m 外側に進んだ線
+
+4. ポリゴン生成
+   - 左側転移表面 = [strip_left_line_end, approach_left_edge_end, transitioned_left_outer]
+   - 右側転移表面 = [strip_right_line_end, approach_right_edge_end, transitioned_right_outer]
+
+5. これらを結合して1つのマルチポリゴンまたは複数ポリゴンとして表現
+```
+
+**実装上の注記:**
+- 転移表面は複雑な幾何形状となるため、国土数値情報 A32 から直接ポリゴンを読み取ることを推奨
+- クライアント側での計算は誤差が生じやすいため避けるべき
+
+---
+
+#### D. 水平表面（Horizontal Surface）
+
+水平表面は、空港の航点（ARP: Aerodrome Reference Point）を中心に、一定の高さ（45m ASL）で広がる**ほぼ円形またはトラック型**の領域です。
+
+**幾何学的性質:**
+
+| 項目 | 詳細 |
+|------|------|
+| **中心** | 空港の航点（ARP）- 通常は滑走路中央 |
+| **形状** | 単純な円（ILS がない場合）または小判型（複数滑走路がある場合） |
+| **半径** | 通常 4,000m（民間空港） ～ 7,000m（大型空港） |
+| **高さ** | 45m ASL（絶対高度） |
+
+**計算アルゴリズム（単純な円の場合）:**
+
+```
+入力:
+  - arp: [lng, lat]          // 空港航点
+  - radius: number           // 半径（m、例: 4000）
+
+処理:
+1. turf.circle(arp, radius / 1000, { units: 'kilometers' })
+   で円形ポリゴンを生成
+
+2. 進入表面・転移表面との重複部分は、GeoJSON Difference 演算で除去
+```
+
+**実装例（トラック型の場合）:**
+
+複数の滑走路がある場合、水平表面は以下のように構成されることがあります：
+
+```typescript
+function generateHorizontalSurface(
+  runway1: RunwayDefinition,
+  runway2: RunwayDefinition,
+  radius: number
+): GeoJSON.Polygon | GeoJSON.MultiPolygon {
+  const arp1 = turf.midpoint(runway1.start, runway1.end);
+  const arp2 = turf.midpoint(runway2.start, runway2.end);
+
+  // 2つの円を生成
+  const circle1 = turf.circle(arp1, radius / 1000, { units: 'kilometers' });
+  const circle2 = turf.circle(arp2, radius / 1000, { units: 'kilometers' });
+
+  // 結合（Union）
+  const union = turf.union(circle1, circle2);
+
+  return union.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon;
+}
+```
+
+---
+
+### Web地図での3D表示戦略
+
+MapLibre GL JS の `fill-extrusion` レイヤーは、1つのポリゴンに対して**単一の高さ値のみ**を設定できるため、滑らかなスロープを直接描画できません。
+
+#### 推奨戦略: ステップ分割法（段階的押し出し）
+
+進入表面や転移表面を、**50m ～ 100m 刻みで微細分割し、各断面の高さを段階的に増加させる**方法です。
+
+**アルゴリズム:**
+
+```
+入力:
+  - surface: Polygon           // 進入表面など
+  - step_distance: number      // 分割距離（m、例: 100）
+  - start_height: number       // 始端高度（m）
+  - end_height: number         // 終端高度（m）
+  - bearing: number            // 方向
+
+処理:
+1. 距離 step_distance ごとに平行ポリゴンを生成
+   for i = 0; i < length; i += step_distance:
+     - current_distance = i
+     - next_distance = i + step_distance
+     - height_current = start_height + (end_height - start_height) * (i / length)
+     - height_next = start_height + (end_height - start_height) * ((i + step_distance) / length)
+
+2. 各ステップのポリゴンを GeoJSON Feature として出力
+   - properties.height = height_current
+   - properties.height_top = height_next
+   - properties.segment_index = i
+
+3. MapLibre で each segment を fill-extrusion でレンダリング
+   - "fill-extrusion-height": ["feature-state", "height_top"]
+   - "fill-extrusion-base": ["feature-state", "height"]
+```
+
+**効果:**
+- 100m 刻みで分割 = ~24段 で進入表面を表現（ASL 0m～1,200m）
+- 視覚的にはスムーズな傾斜に見える
+
+---
+
+### 国土数値情報 A32 との連携
+
+実装では、複雑な幾何計算を避けるため、**国土数値情報 A32 から直接ポリゴンを読み取る**ことを強く推奨します。
+
+**データフォーマット:**
+
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "airport_surfaces_001",
+      "properties": {
+        "airport_code": "RJTT",           // 東京国際空港
+        "airport_name": "Tokyo International Airport",
+        "surface_type": "approach",       // "runway_strip" | "approach" | "transitional" | "horizontal"
+        "runway_number": "05R/23L",       // 滑走路識別号
+        "height_asl": 600,                // ポリゴン全体の代表高度（ASL, m）
+        "height_start": 0,                // 始端高度（高度段階化の場合）
+        "height_end": 1200,               // 終端高度
+        "slope_type": "linear",           // 高度変化の種類（線形など）
+        "classification": "ILS"           // ILS 装備の有無
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[139.77, 35.54], [139.78, 35.54], ...]]
+      }
+    }
+  ]
+}
+```
+
+**アプリケーションでの読み込み例:**
+
+```typescript
+interface AirportSurface extends GeoJSON.Feature {
+  properties: {
+    airport_code: string;
+    airport_name: string;
+    surface_type: 'runway_strip' | 'approach' | 'transitional' | 'horizontal';
+    runway_number: string;
+    height_asl: number;
+    height_start: number;
+    height_end: number;
+    slope_type: string;
+    classification: string;
+  };
+}
+
+async function loadAirportSurfaces(
+  airport_code: string
+): Promise<AirportSurface[]> {
+  const response = await fetch(
+    `/data/kokuarea/${airport_code}_surfaces.geojson`
+  );
+  const fc = await response.json() as GeoJSON.FeatureCollection;
+
+  return fc.features.map(f => ({
+    ...f,
+    properties: {
+      ...f.properties,
+      height_asl: Number(f.properties?.height_asl || 0)
+    }
+  } as AirportSurface));
+}
+```
+
+---
+
+### GeoJSONでの表現方法
+
+制限表面を MapLibre GL で描画する場合のベストプラクティス：
+
+**レイヤー定義:**
+
+```typescript
+const kokuareaLayers = [
+  {
+    id: 'airport-surfaces-runway-strip',
+    type: 'fill-extrusion',
+    source: 'kokuarea-source',
+    filter: ['==', ['get', 'surface_type'], 'runway_strip'],
+    paint: {
+      'fill-extrusion-color': '#FF0000',    // 赤
+      'fill-extrusion-opacity': 0.4,
+      'fill-extrusion-height': ['get', 'height_asl']
+    }
+  },
+  {
+    id: 'airport-surfaces-approach',
+    type: 'fill-extrusion',
+    source: 'kokuarea-source',
+    filter: ['==', ['get', 'surface_type'], 'approach'],
+    paint: {
+      'fill-extrusion-color': '#FF6600',    // 橙
+      'fill-extrusion-opacity': 0.35,
+      'fill-extrusion-height': ['feature-state', 'extrusion_height']
+    }
+  },
+  {
+    id: 'airport-surfaces-transitional',
+    type: 'fill-extrusion',
+    source: 'kokuarea-source',
+    filter: ['==', ['get', 'surface_type'], 'transitional'],
+    paint: {
+      'fill-extrusion-color': '#FFCC00',    // 黄
+      'fill-extrusion-opacity': 0.3,
+      'fill-extrusion-height': ['feature-state', 'extrusion_height']
+    }
+  },
+  {
+    id: 'airport-surfaces-horizontal',
+    type: 'fill-extrusion',
+    source: 'kokuarea-source',
+    filter: ['==', ['get', 'surface_type'], 'horizontal'],
+    paint: {
+      'fill-extrusion-color': '#00AA00',    // 緑
+      'fill-extrusion-opacity': 0.25,
+      'fill-extrusion-height': ['get', 'height_asl']
+    }
+  }
+];
+```
+
+**カラースキーム:**
+
+| 表面名 | 色 | RGB | 用途 | 高さ |
+|-------|-----|-----|------|------|
+| 着陸帯 | 赤 | (255, 0, 0) | 滑走路周辺、最も制限が厳しい | 0m |
+| 進入表面 | 橙 | (255, 102, 0) | 着陸経路、下降勾配 1/50 | 0~1,200m |
+| 転移表面 | 黄 | (255, 204, 0) | 側方接続面、勾配 1/7 | 0~45m |
+| 水平表面 | 緑 | (0, 170, 0) | 空港周辺、最も外側 | 45m |
+
+---
+
+### 計算精度と誤差
+
+**留意点:**
+
+| 項目 | 誤差 | 対策 |
+|------|------|------|
+| **座標精度** | ±1.1m（小数第5位） | 国土数値情報は小数第6位以上 |
+| **距離計算（Haversine）** | ±0.5% | 1,000m 付近で ±5m |
+| **方位角計算** | ±0.1° | 通常許容範囲内 |
+| **ステップ分割** | ±50m（分割距離に依存） | 十分な分割数を確保 |
+
+**信頼性向上策:**
+- 国土数値情報 A32 から得られるポリゴンを**可能な限り直接使用**する
+- 自動計算は、国土数値情報データが古い場合の補完的用途に限定する
+- 計算後、GeoJSon Validation ツール（GeoJsonLint など）でポリゴンの妥当性を検証
+
+---
+
+
 
 - **WGS84**: https://en.wikipedia.org/wiki/World_Geodetic_System
 - **GeoJSON RFC 7946**: https://tools.ietf.org/html/rfc7946
