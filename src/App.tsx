@@ -1871,7 +1871,7 @@ function App() {
 
                             layout: {},
 
-                            beforeId: `${restrictionId}-tiles` // Put behind tiles if possible
+                            // beforeId: `${restrictionId}-tiles` // Put behind tiles if possible (commented due to TypeScript issue)
 
                           });
 

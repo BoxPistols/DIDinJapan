@@ -11,19 +11,24 @@ export function calculateBBox(geometry: GeoJSON.Geometry): [number, number, numb
   let maxLng = -180
   let maxLat = -90
 
-  const processCoord = (coord: number[]) => {
-    if (coord[0] < minLng) minLng = coord[0]
-    if (coord[0] > maxLng) maxLng = coord[0]
-    if (coord[1] < minLat) minLat = coord[1]
-    if (coord[1] > maxLat) maxLat = coord[1]
+  const processCoord = (coord: readonly unknown[]) => {
+    const lng = coord[0]
+    const lat = coord[1]
+    if (typeof lng !== 'number' || typeof lat !== 'number') return
+    if (lng < minLng) minLng = lng
+    if (lng > maxLng) maxLng = lng
+    if (lat < minLat) minLat = lat
+    if (lat > maxLat) maxLat = lat
   }
 
-  const traverse = (coords: any): void => {
-    if (typeof coords[0] === 'number') {
-      processCoord(coords as number[])
-    } else {
-      coords.forEach(traverse)
+  const traverse = (coords: unknown): void => {
+    if (!Array.isArray(coords) || coords.length === 0) return
+    const first = coords[0]
+    if (typeof first === 'number') {
+      processCoord(coords)
+      return
     }
+    for (const child of coords) traverse(child)
   }
 
   if ('coordinates' in geometry) {

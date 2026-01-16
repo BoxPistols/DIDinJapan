@@ -230,24 +230,14 @@ export interface ComparisonLayerConfig {
  */
 export const ISHIKAWA_NOTO_COMPARISON_LAYERS: ComparisonLayerConfig[] = [
   {
-    id: 'did-17-ishikawa-2020',
-    name: '石川県 (2020年)',
-    path: '/GeoJSON/2020/r02_did_17_ishikawa.geojson',
-    year: 2020,
-    color: TERRAIN_2020_COLOR,
-    region: 'ishikawa',
-    description: '2020年国勢調査DID（地震前基準データ）',
-    helpText: '青色で表示される2020年の人口集中地区を参照用に表示'
-  },
-  {
     id: 'terrain-2024-noto',
-    name: '能登半島 (2024年)',
+    name: '能登半島隆起エリア',
     path: '/GeoJSON/2024/noto_2024_elevation.geojson',
     year: 2024,
     color: TERRAIN_2024_COLOR,
     region: 'noto',
-    description: '2024年能登半島地震後の地形データ',
-    helpText: '赤色で表示される2024年のデータ（隆起地域を反映）'
+    description: '2024年能登半島地震後の隆起を示す点サンプル（簡易表示）',
+    helpText: '標準マップ限定の簡易表示です'
   }
 ]
 

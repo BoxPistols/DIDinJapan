@@ -77,17 +77,29 @@ export const fetchGeoJSONWithCache = async <T = GeoJSON.FeatureCollection>(url: 
   // まずキャッシュを確認
   const cached = await getCachedGeoJSON<T>(url)
   if (cached) {
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/lib/cache.ts:fetchGeoJSONWithCache',message:'cache-hit',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion agent log (debug)
     return cached
   }
 
   // キャッシュにない場合はfetch
+  // #region agent log (debug)
+  fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/lib/cache.ts:fetchGeoJSONWithCache',message:'cache-miss-fetch',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion agent log (debug)
   const response = await fetch(url)
 
   if (!response.ok) {
+    // #region agent log (debug)
+    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/lib/cache.ts:fetchGeoJSONWithCache',message:'fetch-non-ok',data:{url,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion agent log (debug)
     throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
   }
 
   const data = await response.json() as T
+  // #region agent log (debug)
+  fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/lib/cache.ts:fetchGeoJSONWithCache',message:'fetch-ok-json',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion agent log (debug)
 
   // 取得したデータをキャッシュに保存
   await setCachedGeoJSON(url, data)
