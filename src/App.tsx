@@ -78,7 +78,7 @@ const SETTINGS_EXPIRATION_MS = SETTINGS_EXPIRATION_DAYS * 24 * 60 * 60 * 1000
 // ============================================
 // Comparison (Ishikawa 2020 vs Noto 2024) Constants
 // ============================================
-const COMPARISON_ALLOWED_IDS = new Set(ISHIKAWA_NOTO_COMPARISON_LAYERS.map(l => l.id))
+const COMPARISON_ALLOWED_IDS = new Set(ISHIKAWA_NOTO_COMPARISON_LAYERS.map((l) => l.id))
 const COMPARISON_VIS_URL_PARAM = 'cmpv'
 
 // DID UI state persistence
@@ -107,7 +107,9 @@ function App() {
   })
   const previousFeaturesRef = useRef<DrawnFeature[]>([])
   const enableCoordinateDisplayRef = useRef(true)
-  const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(new Map())
+  const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
+    new Map()
+  )
   const debugRunIdRef = useRef<string>('')
   const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
@@ -121,8 +123,8 @@ function App() {
       const parsed = JSON.parse(raw) as unknown
       if (!Array.isArray(parsed)) return new Set<string>(['関東'])
       const names = parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
-      const allowed = new Set(LAYER_GROUPS.map(g => g.name))
-      const filtered = names.filter(n => allowed.has(n))
+      const allowed = new Set(LAYER_GROUPS.map((g) => g.name))
+      const filtered = names.filter((n) => allowed.has(n))
       return new Set<string>(filtered.length > 0 ? filtered : ['関東'])
     } catch {
       return new Set<string>(['関東'])
@@ -142,7 +144,7 @@ function App() {
         const now = Date.now()
 
         // 期限内なら保存された設定を使用
-        if (timestamp && (now - timestamp) < SETTINGS_EXPIRATION_MS && savedBaseMap) {
+        if (timestamp && now - timestamp < SETTINGS_EXPIRATION_MS && savedBaseMap) {
           return savedBaseMap as BaseMapKey
         }
       }
@@ -170,7 +172,6 @@ function App() {
   // Legend visibility
   const [showLeftLegend, setShowLeftLegend] = useState(true)
   const [showRightLegend, setShowRightLegend] = useState(true)
-
 
   // Coordinate Info Panel
   // Sidebar Resizing
@@ -201,7 +202,8 @@ function App() {
       const raw = localStorage.getItem(COMPARISON_SETTINGS_KEY)
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<ComparisonSettings>
-        const opacityObj = parsed.opacity && typeof parsed.opacity === 'object' ? parsed.opacity : {}
+        const opacityObj =
+          parsed.opacity && typeof parsed.opacity === 'object' ? parsed.opacity : {}
         const opacityMap = new Map<string, number>()
         for (const [k, v] of Object.entries(opacityObj as Record<string, unknown>)) {
           if (typeof v === 'number' && Number.isFinite(v)) {
@@ -217,9 +219,7 @@ function App() {
     // デフォルト: いきなり地図が変わるのを避けるためOFF
     return {
       visible: new Set<string>(),
-      opacity: new Map<string, number>([
-        ['terrain-2024-noto', 0.5]
-      ])
+      opacity: new Map<string, number>([['terrain-2024-noto', 0.5]])
     }
   }
 
@@ -230,11 +230,26 @@ function App() {
       const raw = url.searchParams.get(COMPARISON_VIS_URL_PARAM)
       if (!raw) return new Set<string>()
       const decoded = decodeURIComponent(raw)
-      const parts = decoded.split(',').map(s => s.trim()).filter(Boolean)
-      const filtered = parts.filter(id => COMPARISON_ALLOWED_IDS.has(id))
+      const parts = decoded
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const filtered = parts.filter((id) => COMPARISON_ALLOWED_IDS.has(id))
       const set = new Set<string>(filtered)
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:readComparisonVisibilityFromUrl',message:'read',data:{hasParam:true,count:set.size,values:Array.from(set.values())},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'K'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:readComparisonVisibilityFromUrl',
+          message: 'read',
+          data: { hasParam: true, count: set.size, values: Array.from(set.values()) },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'K'
+        })
+      }).catch(() => {})
       // #endregion agent log (debug)
       return set
     } catch {
@@ -248,9 +263,7 @@ function App() {
   })
   const [comparisonLayerOpacity, setComparisonLayerOpacity] = useState<Map<string, number>>(() => {
     // 欠けているキーがあっても最低限のデフォルトを補完
-    const base = new Map<string, number>([
-      ['terrain-2024-noto', 0.5]
-    ])
+    const base = new Map<string, number>([['terrain-2024-noto', 0.5]])
     initialComparison.opacity.forEach((v, k) => base.set(k, v))
     return base
   })
@@ -280,7 +293,19 @@ function App() {
       url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
       window.history.replaceState({}, '', url.toString())
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:clearCmpvParam',message:'cleared',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'K'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:clearCmpvParam',
+          message: 'cleared',
+          data: {},
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'K'
+        })
+      }).catch(() => {})
       // #endregion agent log (debug)
     } catch {
       // ignore
@@ -297,7 +322,7 @@ function App() {
         const now = Date.now()
 
         // 期限内なら保存された設定を使用
-        if (timestamp && (now - timestamp) < SETTINGS_EXPIRATION_MS) {
+        if (timestamp && now - timestamp < SETTINGS_EXPIRATION_MS) {
           return savedDarkMode ?? false
         }
 
@@ -317,7 +342,9 @@ function App() {
   const [showHelp, setShowHelp] = useState(false)
 
   // Coordinate display
-  const [displayCoordinates, setDisplayCoordinates] = useState<{ lng: number; lat: number } | null>(null)
+  const [displayCoordinates, setDisplayCoordinates] = useState<{ lng: number; lat: number } | null>(
+    null
+  )
 
   // Enable coordinate display on map click
   const [enableCoordinateDisplay, setEnableCoordinateDisplay] = useState(() => {
@@ -328,7 +355,7 @@ function App() {
         const now = Date.now()
 
         // 期限内なら保存された設定を使用
-        if (timestamp && (now - timestamp) < SETTINGS_EXPIRATION_MS) {
+        if (timestamp && now - timestamp < SETTINGS_EXPIRATION_MS) {
           return savedSetting ?? true
         }
       }
@@ -358,40 +385,75 @@ function App() {
   // ============================================
   // ベースマップ変更ハンドラ（リロード方式）
   // ============================================
-  const handleBaseMapChange = useCallback((newBaseMap: BaseMapKey) => {
-    if (newBaseMap === baseMap) return
+  const handleBaseMapChange = useCallback(
+    (newBaseMap: BaseMapKey) => {
+      if (newBaseMap === baseMap) return
 
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleBaseMapChange',message:'before-reload',data:{from:baseMap,to:newBaseMap,comparisonVisible:Array.from(comparisonLayerVisibilityRef.current.values())},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion agent log (debug)
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:handleBaseMapChange',
+          message: 'before-reload',
+          data: {
+            from: baseMap,
+            to: newBaseMap,
+            comparisonVisible: Array.from(comparisonLayerVisibilityRef.current.values())
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'I'
+        })
+      }).catch(() => {})
+      // #endregion agent log (debug)
 
-    const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
-    const url = new URL(window.location.href)
-    if (currentVisible.length > 0) {
-      url.searchParams.set(COMPARISON_VIS_URL_PARAM, encodeURIComponent(currentVisible.join(',')))
-    } else {
-      url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
-    }
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleBaseMapChange',message:'set-cmpv-param',data:{to:newBaseMap,currentVisibleCount:currentVisible.length,hasParam:url.searchParams.has(COMPARISON_VIS_URL_PARAM)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'I'})}).catch(()=>{});
-    // #endregion agent log (debug)
-
-    // 設定を保存
-    try {
-      const settings = {
-        darkMode,
-        baseMap: newBaseMap,
-        enableCoordinateDisplay,
-        timestamp: Date.now()
+      const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
+      const url = new URL(window.location.href)
+      if (currentVisible.length > 0) {
+        url.searchParams.set(COMPARISON_VIS_URL_PARAM, encodeURIComponent(currentVisible.join(',')))
+      } else {
+        url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
       }
-      localStorage.setItem('ui-settings', JSON.stringify(settings))
-    } catch (e) {
-      console.error('Failed to save settings:', e)
-    }
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:handleBaseMapChange',
+          message: 'set-cmpv-param',
+          data: {
+            to: newBaseMap,
+            currentVisibleCount: currentVisible.length,
+            hasParam: url.searchParams.has(COMPARISON_VIS_URL_PARAM)
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'I'
+        })
+      }).catch(() => {})
+      // #endregion agent log (debug)
 
-    // URLパラメータに比較状態を載せてリロード
-    window.location.assign(url.toString())
-  }, [baseMap, darkMode])
+      // 設定を保存
+      try {
+        const settings = {
+          darkMode,
+          baseMap: newBaseMap,
+          enableCoordinateDisplay,
+          timestamp: Date.now()
+        }
+        localStorage.setItem('ui-settings', JSON.stringify(settings))
+      } catch (e) {
+        console.error('Failed to save settings:', e)
+      }
+
+      // URLパラメータに比較状態を載せてリロード
+      window.location.assign(url.toString())
+    },
+    [baseMap, darkMode]
+  )
 
   // ============================================
   // Save UI settings to localStorage
@@ -421,7 +483,24 @@ function App() {
       }
       localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:saveComparisonSettings',message:'saved',data:{visibleCount:comparisonLayerVisibility.size,opacityKeys:Object.keys(payload.opacity),visibleStorage:'none',opacityStorage:'local'},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'G'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:saveComparisonSettings',
+          message: 'saved',
+          data: {
+            visibleCount: comparisonLayerVisibility.size,
+            opacityKeys: Object.keys(payload.opacity),
+            visibleStorage: 'none',
+            opacityStorage: 'local'
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'post-fix',
+          hypothesisId: 'G'
+        })
+      }).catch(() => {})
       // #endregion agent log (debug)
     } catch {
       // ignore
@@ -458,9 +537,23 @@ function App() {
   // ============================================
   // Keyboard shortcuts
   // ============================================
+  // Helpモーダルは、入力フォーカス中でも Escape で確実に閉じる
+  useEffect(() => {
+    if (!showHelp) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowHelp(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+  }, [showHelp])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isInputFocused = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+      const isInputFocused =
+        e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
       const key = e.key.toLowerCase()
       const isMod = e.metaKey || e.ctrlKey
 
@@ -476,7 +569,7 @@ function App() {
       if (isInputFocused) {
         // Escapeで検索入力からフォーカスを外す
         if (key === 'escape') {
-          (e.target as HTMLElement).blur()
+          ;(e.target as HTMLElement).blur()
           setSearchTerm('')
           setSearchResults([])
           setGeoSearchResults([])
@@ -516,15 +609,15 @@ function App() {
           toggleRestriction('radio-interference')
           break
         case 't':
-          setShowTooltip(prev => !prev)
+          setShowTooltip((prev) => !prev)
           break
         case 's':
           // サイドバートグル（左）
-          setShowLeftLegend(prev => !prev)
+          setShowLeftLegend((prev) => !prev)
           break
         case 'p':
           // サイドバートグル（右）
-          setShowRightLegend(prev => !prev)
+          setShowRightLegend((prev) => !prev)
           break
         case 'w':
           toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
@@ -562,7 +655,7 @@ function App() {
         case '?':
         case '/':
           e.preventDefault()
-          setShowHelp(prev => !prev)
+          setShowHelp((prev) => !prev)
           break
         case 'escape':
           setShowHelp(false)
@@ -578,21 +671,24 @@ function App() {
   // Search functionality (DID + Geocoding)
   // ============================================
   // DID検索
-  const performDIDSearch = useCallback((term: string) => {
-    if (!term) {
-      setSearchResults([])
-      return []
-    }
-    const results = searchIndex.filter(item =>
-      item.cityName.includes(term) || item.prefName.includes(term)
-    )
-    const uniqueResults = Array.from(
-      new Map(results.map(item => [item.prefName + item.cityName, item])).values()
-    )
-    const sliced = uniqueResults.slice(0, 5)
-    setSearchResults(sliced)
-    return sliced
-  }, [searchIndex])
+  const performDIDSearch = useCallback(
+    (term: string) => {
+      if (!term) {
+        setSearchResults([])
+        return []
+      }
+      const results = searchIndex.filter(
+        (item) => item.cityName.includes(term) || item.prefName.includes(term)
+      )
+      const uniqueResults = Array.from(
+        new Map(results.map((item) => [item.prefName + item.cityName, item])).values()
+      )
+      const sliced = uniqueResults.slice(0, 5)
+      setSearchResults(sliced)
+      return sliced
+    },
+    [searchIndex]
+  )
 
   // ジオコーディング検索（建物名・地名）
   const performGeoSearch = useCallback(async (term: string) => {
@@ -670,7 +766,7 @@ function App() {
         map.setLayoutProperty(item.layerId, 'visibility', 'visible')
         map.setLayoutProperty(`${item.layerId}-outline`, 'visibility', 'visible')
       }
-      setLayerStates(prev => {
+      setLayerStates((prev) => {
         const next = new Map(prev)
         next.set(item.layerId, { id: item.layerId, visible: true })
         return next
@@ -690,11 +786,23 @@ function App() {
       } catch {
         // ignore
       }
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:boot',message:'run-start',data:{runId:debugRunIdRef.current,baseMap},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current,hypothesisId:'Z'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:boot',
+          message: 'run-start',
+          data: { runId: debugRunIdRef.current, baseMap },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: debugRunIdRef.current,
+          hypothesisId: 'Z'
+        })
+      }).catch(() => {})
     }
     // #endregion agent log (debug)
 
-    clearOldCaches().catch(err => {
+    clearOldCaches().catch((err) => {
       console.warn('Failed to clear old caches:', err)
     })
   }, [])
@@ -728,7 +836,6 @@ function App() {
       bearing: mapStateRef.current.bearing
     }
 
-
     const map = new maplibregl.Map(mapConfig)
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
@@ -744,7 +851,24 @@ function App() {
       // #region agent log (debug)
       try {
         const style = map.getStyle()
-        fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:map.on(load)',message:'style-loaded',data:{baseMap,hasGlyphs:!!style.glyphs,layerCount:Array.isArray(style.layers)?style.layers.length:0,sourceCount:style.sources?Object.keys(style.sources).length:0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'src/App.tsx:map.on(load)',
+            message: 'style-loaded',
+            data: {
+              baseMap,
+              hasGlyphs: !!style.glyphs,
+              layerCount: Array.isArray(style.layers) ? style.layers.length : 0,
+              sourceCount: style.sources ? Object.keys(style.sources).length : 0
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'pre-fix',
+            hypothesisId: 'H'
+          })
+        }).catch(() => {})
       } catch {
         // ignore
       }
@@ -767,14 +891,17 @@ function App() {
       }
 
       const features = map.queryRenderedFeatures(e.point)
-      const didFeature = features.find(f => f.layer.id.startsWith('did-') && f.layer.type === 'fill')
-      const restrictionFeature = features.find(f =>
-        f.layer.id.startsWith('airport-') ||
-        f.layer.id.startsWith('no-fly-') ||
-        f.layer.id.startsWith(ZONE_IDS.DID_ALL_JAPAN) ||
-        f.layer.id.startsWith('emergency-') ||
-        f.layer.id.startsWith('manned-') ||
-        f.layer.id.startsWith('remote-')
+      const didFeature = features.find(
+        (f) => f.layer.id.startsWith('did-') && f.layer.type === 'fill'
+      )
+      const restrictionFeature = features.find(
+        (f) =>
+          f.layer.id.startsWith('airport-') ||
+          f.layer.id.startsWith('no-fly-') ||
+          f.layer.id.startsWith(ZONE_IDS.DID_ALL_JAPAN) ||
+          f.layer.id.startsWith('emergency-') ||
+          f.layer.id.startsWith('manned-') ||
+          f.layer.id.startsWith('remote-')
       )
 
       if (didFeature && popupRef.current) {
@@ -787,7 +914,7 @@ function App() {
         const cityName = props.CITYNAME || ''
         const population = props.JINKO || 0
         const area = props.MENSEKI || 0
-        const density = area > 0 ? (population / area) : 0
+        const density = area > 0 ? population / area : 0
 
         const content = `
           <div class="did-popup">
@@ -868,18 +995,30 @@ function App() {
                 <span class="stat-label">規制法令</span>
                 <span class="stat-value">${category}</span>
               </div>
-              ${props.radiusKm ? `<div class="stat-row">
+              ${
+                props.radiusKm
+                  ? `<div class="stat-row">
                 <span class="stat-label">制限半径</span>
                 <span class="stat-value">${props.radiusKm}km</span>
-              </div>` : ''}
-              ${props.category ? `<div class="stat-row">
+              </div>`
+                  : ''
+              }
+              ${
+                props.category
+                  ? `<div class="stat-row">
                 <span class="stat-label">カテゴリ</span>
                 <span class="stat-value">${props.category}</span>
-              </div>` : ''}
-              ${props.source ? `<div class="stat-row">
+              </div>`
+                  : ''
+              }
+              ${
+                props.source
+                  ? `<div class="stat-row">
                 <span class="stat-label">情報源</span>
                 <span class="stat-value">${props.source}</span>
-              </div>` : ''}
+              </div>`
+                  : ''
+              }
               <div class="stat-row" style="margin-top:4px;padding-top:4px;border-top:1px solid #eee;">
                 <span class="stat-value" style="font-size:10px;color:#666;">${description}</span>
               </div>
@@ -911,7 +1050,7 @@ function App() {
     })
 
     // Comparison layers click and hover handlers
-    ISHIKAWA_NOTO_COMPARISON_LAYERS.forEach(layerConfig => {
+    ISHIKAWA_NOTO_COMPARISON_LAYERS.forEach((layerConfig) => {
       map.on('click', layerConfig.id, (e) => {
         if (!e.features || e.features.length === 0) return
 
@@ -929,12 +1068,16 @@ function App() {
                 <span class="stat-label">海抜高度</span>
                 <span class="stat-value">${props.elevation ?? 'N/A'} m</span>
               </div>
-              ${props.change_meters ? `
+              ${
+                props.change_meters
+                  ? `
                 <div class="stat-row">
                   <span class="stat-label">地形変化</span>
                   <span class="stat-value">${props.change_meters > 0 ? '+' : ''}${props.change_meters} m</span>
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
               <div class="stat-row">
                 <span class="stat-label">説明</span>
                 <span class="stat-value" style="font-size:10px;">${props.description || layerConfig.description}</span>
@@ -984,7 +1127,7 @@ function App() {
       if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
         // 全国DIDの各レイヤー
         const allLayers = getAllLayers()
-        allLayers.forEach(layer => {
+        allLayers.forEach((layer) => {
           const sourceId = `${restrictionId}-${layer.id}`
           if (map.getLayer(sourceId)) {
             map.setPaintProperty(sourceId, 'fill-opacity', opacity)
@@ -992,7 +1135,7 @@ function App() {
         })
       } else if (restrictionId === 'airport-airspace') {
         // kokuarea（空港周辺空域）: 種別ごとにベース不透明度が異なるため、UIのopacityは倍率として扱う
-        ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+        ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach((kind) => {
           const id = `${KOKUAREA_LAYER_PREFIX}-${kind}`
           if (!map.getLayer(id)) return
           const base = KOKUAREA_STYLE[kind].fillOpacity
@@ -1010,72 +1153,78 @@ function App() {
   // ============================================
   // Layer management
   // ============================================
-  const addLayer = useCallback(async (layer: LayerConfig, initialVisible = false) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+  const addLayer = useCallback(
+    async (layer: LayerConfig, initialVisible = false) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    // ソースまたはレイヤーが既に存在する場合は早期リターン
-    if (map.getSource(layer.id) || map.getLayer(layer.id)) {
-      return
-    }
+      // ソースまたはレイヤーが既に存在する場合は早期リターン
+      if (map.getSource(layer.id) || map.getLayer(layer.id)) {
+        return
+      }
 
-    try {
-      type DidProperties = Record<string, unknown> & { CITYNAME?: string }
-      type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
+      try {
+        type DidProperties = Record<string, unknown> & { CITYNAME?: string }
+        type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
 
-      const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
+        const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
 
-      const newItems: SearchIndexItem[] = []
-      data.features.forEach(feature => {
-        const cityName = feature.properties?.CITYNAME
-        if (typeof cityName === 'string' && cityName.length > 0 && feature.geometry) {
-          newItems.push({
-            prefName: layer.name,
-            cityName,
-            bbox: calculateBBox(feature.geometry),
-            layerId: layer.id
-          })
+        const newItems: SearchIndexItem[] = []
+        data.features.forEach((feature) => {
+          const cityName = feature.properties?.CITYNAME
+          if (typeof cityName === 'string' && cityName.length > 0 && feature.geometry) {
+            newItems.push({
+              prefName: layer.name,
+              cityName,
+              bbox: calculateBBox(feature.geometry),
+              layerId: layer.id
+            })
+          }
+        })
+        setSearchIndex((prev) => [...prev, ...newItems])
+
+        // ソースの存在を再確認（非同期処理中に追加された可能性がある）
+        if (map.getSource(layer.id)) {
+          return
         }
-      })
-      setSearchIndex(prev => [...prev, ...newItems])
 
-      // ソースの存在を再確認（非同期処理中に追加された可能性がある）
-      if (map.getSource(layer.id)) {
-        return
+        map.addSource(layer.id, {
+          type: 'geojson',
+          data: data as GeoJSON.FeatureCollection<GeoJSON.Geometry, DidProperties>
+        })
+
+        // レイヤーの存在を再確認
+        if (map.getLayer(layer.id) || map.getLayer(`${layer.id}-outline`)) {
+          return
+        }
+
+        map.addLayer({
+          id: layer.id,
+          type: 'fill',
+          source: layer.id,
+          paint: { 'fill-color': layer.color, 'fill-opacity': opacity },
+          layout: { visibility: initialVisible ? 'visible' : 'none' }
+        })
+
+        map.addLayer({
+          id: `${layer.id}-outline`,
+          type: 'line',
+          source: layer.id,
+          paint: { 'line-color': layer.color, 'line-width': 1 },
+          layout: { visibility: initialVisible ? 'visible' : 'none' }
+        })
+
+        setLayerStates((prev) => {
+          const next = new Map(prev)
+          next.set(layer.id, { id: layer.id, visible: initialVisible })
+          return next
+        })
+      } catch (e) {
+        console.error(`Failed to add layer ${layer.id}:`, e)
       }
-
-      map.addSource(layer.id, { type: 'geojson', data: data as GeoJSON.FeatureCollection<GeoJSON.Geometry, DidProperties> })
-
-      // レイヤーの存在を再確認
-      if (map.getLayer(layer.id) || map.getLayer(`${layer.id}-outline`)) {
-        return
-      }
-
-      map.addLayer({
-        id: layer.id,
-        type: 'fill',
-        source: layer.id,
-        paint: { 'fill-color': layer.color, 'fill-opacity': opacity },
-        layout: { visibility: initialVisible ? 'visible' : 'none' }
-      })
-
-      map.addLayer({
-        id: `${layer.id}-outline`,
-        type: 'line',
-        source: layer.id,
-        paint: { 'line-color': layer.color, 'line-width': 1 },
-        layout: { visibility: initialVisible ? 'visible' : 'none' }
-      })
-
-      setLayerStates(prev => {
-        const next = new Map(prev)
-        next.set(layer.id, { id: layer.id, visible: initialVisible })
-        return next
-      })
-    } catch (e) {
-      console.error(`Failed to add layer ${layer.id}:`, e)
-    }
-  }, [mapLoaded, opacity])
+    },
+    [mapLoaded, opacity]
+  )
 
   // ============================================
 
@@ -1184,7 +1333,27 @@ function App() {
       }
 
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:applyComparisonLayerState',message:'applied',data:{baseMap,layerId,isVisible,visibility,opacity,hasLayer:!!map.getLayer(layerId),hasHeat:!!map.getLayer(`${layerId}-heat`)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'J'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:applyComparisonLayerState',
+          message: 'applied',
+          data: {
+            baseMap,
+            layerId,
+            isVisible,
+            visibility,
+            opacity,
+            hasLayer: !!map.getLayer(layerId),
+            hasHeat: !!map.getLayer(`${layerId}-heat`)
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'J'
+        })
+      }).catch(() => {})
       // #endregion agent log (debug)
 
       // #region agent log (debug)
@@ -1212,13 +1381,36 @@ function App() {
             }
             const layerIds = [layerId, `${layerId}-heat`, `${layerId}-label`, `${layerId}-outline`]
             const styleLayers = map.getStyle().layers ?? []
-            const idx = (id: string): number => styleLayers.findIndex(l => l.id === id)
+            const idx = (id: string): number => styleLayers.findIndex((l) => l.id === id)
             const rasterMaxIndex = styleLayers.reduce((acc, l, i) => {
               if ((l.type as string) === 'raster') return Math.max(acc, i)
               return acc
             }, -1)
 
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:applyComparisonLayerState',message:'idle-render-check',data:{baseMap,layerId,sourceFeatureCount:safeSource(layerId),renderedMain:safeRendered([layerId]),renderedHeat:safeRendered([`${layerId}-heat`]),renderedLabel:safeRendered([`${layerId}-label`]),layerOrder:{rasterMaxIndex,indices:Object.fromEntries(layerIds.map(id=>[id,idx(id)]))}},timestamp:Date.now(),sessionId:'debug-session',runId:runKey,hypothesisId:'M'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'src/App.tsx:applyComparisonLayerState',
+                message: 'idle-render-check',
+                data: {
+                  baseMap,
+                  layerId,
+                  sourceFeatureCount: safeSource(layerId),
+                  renderedMain: safeRendered([layerId]),
+                  renderedHeat: safeRendered([`${layerId}-heat`]),
+                  renderedLabel: safeRendered([`${layerId}-label`]),
+                  layerOrder: {
+                    rasterMaxIndex,
+                    indices: Object.fromEntries(layerIds.map((id) => [id, idx(id)]))
+                  }
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: runKey,
+                hypothesisId: 'M'
+              })
+            }).catch(() => {})
           })
         }
       }
@@ -1228,7 +1420,19 @@ function App() {
     async function initComparisonLayers() {
       if (!map) return
       // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'enter',data:{mapLoaded,layerCount:ISHIKAWA_NOTO_COMPARISON_LAYERS.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:initComparisonLayers',
+          message: 'enter',
+          data: { mapLoaded, layerCount: ISHIKAWA_NOTO_COMPARISON_LAYERS.length },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'A'
+        })
+      }).catch(() => {})
       // #endregion agent log (debug)
       for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
         const hasSource = !!map.getSource(layerConfig.id)
@@ -1240,12 +1444,29 @@ function App() {
             {
               const sampleTypes = geojson.features
                 .slice(0, 50)
-                .map(f => f.geometry?.type ?? 'null')
+                .map((f) => f.geometry?.type ?? 'null')
               const typeCounts = sampleTypes.reduce<Record<string, number>>((acc, t) => {
                 acc[t] = (acc[t] ?? 0) + 1
                 return acc
               }, {})
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'geojson-loaded',data:{layerId:layerConfig.id,path:layerConfig.path,features:geojson.features.length,sampleTypeCounts:typeCounts},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'src/App.tsx:initComparisonLayers',
+                  message: 'geojson-loaded',
+                  data: {
+                    layerId: layerConfig.id,
+                    path: layerConfig.path,
+                    features: geojson.features.length,
+                    sampleTypeCounts: typeCounts
+                  },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'pre-fix',
+                  hypothesisId: 'A'
+                })
+              }).catch(() => {})
             }
             // #endregion agent log (debug)
 
@@ -1258,7 +1479,19 @@ function App() {
             if (bounds) {
               comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)
               // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'bounds-computed',data:{layerId:layerConfig.id,bounds},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'src/App.tsx:initComparisonLayers',
+                  message: 'bounds-computed',
+                  data: { layerId: layerConfig.id, bounds },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'post-fix',
+                  hypothesisId: 'F'
+                })
+              }).catch(() => {})
               // #endregion agent log (debug)
             }
 
@@ -1280,8 +1513,10 @@ function App() {
                     'interpolate',
                     ['linear'],
                     ['coalesce', ['get', 'elevation'], elevRange.min],
-                    elevRange.min, 0,
-                    elevRange.max, 1
+                    elevRange.min,
+                    0,
+                    elevRange.max,
+                    1
                   ],
                   'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 1.8],
                   'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 9, 18, 14, 55],
@@ -1290,12 +1525,18 @@ function App() {
                     'interpolate',
                     ['linear'],
                     ['heatmap-density'],
-                    0, 'rgba(0,0,0,0)',
-                    0.2, 'rgba(255, 245, 157, 0.55)',
-                    0.4, 'rgba(255, 183, 77, 0.75)',
-                    0.6, 'rgba(239, 108, 0, 0.80)',
-                    0.8, 'rgba(229, 57, 53, 0.85)',
-                    1, 'rgba(183, 28, 28, 0.90)'
+                    0,
+                    'rgba(0,0,0,0)',
+                    0.2,
+                    'rgba(255, 245, 157, 0.55)',
+                    0.4,
+                    'rgba(255, 183, 77, 0.75)',
+                    0.6,
+                    'rgba(239, 108, 0, 0.80)',
+                    0.8,
+                    'rgba(229, 57, 53, 0.85)',
+                    1,
+                    'rgba(183, 28, 28, 0.90)'
                   ]
                 },
                 layout: {
@@ -1303,7 +1544,19 @@ function App() {
                 }
               })
               // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'heatmap-added',data:{layerId:layerConfig.id,heatId,elevationRange:elevRange},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'E'})}).catch(()=>{});
+              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  location: 'src/App.tsx:initComparisonLayers',
+                  message: 'heatmap-added',
+                  data: { layerId: layerConfig.id, heatId, elevationRange: elevRange },
+                  timestamp: Date.now(),
+                  sessionId: 'debug-session',
+                  runId: 'pre-fix',
+                  hypothesisId: 'E'
+                })
+              }).catch(() => {})
               // #endregion agent log (debug)
 
               // Circle レイヤー（ポイントデータ用）
@@ -1354,26 +1607,46 @@ function App() {
               })
             }
 
-          // ラベルレイヤー（年度表示）
-          map.addLayer({
-            id: `${layerConfig.id}-label`,
-            type: 'symbol',
-            source: layerConfig.id,
-            layout: {
-              'text-field': `${layerConfig.year}`,
-              'text-size': 10,
-              'text-offset': [0, 1.5],
-              visibility: 'none'
-            },
-            paint: {
-              'text-color': layerConfig.color,
-              'text-halo-color': '#fff',
-              'text-halo-width': 1
-            }
-          })
-          // #region agent log (debug)
-          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:initComparisonLayers',message:'layer-added',data:{layerId:layerConfig.id,primaryType,renderAsCircle,addedType:renderAsCircle?'circle':'fill',hasLayer:!!map.getLayer(layerConfig.id),hasOutline:!!map.getLayer(`${layerConfig.id}-outline`),hasLabel:!!map.getLayer(`${layerConfig.id}-label`)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion agent log (debug)
+            // ラベルレイヤー（年度表示）
+            map.addLayer({
+              id: `${layerConfig.id}-label`,
+              type: 'symbol',
+              source: layerConfig.id,
+              layout: {
+                'text-field': `${layerConfig.year}`,
+                'text-size': 10,
+                'text-offset': [0, 1.5],
+                visibility: 'none'
+              },
+              paint: {
+                'text-color': layerConfig.color,
+                'text-halo-color': '#fff',
+                'text-halo-width': 1
+              }
+            })
+            // #region agent log (debug)
+            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'src/App.tsx:initComparisonLayers',
+                message: 'layer-added',
+                data: {
+                  layerId: layerConfig.id,
+                  primaryType,
+                  renderAsCircle,
+                  addedType: renderAsCircle ? 'circle' : 'fill',
+                  hasLayer: !!map.getLayer(layerConfig.id),
+                  hasOutline: !!map.getLayer(`${layerConfig.id}-outline`),
+                  hasLabel: !!map.getLayer(`${layerConfig.id}-label`)
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'pre-fix',
+                hypothesisId: 'A'
+              })
+            }).catch(() => {})
+            // #endregion agent log (debug)
 
             // 非同期ロード後に、現在のON/OFFを即反映（初期表示の空振り防止）
             applyComparisonLayerState(layerConfig.id)
@@ -1397,8 +1670,8 @@ function App() {
     // Check if we've already loaded the initial regions
     const loadedRegions = new Set<string>()
     layerStates.forEach((_, layerId) => {
-      LAYER_GROUPS.forEach(group => {
-        group.layers.forEach(layer => {
+      LAYER_GROUPS.forEach((group) => {
+        group.layers.forEach((layer) => {
           if (layer.id === layerId) {
             loadedRegions.add(group.name)
           }
@@ -1408,13 +1681,13 @@ function App() {
 
     // Load multiple regions for better search coverage
     const regionsToLoad = ['関東', '近畿', '中部']
-    const needsLoading = regionsToLoad.some(region => !loadedRegions.has(region))
+    const needsLoading = regionsToLoad.some((region) => !loadedRegions.has(region))
 
     if (!needsLoading) return
 
-    LAYER_GROUPS.forEach(group => {
+    LAYER_GROUPS.forEach((group) => {
       if (regionsToLoad.includes(group.name)) {
-        group.layers.forEach(layer => {
+        group.layers.forEach((layer) => {
           addLayer(layer)
         })
       }
@@ -1432,7 +1705,7 @@ function App() {
     // Find layers that haven't been loaded yet
     const allLayerIds = getAllPrefectureLayerIds()
     const loadedLayerIds = new Set(layerStates.keys())
-    const unloadedLayerIds = allLayerIds.filter(id => !loadedLayerIds.has(id))
+    const unloadedLayerIds = allLayerIds.filter((id) => !loadedLayerIds.has(id))
 
     if (unloadedLayerIds.length === 0) {
       setIsLoadingForSearch(false)
@@ -1440,8 +1713,8 @@ function App() {
     }
 
     // Find and load all unloaded layers
-    LAYER_GROUPS.forEach(group => {
-      group.layers.forEach(layer => {
+    LAYER_GROUPS.forEach((group) => {
+      group.layers.forEach((layer) => {
         if (unloadedLayerIds.includes(layer.id)) {
           addLayer(layer)
         }
@@ -1470,7 +1743,7 @@ function App() {
 
   const applyDidGroupColors = (group: LayerGroup, mode: 'default' | 'red') => {
     const red = '#ff0000'
-    group.layers.forEach(layer => {
+    group.layers.forEach((layer) => {
       applyDidLayerColor(layer.id, mode === 'red' ? red : layer.color)
     })
   }
@@ -1480,7 +1753,7 @@ function App() {
     if (!map || !mapLoaded) return
 
     const state = layerStates.get(layer.id)
-    const group = LAYER_GROUPS.find(g => g.layers.some(l => l.id === layer.id))
+    const group = LAYER_GROUPS.find((g) => g.layers.some((l) => l.id === layer.id))
     const groupMode: 'default' | 'red' = group ? getDidGroupMode(group.name) : 'default'
 
     if (!state) {
@@ -1500,7 +1773,7 @@ function App() {
       applyDidLayerColor(layer.id, groupMode === 'red' ? '#ff0000' : layer.color)
     }
 
-    setLayerStates(prev => {
+    setLayerStates((prev) => {
       const next = new Map(prev)
       next.set(layer.id, { ...state, visible: newVisibility })
       return next
@@ -1508,7 +1781,7 @@ function App() {
   }
 
   const toggleGroup = (groupName: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const next = new Set(prev)
       if (next.has(groupName)) {
         next.delete(groupName)
@@ -1522,7 +1795,10 @@ function App() {
   // DID: 地域ごとのopen/close状態をlocalStorageに保存
   useEffect(() => {
     try {
-      localStorage.setItem(DID_EXPANDED_GROUPS_KEY, JSON.stringify(Array.from(expandedGroups.values())))
+      localStorage.setItem(
+        DID_EXPANDED_GROUPS_KEY,
+        JSON.stringify(Array.from(expandedGroups.values()))
+      )
     } catch {
       // ignore
     }
@@ -1533,16 +1809,16 @@ function App() {
   const enableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
 
-    group.layers.forEach(layer => {
+    group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
       if (state) {
         // 既にロード済み: 表示に切り替え
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates(prev => {
+          setLayerStates((prev) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -1559,15 +1835,15 @@ function App() {
   const enableAllInGroupRed = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'red'))
+    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'red'))
 
-    group.layers.forEach(layer => {
+    group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
       if (state) {
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates(prev => {
+          setLayerStates((prev) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -1585,15 +1861,15 @@ function App() {
   const disableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode(prev => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
     applyDidGroupColors(group, 'default')
 
-    group.layers.forEach(layer => {
+    group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
       if (state?.visible) {
         map.setLayoutProperty(layer.id, 'visibility', 'none')
         map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'none')
-        setLayerStates(prev => {
+        setLayerStates((prev) => {
           const next = new Map(prev)
           next.set(layer.id, { ...state, visible: false })
           return next
@@ -1605,7 +1881,7 @@ function App() {
   // ============================================
   // Overlay management
   // ============================================
-  const toggleOverlay = (overlay: typeof GEO_OVERLAYS[0] | { id: string; name: string }) => {
+  const toggleOverlay = (overlay: (typeof GEO_OVERLAYS)[0] | { id: string; name: string }) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
@@ -1615,7 +1891,32 @@ function App() {
     {
       const hasTiles = 'tiles' in overlay
       const hasGeojson = 'geojson' in overlay
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:toggleOverlay',message:'toggle-click',data:{id:overlay.id,name:overlay.name,isVisibleBefore:isVisible,hasTiles,tilesLen:hasTiles?((overlay as typeof GEO_OVERLAYS[0]).tiles?.length ?? null):null,hasGeojson,geojsonPath:hasGeojson?((overlay as typeof GEO_OVERLAYS[0]).geojson ?? null):null,mapLoaded},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'N'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:toggleOverlay',
+          message: 'toggle-click',
+          data: {
+            id: overlay.id,
+            name: overlay.name,
+            isVisibleBefore: isVisible,
+            hasTiles,
+            tilesLen: hasTiles
+              ? ((overlay as (typeof GEO_OVERLAYS)[0]).tiles?.length ?? null)
+              : null,
+            hasGeojson,
+            geojsonPath: hasGeojson
+              ? ((overlay as (typeof GEO_OVERLAYS)[0]).geojson ?? null)
+              : null,
+            mapLoaded
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: debugRunIdRef.current || 'unknown',
+          hypothesisId: 'N'
+        })
+      }).catch(() => {})
     }
     // #endregion agent log (debug)
 
@@ -1680,7 +1981,25 @@ function App() {
             paint: { 'raster-opacity': overlay.opacity }
           })
           // #region agent log (debug)
-          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:toggleOverlay',message:'raster-added',data:{id:overlay.id,tilesLen:overlay.tiles.length,opacity:overlay.opacity,hasLayer:!!map.getLayer(overlay.id),hasSource:!!map.getSource(overlay.id)},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'N'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'src/App.tsx:toggleOverlay',
+              message: 'raster-added',
+              data: {
+                id: overlay.id,
+                tilesLen: overlay.tiles.length,
+                opacity: overlay.opacity,
+                hasLayer: !!map.getLayer(overlay.id),
+                hasSource: !!map.getSource(overlay.id)
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              runId: debugRunIdRef.current || 'unknown',
+              hypothesisId: 'N'
+            })
+          }).catch(() => {})
           // #endregion agent log (debug)
         }
       } else {
@@ -1689,7 +2008,7 @@ function App() {
           map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'visible')
         }
       }
-      setOverlayStates(prev => new Map(prev).set(overlay.id, true))
+      setOverlayStates((prev) => new Map(prev).set(overlay.id, true))
     } else {
       if (map.getLayer(overlay.id)) {
         map.setLayoutProperty(overlay.id, 'visibility', 'none')
@@ -1697,7 +2016,7 @@ function App() {
       if (map.getLayer(`${overlay.id}-outline`)) {
         map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'none')
       }
-      setOverlayStates(prev => new Map(prev).set(overlay.id, false))
+      setOverlayStates((prev) => new Map(prev).set(overlay.id, false))
     }
   }
 
@@ -1752,12 +2071,12 @@ function App() {
           paint: { 'raster-opacity': 0.6 }
         })
       }
-      setWeatherStates(prev => new Map(prev).set(overlayId, true))
+      setWeatherStates((prev) => new Map(prev).set(overlayId, true))
     } else {
       if (map.getLayer(overlayId)) {
         map.setLayoutProperty(overlayId, 'visibility', 'none')
       }
-      setWeatherStates(prev => new Map(prev).set(overlayId, false))
+      setWeatherStates((prev) => new Map(prev).set(overlayId, false))
     }
   }
 
@@ -1767,28 +2086,31 @@ function App() {
   useEffect(() => {
     if (!weatherStates.get('rain-radar')) return
 
-    const interval = setInterval(async () => {
-      const map = mapRef.current
-      if (!map || !mapLoaded) return
+    const interval = setInterval(
+      async () => {
+        const map = mapRef.current
+        if (!map || !mapLoaded) return
 
-      const path = await updateRainRadar()
-      if (path && map.getSource('rain-radar')) {
-        const tileUrl = buildRainTileUrl(path)
-        map.removeLayer('rain-radar')
-        map.removeSource('rain-radar')
-        map.addSource('rain-radar', {
-          type: 'raster',
-          tiles: [tileUrl],
-          tileSize: 256
-        })
-        map.addLayer({
-          id: 'rain-radar',
-          type: 'raster',
-          source: 'rain-radar',
-          paint: { 'raster-opacity': 0.6 }
-        })
-      }
-    }, 5 * 60 * 1000)
+        const path = await updateRainRadar()
+        if (path && map.getSource('rain-radar')) {
+          const tileUrl = buildRainTileUrl(path)
+          map.removeLayer('rain-radar')
+          map.removeSource('rain-radar')
+          map.addSource('rain-radar', {
+            type: 'raster',
+            tiles: [tileUrl],
+            tileSize: 256
+          })
+          map.addLayer({
+            id: 'rain-radar',
+            type: 'raster',
+            source: 'rain-radar',
+            paint: { 'raster-opacity': 0.6 }
+          })
+        }
+      },
+      5 * 60 * 1000
+    )
 
     return () => clearInterval(interval)
   }, [weatherStates, mapLoaded])
@@ -1826,7 +2148,7 @@ function App() {
   }
 
   const normalizeKokuareaFC = (fc: KokuareaFC): KokuareaFC => {
-    const nextFeatures = (fc.features ?? []).map(f => {
+    const nextFeatures = (fc.features ?? []).map((f) => {
       const props = safeKokuProps(f.properties)
       const { kind, label } = classifyKokuareaSurface(props)
       const nextProps: KokuareaFeatureProperties = {
@@ -1839,7 +2161,9 @@ function App() {
     return { ...fc, features: nextFeatures }
   }
 
-  const computeKokuareaZoomAndTiles = (map: maplibregl.Map): { z: number; keys: string[]; xyzs: Array<{ z: number; x: number; y: number }> } => {
+  const computeKokuareaZoomAndTiles = (
+    map: maplibregl.Map
+  ): { z: number; keys: string[]; xyzs: Array<{ z: number; x: number; y: number }> } => {
     const bounds = map.getBounds()
     let z = Math.max(8, Math.min(14, Math.floor(map.getZoom())))
     let xyzs = getVisibleTileXYZs(bounds, z)
@@ -1849,16 +2173,22 @@ function App() {
       xyzs = getVisibleTileXYZs(bounds, z)
     }
 
-    const keys = xyzs.map(t => `${t.z}/${t.x}/${t.y}`)
+    const keys = xyzs.map((t) => `${t.z}/${t.x}/${t.y}`)
     return { z, keys, xyzs }
   }
 
   const ensureKokuareaLayers = (map: maplibregl.Map): void => {
     if (!map.getSource(KOKUAREA_SOURCE_ID)) {
-      map.addSource(KOKUAREA_SOURCE_ID, { type: 'geojson', data: emptyKokuareaFC() as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties> })
+      map.addSource(KOKUAREA_SOURCE_ID, {
+        type: 'geojson',
+        data: emptyKokuareaFC() as GeoJSON.FeatureCollection<
+          GeoJSON.Geometry,
+          KokuareaFeatureProperties
+        >
+      })
     }
 
-    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach((kind) => {
       const style = KOKUAREA_STYLE[kind]
       const fillId = `${KOKUAREA_LAYER_PREFIX}-${kind}`
       const lineId = `${KOKUAREA_LAYER_PREFIX}-${kind}-outline`
@@ -1886,7 +2216,7 @@ function App() {
   }
 
   const removeKokuareaLayers = (map: maplibregl.Map): void => {
-    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach((kind) => {
       const fillId = `${KOKUAREA_LAYER_PREFIX}-${kind}`
       const lineId = `${KOKUAREA_LAYER_PREFIX}-${kind}-outline`
       if (map.getLayer(lineId)) map.removeLayer(lineId)
@@ -1926,9 +2256,9 @@ function App() {
       if (!keep.has(k)) state.tiles.delete(k)
     }
 
-    const toFetch = xyzs.filter(t => !state.tiles.has(`${t.z}/${t.x}/${t.y}`))
+    const toFetch = xyzs.filter((t) => !state.tiles.has(`${t.z}/${t.x}/${t.y}`))
     await Promise.all(
-      toFetch.map(async t => {
+      toFetch.map(async (t) => {
         const key = `${t.z}/${t.x}/${t.y}`
         const inflight = state.inflight.get(key)
         if (inflight) {
@@ -1954,12 +2284,14 @@ function App() {
 
     const merged: KokuareaFC = {
       type: 'FeatureCollection',
-      features: Array.from(kokuareaRef.current.tiles.values()).flatMap(fc => fc.features ?? [])
+      features: Array.from(kokuareaRef.current.tiles.values()).flatMap((fc) => fc.features ?? [])
     }
 
     const src = map.getSource(KOKUAREA_SOURCE_ID)
     if (src && 'setData' in src) {
-      ;(src as maplibregl.GeoJSONSource).setData(merged as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>)
+      ;(src as maplibregl.GeoJSONSource).setData(
+        merged as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>
+      )
     }
   }
 
@@ -1973,7 +2305,7 @@ function App() {
     // 既存listenerがあれば張り直し
     state.detach?.()
     const handler = () => {
-      void updateKokuareaData(map).catch(err => console.error('kokuarea update failed:', err))
+      void updateKokuareaData(map).catch((err) => console.error('kokuarea update failed:', err))
     }
     map.on('moveend', handler)
     map.on('zoomend', handler)
@@ -1982,7 +2314,9 @@ function App() {
       map.off('zoomend', handler)
     }
 
-    void updateKokuareaData(map).catch(err => console.error('kokuarea initial update failed:', err))
+    void updateKokuareaData(map).catch((err) =>
+      console.error('kokuarea initial update failed:', err)
+    )
   }
 
   const disableKokuarea = (map: maplibregl.Map): void => {
@@ -2008,11 +2342,11 @@ function App() {
       let color = ''
 
       if (restrictionId === 'airport-airspace') {
-        const zone = getAllRestrictionZones().find(z => z.id === restrictionId);
+        const zone = getAllRestrictionZones().find((z) => z.id === restrictionId)
         if (zone?.geojsonTileTemplate) {
           try {
             enableKokuarea(map, zone.geojsonTileTemplate)
-            setRestrictionStates(prev => new Map(prev).set(restrictionId, true))
+            setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
             return
           } catch (e) {
             console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
@@ -2020,15 +2354,15 @@ function App() {
         }
         if (zone?.path) {
           try {
-            geojson = await fetchGeoJSONWithCache(zone.path);
+            geojson = await fetchGeoJSONWithCache(zone.path)
           } catch (e) {
-            console.error('Failed to load airport GeoJSON:', e);
-            geojson = generateAirportGeoJSON(); // Fallback to circle if file fails
+            console.error('Failed to load airport GeoJSON:', e)
+            geojson = generateAirportGeoJSON() // Fallback to circle if file fails
           }
         } else {
-          geojson = generateAirportGeoJSON();
+          geojson = generateAirportGeoJSON()
         }
-        color = RESTRICTION_COLORS.airport;
+        color = RESTRICTION_COLORS.airport
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_RED') {
         geojson = generateRedZoneGeoJSON()
         color = RESTRICTION_COLORS.no_fly_red
@@ -2094,7 +2428,7 @@ function App() {
             map.setLayoutProperty(`${restrictionId}-${layer.id}-outline`, 'visibility', 'visible')
           }
         }
-        setRestrictionStates(prev => new Map(prev).set(restrictionId, true))
+        setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
         return
       }
 
@@ -2137,7 +2471,7 @@ function App() {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'visible')
         }
       }
-      setRestrictionStates(prev => new Map(prev).set(restrictionId, true))
+      setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
     } else {
       // Hide
       if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
@@ -2161,7 +2495,7 @@ function App() {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'none')
         }
       }
-      setRestrictionStates(prev => new Map(prev).set(restrictionId, false))
+      setRestrictionStates((prev) => new Map(prev).set(restrictionId, false))
     }
   }
 
@@ -2170,27 +2504,30 @@ function App() {
   // ============================================
   // Custom layer management
   // ============================================
-  const handleCustomLayerAdded = useCallback((layer: CustomLayer) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+  const handleCustomLayerAdded = useCallback(
+    (layer: CustomLayer) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    if (!map.getSource(layer.id)) {
-      map.addSource(layer.id, { type: 'geojson', data: layer.data })
-      map.addLayer({
-        id: layer.id,
-        type: 'fill',
-        source: layer.id,
-        paint: { 'fill-color': layer.color, 'fill-opacity': layer.opacity }
-      })
-      map.addLayer({
-        id: `${layer.id}-outline`,
-        type: 'line',
-        source: layer.id,
-        paint: { 'line-color': layer.color, 'line-width': 2 }
-      })
-    }
-    setCustomLayerVisibility(prev => new Set(prev).add(layer.id))
-  }, [mapLoaded])
+      if (!map.getSource(layer.id)) {
+        map.addSource(layer.id, { type: 'geojson', data: layer.data })
+        map.addLayer({
+          id: layer.id,
+          type: 'fill',
+          source: layer.id,
+          paint: { 'fill-color': layer.color, 'fill-opacity': layer.opacity }
+        })
+        map.addLayer({
+          id: `${layer.id}-outline`,
+          type: 'line',
+          source: layer.id,
+          paint: { 'line-color': layer.color, 'line-width': 2 }
+        })
+      }
+      setCustomLayerVisibility((prev) => new Set(prev).add(layer.id))
+    },
+    [mapLoaded]
+  )
 
   const handleCustomLayerRemoved = useCallback((layerId: string) => {
     const map = mapRef.current
@@ -2203,7 +2540,7 @@ function App() {
     if (map.getSource(layerId)) {
       map.removeSource(layerId)
     }
-    setCustomLayerVisibility(prev => {
+    setCustomLayerVisibility((prev) => {
       const next = new Set(prev)
       next.delete(layerId)
       return next
@@ -2217,7 +2554,7 @@ function App() {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    ISHIKAWA_NOTO_COMPARISON_LAYERS.forEach(layerConfig => {
+    ISHIKAWA_NOTO_COMPARISON_LAYERS.forEach((layerConfig) => {
       const isVisible = comparisonLayerVisibility.has(layerConfig.id)
       const visibility = isVisible ? 'visible' : 'none'
 
@@ -2236,7 +2573,7 @@ function App() {
     })
     // #region agent log (debug)
     {
-      const states = ISHIKAWA_NOTO_COMPARISON_LAYERS.map(cfg => {
+      const states = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => {
         const l = map.getLayer(cfg.id)
         const heat = map.getLayer(`${cfg.id}-heat`)
         const outline = map.getLayer(`${cfg.id}-outline`)
@@ -2261,7 +2598,19 @@ function App() {
           labelVis: label ? safeVis(`${cfg.id}-label`) : null
         }
       })
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:comparison-visibility-effect',message:'applied',data:{baseMap,visible:Array.from(comparisonLayerVisibility.values()),states},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'H'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:comparison-visibility-effect',
+          message: 'applied',
+          data: { baseMap, visible: Array.from(comparisonLayerVisibility.values()), states },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'H'
+        })
+      }).catch(() => {})
     }
     // #endregion agent log (debug)
 
@@ -2269,7 +2618,7 @@ function App() {
     {
       const safeRenderedCount = (layers: string[]): number => {
         try {
-          const existingLayers = layers.filter(layerId => map.getLayer(layerId))
+          const existingLayers = layers.filter((layerId) => map.getLayer(layerId))
           if (existingLayers.length === 0) return 0
           return map.queryRenderedFeatures(undefined, { layers: existingLayers }).length
         } catch {
@@ -2282,14 +2631,32 @@ function App() {
         [b.getWest(), b.getSouth()],
         [b.getEast(), b.getNorth()]
       ]
-      const rendered = ISHIKAWA_NOTO_COMPARISON_LAYERS.map(cfg => ({
+      const rendered = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => ({
         id: cfg.id,
         targetVisible: comparisonLayerVisibility.has(cfg.id),
         renderedMain: safeRenderedCount([cfg.id]),
         renderedHeat: safeRenderedCount([`${cfg.id}-heat`]),
         renderedLabel: safeRenderedCount([`${cfg.id}-label`])
       }))
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:comparison-visibility-effect',message:'render-check',data:{baseMap,zoom:map.getZoom(),center:[center.lng,center.lat],bounds,rendered},timestamp:Date.now(),sessionId:'debug-session',runId:debugRunIdRef.current || 'unknown',hypothesisId:'L'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:comparison-visibility-effect',
+          message: 'render-check',
+          data: {
+            baseMap,
+            zoom: map.getZoom(),
+            center: [center.lng, center.lat],
+            bounds,
+            rendered
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: debugRunIdRef.current || 'unknown',
+          hypothesisId: 'L'
+        })
+      }).catch(() => {})
     }
     // #endregion agent log (debug)
   }, [comparisonLayerVisibility, mapLoaded])
@@ -2324,74 +2691,104 @@ function App() {
     })
   }, [comparisonLayerOpacity, mapLoaded])
 
-  const handleCustomLayerToggle = useCallback((layerId: string, visible: boolean) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+  const handleCustomLayerToggle = useCallback(
+    (layerId: string, visible: boolean) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    // レイヤーがまだ追加されていない場合は追加
-    if (visible && !map.getSource(layerId)) {
-      const customLayers = getCustomLayers()
-      const layer = customLayers.find(l => l.id === layerId)
-      if (layer) {
-        handleCustomLayerAdded(layer)
-        return
+      // レイヤーがまだ追加されていない場合は追加
+      if (visible && !map.getSource(layerId)) {
+        const customLayers = getCustomLayers()
+        const layer = customLayers.find((l) => l.id === layerId)
+        if (layer) {
+          handleCustomLayerAdded(layer)
+          return
+        }
       }
-    }
 
-    if (map.getLayer(layerId)) {
-      const visibility = visible ? 'visible' : 'none'
-      map.setLayoutProperty(layerId, 'visibility', visibility)
-      map.setLayoutProperty(`${layerId}-outline`, 'visibility', visibility)
-    }
-
-    setCustomLayerVisibility(prev => {
-      const next = new Set(prev)
-      if (visible) {
-        next.add(layerId)
-      } else {
-        next.delete(layerId)
+      if (map.getLayer(layerId)) {
+        const visibility = visible ? 'visible' : 'none'
+        map.setLayoutProperty(layerId, 'visibility', visibility)
+        map.setLayoutProperty(`${layerId}-outline`, 'visibility', visibility)
       }
-      return next
-    })
-  }, [mapLoaded, handleCustomLayerAdded])
+
+      setCustomLayerVisibility((prev) => {
+        const next = new Set(prev)
+        if (visible) {
+          next.add(layerId)
+        } else {
+          next.delete(layerId)
+        }
+        return next
+      })
+    },
+    [mapLoaded, handleCustomLayerAdded]
+  )
 
   // ============================================
   // Ishikawa Noto Comparison Layer Handlers
   // ============================================
-  const handleComparisonLayerToggle = useCallback((layerId: string, visible: boolean) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
-    if (baseMap !== 'osm') return
+  const handleComparisonLayerToggle = useCallback(
+    (layerId: string, visible: boolean) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
+      if (baseMap !== 'osm') return
 
-    // #region agent log (debug)
-    fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleComparisonLayerToggle',message:'toggle',data:{layerId,visible,mapLoaded,hasLayer:!!map.getLayer(layerId)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion agent log (debug)
+      // #region agent log (debug)
+      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'src/App.tsx:handleComparisonLayerToggle',
+          message: 'toggle',
+          data: { layerId, visible, mapLoaded, hasLayer: !!map.getLayer(layerId) },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'C'
+        })
+      }).catch(() => {})
+      // #endregion agent log (debug)
 
-    if (visible) {
-      const bounds = comparisonLayerBoundsRef.current.get(layerId)
-      if (bounds) {
-        try {
-          map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
-          // #region agent log (debug)
-          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/App.tsx:handleComparisonLayerToggle',message:'fitBounds',data:{layerId,bounds},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'F'})}).catch(()=>{});
-          // #endregion agent log (debug)
-        } catch {
-          // ignore
+      if (visible) {
+        const bounds = comparisonLayerBoundsRef.current.get(layerId)
+        if (bounds) {
+          try {
+            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
+            // #region agent log (debug)
+            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'src/App.tsx:handleComparisonLayerToggle',
+                message: 'fitBounds',
+                data: { layerId, bounds },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'post-fix',
+                hypothesisId: 'F'
+              })
+            }).catch(() => {})
+            // #endregion agent log (debug)
+          } catch {
+            // ignore
+          }
         }
       }
-    }
 
-    setComparisonLayerVisibility(prev => {
-      const next = new Set(prev)
-      if (visible) next.add(layerId)
-      else next.delete(layerId)
-      comparisonLayerVisibilityRef.current = next
-      return next
-    })
-  }, [mapLoaded, baseMap])
+      setComparisonLayerVisibility((prev) => {
+        const next = new Set(prev)
+        if (visible) next.add(layerId)
+        else next.delete(layerId)
+        comparisonLayerVisibilityRef.current = next
+        return next
+      })
+    },
+    [mapLoaded, baseMap]
+  )
 
   const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
-    setComparisonLayerOpacity(prev => new Map(prev).set(layerId, opacity))
+    setComparisonLayerOpacity((prev) => new Map(prev).set(layerId, opacity))
   }, [])
 
   // ============================================
@@ -2465,22 +2862,24 @@ function App() {
       </button>
 
       {/* Left Legend Panel */}
-      <aside style={{
-        position: 'absolute',
-        left: showLeftLegend ? 0 : -leftSidebarWidth,
-        top: 0,
-        bottom: 0,
-        width: `${leftSidebarWidth}px`,
-        padding: '12px',
-        backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
-        color: darkMode ? '#fff' : '#333',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        zIndex: 10,
-        transition: isResizingLeft ? 'none' : 'left 0.3s ease',
-        boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-        fontSize: '14px'
-      }}>
+      <aside
+        style={{
+          position: 'absolute',
+          left: showLeftLegend ? 0 : -leftSidebarWidth,
+          top: 0,
+          bottom: 0,
+          width: `${leftSidebarWidth}px`,
+          padding: '12px',
+          backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+          color: darkMode ? '#fff' : '#333',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          zIndex: 10,
+          transition: isResizingLeft ? 'none' : 'left 0.3s ease',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+          fontSize: '14px'
+        }}
+      >
         {/* Resize Handle */}
         <div
           onMouseDown={(e) => {
@@ -2499,17 +2898,19 @@ function App() {
             transition: 'background-color 0.2s',
             backgroundColor: 'transparent'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.3)')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         />
 
         {/* App Title */}
-        <h1 style={{
-          margin: '0 0 16px',
-          fontSize: '16px',
-          fontWeight: 700,
-          color: darkMode ? '#fff' : '#333'
-        }}>
+        <h1
+          style={{
+            margin: '0 0 16px',
+            fontSize: '16px',
+            fontWeight: 700,
+            color: darkMode ? '#fff' : '#333'
+          }}
+        >
           DID Map
         </h1>
 
@@ -2533,28 +2934,40 @@ function App() {
             }}
           />
           {(searchResults.length > 0 || geoSearchResults.length > 0 || isGeoSearching) && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              backgroundColor: darkMode ? '#333' : '#fff',
-              border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
-              borderRadius: '0 0 4px 4px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              zIndex: 100
-            }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: darkMode ? '#333' : '#fff',
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                borderRadius: '0 0 4px 4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 100
+              }}
+            >
               {/* DID検索結果 */}
               {searchResults.length > 0 && (
                 <>
-                  <div style={{ padding: '4px 8px', fontSize: '10px', color: darkMode ? '#888' : '#666', backgroundColor: darkMode ? '#2a2a2a' : '#f5f5f5' }}>
+                  <div
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      color: darkMode ? '#888' : '#666',
+                      backgroundColor: darkMode ? '#2a2a2a' : '#f5f5f5'
+                    }}
+                  >
                     人口集中地区
                   </div>
                   {searchResults.map((item, index) => (
                     <div
                       key={`did-${item.prefName}-${item.cityName}-${index}`}
-                      onClick={() => { flyToFeature(item); setSearchTerm(''); }}
+                      onClick={() => {
+                        flyToFeature(item)
+                        setSearchTerm('')
+                      }}
                       style={{
                         padding: '6px 8px',
                         cursor: 'pointer',
@@ -2562,10 +2975,14 @@ function App() {
                         fontSize: '12px',
                         color: darkMode ? '#fff' : '#333'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f0f0f0'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f0f0f0')
+                      }
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                      <span style={{ color: darkMode ? '#aaa' : '#888', marginRight: '4px' }}>{item.prefName}</span>
+                      <span style={{ color: darkMode ? '#aaa' : '#888', marginRight: '4px' }}>
+                        {item.prefName}
+                      </span>
                       {item.cityName}
                     </div>
                   ))}
@@ -2573,13 +2990,27 @@ function App() {
               )}
               {/* ジオコーディング結果 */}
               {isGeoSearching && (
-                <div style={{ padding: '8px', fontSize: '12px', color: darkMode ? '#aaa' : '#666', textAlign: 'center' }}>
+                <div
+                  style={{
+                    padding: '8px',
+                    fontSize: '12px',
+                    color: darkMode ? '#aaa' : '#666',
+                    textAlign: 'center'
+                  }}
+                >
                   検索中...
                 </div>
               )}
               {geoSearchResults.length > 0 && (
                 <>
-                  <div style={{ padding: '4px 8px', fontSize: '10px', color: darkMode ? '#888' : '#666', backgroundColor: darkMode ? '#2a2a2a' : '#f5f5f5' }}>
+                  <div
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      color: darkMode ? '#888' : '#666',
+                      backgroundColor: darkMode ? '#2a2a2a' : '#f5f5f5'
+                    }}
+                  >
                     地名・建物名
                   </div>
                   {geoSearchResults.map((result, index) => (
@@ -2593,11 +3024,19 @@ function App() {
                         fontSize: '12px',
                         color: darkMode ? '#fff' : '#333'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f0f0f0'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f0f0f0')
+                      }
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <div style={{ fontWeight: 500 }}>{result.displayName.split(',')[0]}</div>
-                      <div style={{ fontSize: '10px', color: darkMode ? '#888' : '#999', marginTop: '2px' }}>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          color: darkMode ? '#888' : '#999',
+                          marginTop: '2px'
+                        }}
+                      >
                         {result.displayName.split(',').slice(1, 3).join(',')}
                       </div>
                     </div>
@@ -2618,8 +3057,8 @@ function App() {
                 style={{
                   padding: '4px 8px',
                   fontSize: '12px',
-                  backgroundColor: baseMap === key ? '#4a90d9' : (darkMode ? '#444' : '#f0f0f0'),
-                  color: baseMap === key ? '#fff' : (darkMode ? '#fff' : '#333'),
+                  backgroundColor: baseMap === key ? '#4a90d9' : darkMode ? '#444' : '#f0f0f0',
+                  color: baseMap === key ? '#fff' : darkMode ? '#fff' : '#333',
                   border: 'none',
                   borderRadius: '3px',
                   cursor: 'pointer'
@@ -2632,7 +3071,10 @@ function App() {
         </div>
 
         {/* Opacity slider */}
-        <div style={{ marginBottom: '12px' }} title="DIDレイヤーと制限エリアレイヤーの透明度を調整します">
+        <div
+          style={{ marginBottom: '12px' }}
+          title="DIDレイヤーと制限エリアレイヤーの透明度を調整します"
+        >
           <label style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666' }}>
             透明度: {Math.round(opacity * 100)}%
           </label>
@@ -2648,7 +3090,10 @@ function App() {
         </div>
 
         {/* Tooltip toggle */}
-        <div style={{ marginBottom: '12px' }} title="マップ上にマウスをホバーした時に、DID情報や制限区域の詳細をポップアップ表示します">
+        <div
+          style={{ marginBottom: '12px' }}
+          title="マップ上にマウスをホバーした時に、DID情報や制限区域の詳細をポップアップ表示します"
+        >
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -2660,7 +3105,10 @@ function App() {
         </div>
 
         {/* Coordinate Display toggle */}
-        <div style={{ marginBottom: '12px' }} title="マップをクリックした時に、クリック位置の緯度経度を10進数と度分秒形式で表示します">
+        <div
+          style={{ marginBottom: '12px' }}
+          title="マップをクリックした時に、クリック位置の緯度経度を10進数と度分秒形式で表示します"
+        >
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -2688,27 +3136,36 @@ function App() {
               const lastFeature = features[features.length - 1]
               // Use center for circles and point, or first coordinate for lines
               let center: [number, number] | null = null
-              
+
               if (lastFeature.type === 'circle' && lastFeature.center) {
                 center = lastFeature.center
               } else if (lastFeature.type === 'point' && Array.isArray(lastFeature.coordinates)) {
                 center = lastFeature.coordinates as [number, number]
-              } else if (lastFeature.type === 'polygon' && Array.isArray(lastFeature.coordinates) && lastFeature.coordinates.length > 0) {
+              } else if (
+                lastFeature.type === 'polygon' &&
+                Array.isArray(lastFeature.coordinates) &&
+                lastFeature.coordinates.length > 0
+              ) {
                 const outerRing = lastFeature.coordinates[0] as [number, number][]
                 if (outerRing.length > 0) {
-                  let sumLng = 0, sumLat = 0
-                  outerRing.forEach(coord => {
+                  let sumLng = 0,
+                    sumLat = 0
+                  outerRing.forEach((coord) => {
                     sumLng += coord[0]
                     sumLat += coord[1]
                   })
                   center = [sumLng / outerRing.length, sumLat / outerRing.length]
                 }
-              } else if (lastFeature.type === 'line' && Array.isArray(lastFeature.coordinates) && lastFeature.coordinates.length > 0) {
+              } else if (
+                lastFeature.type === 'line' &&
+                Array.isArray(lastFeature.coordinates) &&
+                lastFeature.coordinates.length > 0
+              ) {
                 const lineCoords = lastFeature.coordinates as [number, number][]
                 const midIndex = Math.floor(lineCoords.length / 2)
                 center = lineCoords[midIndex]
               }
-              
+
               if (center && enableCoordinateDisplay) {
                 setDisplayCoordinates({
                   lng: center[0],
@@ -2721,135 +3178,344 @@ function App() {
         />
 
         {/* Restriction Areas Section */}
-        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: darkMode ? '#222' : '#f8f8f8', borderRadius: '4px' }}>
-          <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '4px' }}>
+        <div
+          style={{
+            marginBottom: '12px',
+            padding: '8px',
+            backgroundColor: darkMode ? '#222' : '#f8f8f8',
+            borderRadius: '4px'
+          }}
+        >
+          <h3
+            style={{
+              margin: '0 0 8px',
+              fontSize: '14px',
+              fontWeight: 600,
+              borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+              paddingBottom: '4px'
+            }}
+          >
             禁止エリア
           </h3>
 
           {/* Airport airspace */}
-          <label title="空港周辺の一定範囲内：無人機飛行は許可が必要 [A]" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+          <label
+            title="空港周辺の一定範囲内：無人機飛行は許可が必要 [A]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '6px',
+              cursor: 'pointer'
+            }}
+          >
             <input
               type="checkbox"
               checked={isRestrictionVisible('airport-airspace')}
               onChange={() => toggleRestriction('airport-airspace')}
             />
-            <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.airport, borderRadius: '2px' }} />
+            <span
+              style={{
+                width: '14px',
+                height: '14px',
+                backgroundColor: RESTRICTION_COLORS.airport,
+                borderRadius: '2px'
+              }}
+            />
             <span>空港など周辺空域 [A]</span>
           </label>
 
           {/* DID */}
-          <label title="人口が密集している地区：航空法により飛行に許可が必要な区域 [D]" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+          <label
+            title="人口が密集している地区：航空法により飛行に許可が必要な区域 [D]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '6px',
+              cursor: 'pointer'
+            }}
+          >
             <input
               type="checkbox"
               checked={isRestrictionVisible('ZONE_IDS.DID_ALL_JAPAN')}
               onChange={() => toggleRestriction('ZONE_IDS.DID_ALL_JAPAN')}
             />
-            <span style={{ width: '14px', height: '14px', backgroundColor: '#FF0000', borderRadius: '2px' }} />
+            <span
+              style={{
+                width: '14px',
+                height: '14px',
+                backgroundColor: '#FF0000',
+                borderRadius: '2px'
+              }}
+            />
             <span>人口集中地区（全国） [D]</span>
           </label>
 
           {/*仮設置データセクション */}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, marginBottom: '8px' }}>
-            <div style={{ fontSize: '11px', color: darkMode ? '#888' : '#999', marginBottom: '6px', fontWeight: 500 }}>仮設置データ *</div>
+          <div
+            style={{
+              marginTop: '8px',
+              paddingTop: '8px',
+              borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+              marginBottom: '8px'
+            }}
+          >
+            <div
+              style={{
+                fontSize: '11px',
+                color: darkMode ? '#888' : '#999',
+                marginBottom: '6px',
+                fontWeight: 500
+              }}
+            >
+              仮設置データ *
+            </div>
 
             {/* Emergency airspace */}
-            <label title="緊急用務空域（未実装）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'not-allowed', opacity: 0.5 }}>
+            <label
+              title="緊急用務空域 * [E]：警察・消防などの緊急活動が必要な区域（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
-                checked={false}
-                disabled={true}
-                onChange={() => {}}
+                checked={isRestrictionVisible('ZONE_IDS.EMERGENCY_AIRSPACE')}
+                onChange={() => toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.emergency, borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: RESTRICTION_COLORS.emergency,
+                  borderRadius: '2px'
+                }}
+              />
               <span>緊急用務空域 * [E]</span>
             </label>
 
             {/* Manned aircraft */}
-            <label title="有人機発着エリア * [V]：有人航空機の離着陸場所（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="有人機発着エリア * [V]：有人航空機の離着陸場所（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
                 onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.manned, borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: RESTRICTION_COLORS.manned,
+                  borderRadius: '2px'
+                }}
+              />
               <span>有人機発着エリア * [V]</span>
             </label>
 
             {/* Remote ID */}
-            <label title="リモートID特定区域 * [I]：リモートID機能搭載が必要（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="リモートID特定区域 * [I]：リモートID機能搭載が必要（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
                 onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.remote_id, borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: RESTRICTION_COLORS.remote_id,
+                  borderRadius: '2px'
+                }}
+              />
               <span>リモートID特定区域 * [I]</span>
             </label>
 
             {/* Heliports */}
-            <label title="ヘリポート * [H]：ビル屋上・病院等（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="ヘリポート * [H]：ビル屋上・病院等（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('heliports')}
                 onChange={() => toggleRestriction('heliports')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: '#FF6B6B', borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: '#FF6B6B',
+                  borderRadius: '2px'
+                }}
+              />
               <span>ヘリポート * [H]</span>
             </label>
 
             {/* Radio Interference */}
-            <label title="電波干渉区域 * [F]：電波塔・放送局周辺（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="電波干渉区域 * [F]：電波塔・放送局周辺（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('radio-interference')}
                 onChange={() => toggleRestriction('radio-interference')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: '#9B59B6', borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: '#9B59B6',
+                  borderRadius: '2px'
+                }}
+              />
               <span>電波干渉区域 * [F]</span>
             </label>
 
             {/* Manned Aircraft Zones */}
-            <label title="有人機発着区域 * [U]：農薬散布ヘリなど（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="有人機発着区域 * [U]：農薬散布ヘリなど（参考データ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('manned-aircraft-zones')}
                 onChange={() => toggleRestriction('manned-aircraft-zones')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: '#3498DB', borderRadius: '2px' }} />
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: '#3498DB',
+                  borderRadius: '2px'
+                }}
+              />
               <span>有人機発着区域 * [U]</span>
             </label>
           </div>
 
           {/* No-fly law section */}
-          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
-            <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>小型無人機等飛行禁止法</div>
+          <div
+            style={{
+              marginTop: '8px',
+              paddingTop: '8px',
+              borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+              marginBottom: '8px'
+            }}
+          >
+            <div
+              style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}
+            >
+              小型無人機等飛行禁止法
+            </div>
 
-            <label title="飛行禁止区域：許可を得ずに飛行できません [R]" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+            <label
+              title="レッドゾーン * [R]：飛行禁止区域（サンプルデータ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('ZONE_IDS.NO_FLY_RED')}
                 onChange={() => toggleRestriction('ZONE_IDS.NO_FLY_RED')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.no_fly_red, borderRadius: '2px' }} />
-              <span>レッドゾーン [R]</span>
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: RESTRICTION_COLORS.no_fly_red,
+                  borderRadius: '2px'
+                }}
+              />
+              <span>レッドゾーン * [R]</span>
             </label>
 
-            <label title="要許可区域：許可申請を得て条件を満たすことで飛行できます [Y]" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+            <label
+              title="イエローゾーン * [Y]：要許可区域（サンプルデータ）"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '6px',
+                cursor: 'pointer'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={isRestrictionVisible('ZONE_IDS.NO_FLY_YELLOW')}
                 onChange={() => toggleRestriction('ZONE_IDS.NO_FLY_YELLOW')}
               />
-              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.no_fly_yellow, borderRadius: '2px' }} />
-              <span>イエローゾーン [Y]</span>
+              <span
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  backgroundColor: RESTRICTION_COLORS.no_fly_yellow,
+                  borderRadius: '2px'
+                }}
+              />
+              <span>イエローゾーン * [Y]</span>
             </label>
+
+            <div
+              style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}
+            >
+              （仮設置・東京中心サンプル）
+            </div>
           </div>
         </div>
 
         {/* DID Section */}
         <div>
-          <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600 }}>人口集中地区（DID）</h3>
-          {LAYER_GROUPS.map(group => (
+          <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600 }}>
+            人口集中地区（DID）
+          </h3>
+          {LAYER_GROUPS.map((group) => (
             <div key={group.name} style={{ marginBottom: '4px' }}>
               <button
                 onClick={() => toggleGroup(group.name)}
@@ -2896,7 +3562,9 @@ function App() {
                         flex: 1,
                         padding: '4px 6px',
                         fontSize: '12px',
-                        backgroundColor: darkMode ? 'rgba(255, 82, 82, 0.18)' : 'rgba(255, 82, 82, 0.12)',
+                        backgroundColor: darkMode
+                          ? 'rgba(255, 82, 82, 0.18)'
+                          : 'rgba(255, 82, 82, 0.12)',
                         color: darkMode ? '#ff8a80' : '#d32f2f',
                         border: `1px solid ${darkMode ? 'rgba(255, 138, 128, 0.65)' : 'rgba(211, 47, 47, 0.55)'}`,
                         borderRadius: '6px',
@@ -2922,10 +3590,17 @@ function App() {
                       全非表示
                     </button>
                   </div>
-                  {group.layers.map(layer => (
+                  {group.layers.map((layer) => (
                     <label
                       key={layer.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', cursor: 'pointer', fontSize: '12px' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '3px 0',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -2936,7 +3611,8 @@ function App() {
                         style={{
                           width: '10px',
                           height: '10px',
-                          backgroundColor: getDidGroupMode(group.name) === 'red' ? '#ff0000' : layer.color,
+                          backgroundColor:
+                            getDidGroupMode(group.name) === 'red' ? '#ff0000' : layer.color,
                           borderRadius: '2px'
                         }}
                       />
@@ -2978,22 +3654,24 @@ function App() {
       </button>
 
       {/* Right Legend Panel */}
-      <aside style={{
-        position: 'absolute',
-        right: showRightLegend ? 0 : -rightSidebarWidth,
-        top: 0,
-        bottom: 0,
-        width: `${rightSidebarWidth}px`,
-        padding: '12px',
-        backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
-        color: darkMode ? '#fff' : '#333',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        zIndex: 10,
-        transition: isResizingRight ? 'none' : 'right 0.3s ease',
-        boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
-        fontSize: '14px'
-      }}>
+      <aside
+        style={{
+          position: 'absolute',
+          right: showRightLegend ? 0 : -rightSidebarWidth,
+          top: 0,
+          bottom: 0,
+          width: `${rightSidebarWidth}px`,
+          padding: '12px',
+          backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+          color: darkMode ? '#fff' : '#333',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          zIndex: 10,
+          transition: isResizingRight ? 'none' : 'right 0.3s ease',
+          boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
+          fontSize: '14px'
+        }}
+      >
         {/* Resize Handle */}
         <div
           onMouseDown={(e) => {
@@ -3012,28 +3690,40 @@ function App() {
             transition: 'background-color 0.2s',
             backgroundColor: 'transparent'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.3)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.3)')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         />
 
-        <h3 style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: 600, borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`, paddingBottom: '4px' }}>
+        <h3
+          style={{
+            margin: '0 0 8px',
+            fontSize: '14px',
+            fontWeight: 600,
+            borderBottom: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+            paddingBottom: '4px'
+          }}
+        >
           環境情報
         </h3>
 
         {/* Geographic Info */}
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>地理情報</div>
-          {GEO_OVERLAYS.map(overlay => {
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
+            地理情報
+          </div>
+          {GEO_OVERLAYS.map((overlay) => {
             const isNotoUplift = overlay.id === 'terrain-2024-noto'
             const checked = isNotoUplift
               ? comparisonLayerVisibility.has('terrain-2024-noto')
               : isOverlayVisible(overlay.id)
-            const disabled = isNotoUplift ? baseMap !== 'osm' : false
+            const disabled = isNotoUplift ? true : false
             const tooltip = isNotoUplift
-              ? (disabled ? '標準マップ（osm）のみ利用できます。' : '2024年能登半島地震後の隆起を示す点サンプル（赤い点/ヒート）を表示します。')
-              : (('description' in overlay && typeof overlay.description === 'string' && overlay.description.trim().length > 0)
+              ? '能登半島隆起エリア（仮設置データ・試験的表示）'
+              : 'description' in overlay &&
+                  typeof overlay.description === 'string' &&
+                  overlay.description.trim().length > 0
                 ? overlay.description
-                : overlay.name)
+                : overlay.name
             return (
               <label
                 key={overlay.id}
@@ -3055,7 +3745,10 @@ function App() {
                   disabled={disabled}
                   onChange={() => {
                     if (isNotoUplift) {
-                      handleComparisonLayerToggle('terrain-2024-noto', !comparisonLayerVisibility.has('terrain-2024-noto'))
+                      handleComparisonLayerToggle(
+                        'terrain-2024-noto',
+                        !comparisonLayerVisibility.has('terrain-2024-noto')
+                      )
                       return
                     }
                     toggleOverlay(overlay)
@@ -3076,9 +3769,21 @@ function App() {
 
         {/* Weather Info */}
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>天候情報</div>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
+            天候情報
+          </div>
 
-          <label title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          <label
+            title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
             <input
               type="checkbox"
               checked={isWeatherVisible('rain-radar')}
@@ -3090,7 +3795,17 @@ function App() {
             )}
           </label>
 
-          <label title="風向・風量 * [W]：風の方向と速度（仮設置データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          <label
+            title="風向・風量 * [W]：風の方向と速度（仮設置データ）"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
             <input
               type="checkbox"
               checked={isOverlayVisible('wind-field')}
@@ -3099,15 +3814,34 @@ function App() {
             <span>風向・風量 * [W]</span>
           </label>
 
-          <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', marginBottom: '12px', paddingLeft: '20px' }}>
+          <div
+            style={{
+              fontSize: '10px',
+              color: darkMode ? '#666' : '#aaa',
+              marginBottom: '12px',
+              paddingLeft: '20px'
+            }}
+          >
             （仮設置）
           </div>
         </div>
 
         {/* Signal Info */}
         <div>
-          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>電波種</div>
-          <label title="LTE * [C]：携帯電話カバレッジ強度（仮設置データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
+            電波種
+          </div>
+          <label
+            title="LTE * [C]：携帯電話カバレッジ強度（仮設置データ）"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
             <input
               type="checkbox"
               checked={isOverlayVisible('lte-coverage')}
@@ -3159,20 +3893,38 @@ function App() {
         title={`${darkMode ? 'ライトモード' : 'ダークモード'}に切替 [L]`}
       >
         {darkMode ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
           </svg>
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
         )}
       </button>
@@ -3187,8 +3939,8 @@ function App() {
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: is3DMode ? '#3388ff' : (darkMode ? '#333' : '#fff'),
-          color: is3DMode ? '#fff' : (darkMode ? '#fff' : '#333'),
+          backgroundColor: is3DMode ? '#3388ff' : darkMode ? '#333' : '#fff',
+          color: is3DMode ? '#fff' : darkMode ? '#fff' : '#333',
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
@@ -3252,19 +4004,26 @@ function App() {
               backgroundColor: darkMode ? '#2a2a2a' : '#fff',
               color: darkMode ? '#fff' : '#333',
               borderRadius: '8px',
-              padding: '20px',
               maxWidth: '900px',
               width: '90%',
               maxHeight: '85vh',
-              overflowY: 'auto',
               boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              overflow: 'hidden'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* ヘッダー */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '20px',
+                borderBottom: `1px solid ${darkMode ? '#3a3a3a' : '#e5e7eb'}`
+              }}
+            >
               <h2 style={{ margin: 0, fontSize: '18px' }}>使い方ガイド</h2>
               <button
                 onClick={() => setShowHelp(false)}
@@ -3280,150 +4039,685 @@ function App() {
               </button>
             </div>
 
-            {/* コンテンツ：2カラムグリッド */}
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: window.innerWidth > 768 ? 'repeat(2, 1fr)' : '1fr',
-              gap: window.innerWidth > 768 ? '24px' : '16px',
-              columnGap: window.innerWidth > 768 ? '32px' : '0px',
-              fontSize: '14px'
-            }}>
-              
-              {/* ===== 左カラム ===== */}
-              
-              {/* セクション1：基本操作・ヒント */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(74, 144, 217, 0.1)' : '#f0f7ff', borderRadius: '8px', border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '12px', color: darkMode ? '#4a90d9' : '#2563eb', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
-                  基本操作・ヒント
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '13px', color: darkMode ? '#ddd' : '#555' }}>
-                  <li style={{ marginBottom: '6px' }}><strong>描画リストのズーム:</strong> 右サイドバーの「描画済み」リストの項目をクリックすると、その場所へズームします。<span style={{ color: darkMode ? '#ffb74d' : '#f57c00', fontWeight: 'bold' }}>連続してクリックすると、さらに段階的に拡大</span>します。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>地図操作:</strong> 左クリックで移動、右クリック＋ドラッグで回転・チルト（傾き）ができます。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>サイドバーのリサイズ:</strong> 左・右サイドバーの右端にマウスを置くと、カーソルが変わります。ドラッグしてサイドバーの幅を自由に調整できます。</li>
-                  <li><strong>検索:</strong> 画面左上の検索ボックスから、地名や住所で場所を検索・移動できます。</li>
-                </ul>
-              </div>
+            {/* コンテンツ：スクロール領域（ヘッダー固定のため本文のみスクロール） */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+              {/* コンテンツ：2カラムグリッド */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: window.innerWidth > 768 ? 'repeat(2, 1fr)' : '1fr',
+                  gap: window.innerWidth > 768 ? '24px' : '16px',
+                  columnGap: window.innerWidth > 768 ? '32px' : '0px',
+                  fontSize: '14px'
+                }}
+              >
+                {/* ===== 左カラム ===== */}
 
-              {/* セクション2：禁止エリア表示 */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '10px', color: darkMode ? '#4a90d9' : '#2563eb', fontSize: '14px' }}>禁止エリア表示</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '4px 8px', fontSize: '13px' }}>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>D</kbd>
-                  <span>人口集中地区（DID）</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>A</kbd>
-                  <span>空港周辺空域</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>R</kbd>
-                  <span>レッドゾーン（飛行禁止）</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>Y</kbd>
-                  <span>イエローゾーン（要許可）</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>E</kbd>
-                  <span>緊急用務空域 *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>H</kbd>
-                  <span>ヘリポート</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>I</kbd>
-                  <span>リモートID特定区域 *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>V</kbd>
-                  <span>有人機発着エリア *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>U</kbd>
-                  <span>有人機発着区域 *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>F</kbd>
-                  <span>電波干渉区域 *</span>
-                </div>
-              </div>
-
-              {/* セクション3：クイックアクセス */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '10px', color: darkMode ? '#4a90d9' : '#2563eb', fontSize: '14px' }}>クイックアクセス</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr', gap: '4px 8px', fontSize: '13px' }}>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>⌘K</kbd>
-                  <span>検索にフォーカス</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>S</kbd>
-                  <span>左サイドバー開閉</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>P</kbd>
-                  <span>右サイドバー開閉</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>M</kbd>
-                  <span>マップスタイル切替</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>T</kbd>
-                  <span>ツールチップ表示</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>L</kbd>
-                  <span>ダークモード/ライトモード</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>2 / 3</kbd>
-                  <span>2D / 3D表示切替</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>W</kbd>
-                  <span>風向・風量 *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>C</kbd>
-                  <span>LTE *</span>
-                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>?</kbd>
-                  <span>ヘルプ表示/非表示</span>
-                </div>
-              </div>
-
-              {/* ===== 右カラム ===== */}
-
-              {/* セクション4：描画ツールの使い方 */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '10px', color: darkMode ? '#4a90d9' : '#2563eb', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                  描画ツールの使い方
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '13px', color: darkMode ? '#ddd' : '#555' }}>
-                  <li style={{ marginBottom: '6px' }}><strong>描画の種類:</strong> ポリゴン、円、ウェイポイント、経路（ライン）の4種類から選択できます。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>ウェイポイント名前付け:</strong> 右サイドバーの「描画済み」リストで各フィーチャーを選択し、名前フィールドを編集できます。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>高度設定:</strong> 標高（国土地理院APIから自動取得）と飛行高度を設定すると、上限海抜高度が計算されます。</li>
-                  <li><strong>頂点ラベル:</strong> 描画中は各頂点に座標ラベルが常時表示されます（ツールチップ機能 T キー）。</li>
-                </ul>
-              </div>
-
-              {/* セクション5：データエクスポート */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '10px', color: darkMode ? '#4a90d9' : '#2563eb', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                  データエクスポート
-                </div>
-                <div style={{ fontSize: '13px', lineHeight: '1.7', color: darkMode ? '#ddd' : '#555' }}>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>GeoJSON</strong> - Web地図/開発ツール連携用
-                    <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginLeft: '8px' }}>プログラム処理、QGIS等のGISツール</div>
+                {/* セクション1：基本操作・ヒント */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(74, 144, 217, 0.1)' : '#f0f7ff',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '12px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M12 16v-4"></path>
+                      <path d="M12 8h.01"></path>
+                    </svg>
+                    基本操作・ヒント
                   </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>KML</strong> - Google Earth/Maps用
-                    <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginLeft: '8px' }}>可視化、共有、プレゼンテーション</div>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: '20px',
+                      lineHeight: '1.6',
+                      fontSize: '13px',
+                      color: darkMode ? '#ddd' : '#555'
+                    }}
+                  >
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>描画リストのズーム:</strong>{' '}
+                      右サイドバーの「描画済み」リストの項目をクリックすると、その場所へズームします。
+                      <span style={{ color: darkMode ? '#ffb74d' : '#f57c00', fontWeight: 'bold' }}>
+                        連続してクリックすると、さらに段階的に拡大
+                      </span>
+                      します。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>地図操作:</strong>{' '}
+                      左クリックで移動、右クリック＋ドラッグで回転・チルト（傾き）ができます。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>サイドバーのリサイズ:</strong>{' '}
+                      左・右サイドバーの右端にマウスを置くと、カーソルが変わります。ドラッグしてサイドバーの幅を自由に調整できます。
+                    </li>
+                    <li>
+                      <strong>検索:</strong>{' '}
+                      画面左上の検索ボックスから、地名や住所で場所を検索・移動できます。
+                    </li>
+                  </ul>
+                </div>
+
+                {/* セクション2：禁止エリア表示 */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '10px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      fontSize: '14px'
+                    }}
+                  >
+                    禁止エリア表示
                   </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>CSV</strong> - スプレッドシート用
-                    <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginLeft: '8px' }}>Excel、座標一覧の確認・編集</div>
-                  </div>
-                  <div>
-                    <strong>NOTAM/DMS</strong> - 飛行申請用（度分秒形式）
-                    <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginLeft: '8px' }}>DIPS申請、航空当局への提出資料</div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '60px 1fr',
+                      gap: '4px 8px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      D
+                    </kbd>
+                    <span>人口集中地区（DID）</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      A
+                    </kbd>
+                    <span>空港周辺空域</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      R
+                    </kbd>
+                    <span>レッドゾーン（飛行禁止） * 未実装</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Y
+                    </kbd>
+                    <span>イエローゾーン（要許可） * 未実装</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      E
+                    </kbd>
+                    <span>緊急用務空域 *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      H
+                    </kbd>
+                    <span>ヘリポート</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      I
+                    </kbd>
+                    <span>リモートID特定区域 *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      V
+                    </kbd>
+                    <span>有人機発着エリア *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      U
+                    </kbd>
+                    <span>有人機発着区域 *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      F
+                    </kbd>
+                    <span>電波干渉区域 *</span>
                   </div>
                 </div>
-              </div>
 
-              {/* セクション6：座標・表示設定 */}
-              <div style={{ marginBottom: '8px', padding: '16px', backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}` }}>
-                <div style={{ fontWeight: 600, marginBottom: '10px', color: darkMode ? '#4a90d9' : '#2563eb', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
-                  座標・表示設定
+                {/* セクション3：クイックアクセス */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '10px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      fontSize: '14px'
+                    }}
+                  >
+                    クイックアクセス
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '60px 1fr',
+                      gap: '4px 8px',
+                      fontSize: '13px'
+                    }}
+                  >
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '11px'
+                      }}
+                    >
+                      ⌘K
+                    </kbd>
+                    <span>検索にフォーカス</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      S
+                    </kbd>
+                    <span>左サイドバー開閉</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      P
+                    </kbd>
+                    <span>右サイドバー開閉</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      M
+                    </kbd>
+                    <span>マップスタイル切替</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      T
+                    </kbd>
+                    <span>ツールチップ表示</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      L
+                    </kbd>
+                    <span>ダークモード/ライトモード</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      2 / 3
+                    </kbd>
+                    <span>2D / 3D表示切替</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      R
+                    </kbd>
+                    <span>レッドゾーン * 未実装</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      Y
+                    </kbd>
+                    <span>イエローゾーン * 未実装</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      W
+                    </kbd>
+                    <span>風向・風量 *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      C
+                    </kbd>
+                    <span>LTE *</span>
+                    <kbd
+                      style={{
+                        backgroundColor: darkMode ? '#444' : '#eee',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        textAlign: 'center',
+                        fontFamily: 'monospace',
+                        fontSize: '12px'
+                      }}
+                    >
+                      ?
+                    </kbd>
+                    <span>ヘルプ表示/非表示</span>
+                  </div>
                 </div>
-                <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '13px', color: darkMode ? '#ddd' : '#555' }}>
-                  <li style={{ marginBottom: '6px' }}><strong>座標フォーマット:</strong> 地図をクリックすると10進数形式と度分秒（DMS）形式の両方が5秒間表示されます。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>ツールチップ表示（T）:</strong> 描画中の頂点に座標ラベルを表示します（現在はON固定）。</li>
-                  <li style={{ marginBottom: '6px' }}><strong>表示モード切替:</strong> L キー（ダークモード）、2/3 キー（2D/3D表示）で切り替え可能です。</li>
-                  <li><strong>表示設定:</strong> ツールチップの詳細、海抜高度、推奨飛行高度などが画面上部パネルに表示されます。</li>
-                </ul>
-              </div>
 
+                {/* ===== 右カラム ===== */}
+
+                {/* セクション4：描画ツールの使い方 */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '10px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    描画ツールの使い方
+                  </div>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: '20px',
+                      lineHeight: '1.6',
+                      fontSize: '13px',
+                      color: darkMode ? '#ddd' : '#555'
+                    }}
+                  >
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>描画の種類:</strong>{' '}
+                      ポリゴン、円、ウェイポイント、経路（ライン）の4種類から選択できます。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>ウェイポイント名前付け:</strong>{' '}
+                      右サイドバーの「描画済み」リストで各フィーチャーを選択し、名前フィールドを編集できます。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>高度設定:</strong>{' '}
+                      標高（国土地理院APIから自動取得）と飛行高度を設定すると、上限海抜高度が計算されます。
+                    </li>
+                    <li>
+                      <strong>頂点ラベル:</strong>{' '}
+                      描画中は各頂点に座標ラベルが常時表示されます（ツールチップ機能 T キー）。
+                    </li>
+                  </ul>
+                </div>
+
+                {/* セクション5：データエクスポート */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '10px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    データエクスポート
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      lineHeight: '1.7',
+                      color: darkMode ? '#ddd' : '#555'
+                    }}
+                  >
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>GeoJSON</strong> - Web地図/開発ツール連携用
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: darkMode ? '#aaa' : '#666',
+                          marginLeft: '8px'
+                        }}
+                      >
+                        プログラム処理、QGIS等のGISツール
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>KML</strong> - Google Earth/Maps用
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: darkMode ? '#aaa' : '#666',
+                          marginLeft: '8px'
+                        }}
+                      >
+                        可視化、共有、プレゼンテーション
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>CSV</strong> - スプレッドシート用
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: darkMode ? '#aaa' : '#666',
+                          marginLeft: '8px'
+                        }}
+                      >
+                        Excel、座標一覧の確認・編集
+                      </div>
+                    </div>
+                    <div>
+                      <strong>NOTAM/DMS</strong> - 飛行申請用（度分秒形式）
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: darkMode ? '#aaa' : '#666',
+                          marginLeft: '8px'
+                        }}
+                      >
+                        DIPS申請、航空当局への提出資料
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* セクション6：座標・表示設定 */}
+                <div
+                  style={{
+                    marginBottom: '8px',
+                    padding: '16px',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                    borderRadius: '8px',
+                    border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: '10px',
+                      color: darkMode ? '#4a90d9' : '#2563eb',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M12 6v6l4 2"></path>
+                    </svg>
+                    座標・表示設定
+                  </div>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: '20px',
+                      lineHeight: '1.6',
+                      fontSize: '13px',
+                      color: darkMode ? '#ddd' : '#555'
+                    }}
+                  >
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>座標フォーマット:</strong>{' '}
+                      地図をクリックすると10進数形式と度分秒（DMS）形式の両方が5秒間表示されます。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>ツールチップ表示（T）:</strong>{' '}
+                      描画中の頂点に座標ラベルを表示します（現在はON固定）。
+                    </li>
+                    <li style={{ marginBottom: '6px' }}>
+                      <strong>表示モード切替:</strong> L キー（ダークモード）、2/3
+                      キー（2D/3D表示）で切り替え可能です。
+                    </li>
+                    <li>
+                      <strong>表示設定:</strong>{' '}
+                      ツールチップの詳細、海抜高度、推奨飛行高度などが画面上部パネルに表示されます。
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
             {/* フッター */}
-            <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, fontSize: '12px', color: darkMode ? '#888' : '#666' }}>
+            <div
+              style={{
+                marginTop: '20px',
+                paddingTop: '12px',
+                borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+                fontSize: '12px',
+                color: darkMode ? '#888' : '#666'
+              }}
+            >
               <p style={{ margin: '0 0 6px' }}>
-                <strong>データソース：</strong>DIDデータは政府統計の総合窓口(e-Stat)より。禁止区域は参考データです。飛行前は必ずDIPSで最新情報を確認してください。
+                <strong>データソース：</strong>
+                DIDデータは政府統計の総合窓口(e-Stat)より。禁止区域は参考データです。飛行前は必ずDIPSで最新情報を確認してください。
+              </p>
+              <p style={{ margin: '0 0 4px' }}>
+                <strong>* 仮設置データ：</strong>
+                ヘリポート、有人機発着エリア/区域、電波干渉区域、緊急用務空域、リモートID特定区域、風向・風量、LTEは参考データまたは試験的表示です。
               </p>
               <p style={{ margin: '0' }}>
-                <strong>* 仮設置データ：</strong>ヘリポート、有人機発着エリア/区域、電波干渉区域、緊急用務空域、リモートID特定区域、風向・風量、LTEは参考データまたは試験的表示です。飛行計画時は公式データベースで確認してください。
+                <strong>* 未実装：</strong>
+                レッドゾーン、イエローゾーンは国土交通省DIPSシステムからの実装が予定されており、現在は利用できません。飛行前は必ずDIPSで公式情報を確認してください。
               </p>
             </div>
           </div>
@@ -3431,18 +4725,20 @@ function App() {
       )}
 
       {/* Attribution */}
-      <div style={{
-        position: 'absolute',
-        bottom: 4,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: '12px',
-        color: '#666',
-        backgroundColor: 'rgba(255,255,255,0.8)',
-        padding: '2px 8px',
-        borderRadius: '2px',
-        zIndex: 5
-      }}>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 4,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '12px',
+          color: '#666',
+          backgroundColor: 'rgba(255,255,255,0.8)',
+          padding: '2px 8px',
+          borderRadius: '2px',
+          zIndex: 5
+        }}
+      >
         出典: 政府統計の総合窓口(e-Stat) / 国土地理院
       </div>
 

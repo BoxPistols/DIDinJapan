@@ -45,12 +45,12 @@ export const GEO_OVERLAYS: GeoOverlay[] = [
     // NOTE: 実体は「隆起エリア（点/ヒートマップ）」として comparison layer 側で描画する
     // 右上UIのチェックボックスは toggleOverlay ではなく比較レイヤーのON/OFFに紐づける（App側で特別扱い）
     id: 'terrain-2024-noto',
-    name: '能登半島隆起エリア',
+    name: '能登半島隆起エリア * [仮]',
     tiles: [],
     geojson: '/GeoJSON/2024/noto_2024_elevation.geojson',
     opacity: 0.6,
     category: 'geo',
-    description: '2024年能登半島地震後の隆起を示す点サンプル（標準Map限定）'
+    description: '2024年能登半島地震後の隆起を示す点サンプル（試験的表示・仮設置）'
   }
 ]
 
