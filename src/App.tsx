@@ -2748,71 +2748,77 @@ function App() {
             <span>人口集中地区（全国） [D]</span>
           </label>
 
-          {/* Emergency airspace */}
-          <label title="緊急用務空域（見本データ）：警察・消防などの緊急活動が必要な区域 [E]" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.EMERGENCY_AIRSPACE')}
-              onChange={() => toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.emergency, borderRadius: '2px' }} />
-            <span>(見本)緊急用務空域 [E]</span>
-          </label>
+          {/*仮設置データセクション */}
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, marginBottom: '8px' }}>
+            <div style={{ fontSize: '11px', color: darkMode ? '#888' : '#999', marginBottom: '6px', fontWeight: 500 }}>仮設置データ *</div>
 
-          {/* Manned aircraft */}
-          <label title="有人機発着エリア（見本データ）：有人航空機の離着陸場所となっている区域" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-              onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.manned, borderRadius: '2px' }} />
-            <span>(見本)有人機発着エリア [V]</span>
-          </label>
+            {/* Emergency airspace */}
+            <label title="緊急用務空域（未実装）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'not-allowed', opacity: 0.5 }}>
+              <input
+                type="checkbox"
+                checked={false}
+                disabled={true}
+                onChange={() => {}}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.emergency, borderRadius: '2px' }} />
+              <span>緊急用務空域 * [E]</span>
+            </label>
 
-          {/* Remote ID */}
-          <label title="リモートID特定区域（見本データ）：リモートID機能の搭載が必要な区域" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
-              onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.remote_id, borderRadius: '2px' }} />
-            <span>(見本)リモートID特定区域 [I]</span>
-          </label>
+            {/* Manned aircraft */}
+            <label title="有人機発着エリア * [V]：有人航空機の離着陸場所（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
+                onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.manned, borderRadius: '2px' }} />
+              <span>有人機発着エリア * [V]</span>
+            </label>
 
-          {/* Heliports */}
-          <label title="ヘリポート [H]：ビル屋上・病院等のヘリポート周辺空域" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('heliports')}
-              onChange={() => toggleRestriction('heliports')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: '#FF6B6B', borderRadius: '2px' }} />
-            <span>ヘリポート [H]</span>
-          </label>
+            {/* Remote ID */}
+            <label title="リモートID特定区域 * [I]：リモートID機能搭載が必要（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
+                onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: RESTRICTION_COLORS.remote_id, borderRadius: '2px' }} />
+              <span>リモートID特定区域 * [I]</span>
+            </label>
 
-          {/* Radio Interference */}
-          <label title="電波干渉区域：電波塔・放送局周辺のドローン制御に影響を与える可能性がある区域" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('radio-interference')}
-              onChange={() => toggleRestriction('radio-interference')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: '#9B59B6', borderRadius: '2px' }} />
-            <span>(見本)電波干渉区域 [F]</span>
-          </label>
+            {/* Heliports */}
+            <label title="ヘリポート * [H]：ビル屋上・病院等（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('heliports')}
+                onChange={() => toggleRestriction('heliports')}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: '#FF6B6B', borderRadius: '2px' }} />
+              <span>ヘリポート * [H]</span>
+            </label>
 
-          {/* Manned Aircraft Zones */}
-          <label title="有人機発着区域：農薬散布ヘリ・グライダー・水上機等の発着場周辺" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('manned-aircraft-zones')}
-              onChange={() => toggleRestriction('manned-aircraft-zones')}
-            />
-            <span style={{ width: '14px', height: '14px', backgroundColor: '#3498DB', borderRadius: '2px' }} />
-            <span>(見本)有人機発着区域 [U]</span>
-          </label>
+            {/* Radio Interference */}
+            <label title="電波干渉区域 * [F]：電波塔・放送局周辺（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('radio-interference')}
+                onChange={() => toggleRestriction('radio-interference')}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: '#9B59B6', borderRadius: '2px' }} />
+              <span>電波干渉区域 * [F]</span>
+            </label>
+
+            {/* Manned Aircraft Zones */}
+            <label title="有人機発着区域 * [U]：農薬散布ヘリなど（参考データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('manned-aircraft-zones')}
+                onChange={() => toggleRestriction('manned-aircraft-zones')}
+              />
+              <span style={{ width: '14px', height: '14px', backgroundColor: '#3498DB', borderRadius: '2px' }} />
+              <span>有人機発着区域 * [U]</span>
+            </label>
+          </div>
 
           {/* No-fly law section */}
           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
@@ -3084,27 +3090,34 @@ function App() {
             )}
           </label>
 
-          <label title="風向・風量（見本データ）：風の方向と速度" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
+          <label title="風向・風量 * [W]：風の方向と速度（仮設置データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
             <input
               type="checkbox"
               checked={isOverlayVisible('wind-field')}
-              onChange={() => toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })}
+              onChange={() => toggleOverlay({ id: 'wind-field', name: '風向・風量' })}
             />
-            <span>(見本)風向・風量 [W]</span>
+            <span>風向・風量 * [W]</span>
           </label>
+
+          <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', marginBottom: '12px', paddingLeft: '20px' }}>
+            （仮設置）
+          </div>
         </div>
 
         {/* Signal Info */}
         <div>
           <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>電波種</div>
-          <label title="LTE（見本データ）：携帯電話の通信カバレッジ強度" style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+          <label title="LTE * [C]：携帯電話カバレッジ強度（仮設置データ）" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '12px' }}>
             <input
               type="checkbox"
               checked={isOverlayVisible('lte-coverage')}
-              onChange={() => toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })}
+              onChange={() => toggleOverlay({ id: 'lte-coverage', name: 'LTE' })}
             />
-            <span>(見本)LTE [C]</span>
+            <span>LTE * [C]</span>
           </label>
+          <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
+            （仮設置）
+          </div>
         </div>
       </aside>
 
@@ -3305,17 +3318,17 @@ function App() {
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>Y</kbd>
                   <span>イエローゾーン（要許可）</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>E</kbd>
-                  <span>緊急用務空域</span>
+                  <span>緊急用務空域 *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>H</kbd>
                   <span>ヘリポート</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>I</kbd>
-                  <span>リモートID特定区域</span>
+                  <span>リモートID特定区域 *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>V</kbd>
-                  <span>有人機発着エリア</span>
+                  <span>有人機発着エリア *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>U</kbd>
-                  <span>有人機発着区域</span>
+                  <span>有人機発着区域 *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>F</kbd>
-                  <span>電波干渉区域</span>
+                  <span>電波干渉区域 *</span>
                 </div>
               </div>
 
@@ -3338,9 +3351,9 @@ function App() {
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>2 / 3</kbd>
                   <span>2D / 3D表示切替</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>W</kbd>
-                  <span>風向・風量（見本）</span>
+                  <span>風向・風量 *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>C</kbd>
-                  <span>LTE（見本）</span>
+                  <span>LTE *</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>?</kbd>
                   <span>ヘルプ表示/非表示</span>
                 </div>
@@ -3408,6 +3421,9 @@ function App() {
             <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`, fontSize: '12px', color: darkMode ? '#888' : '#666' }}>
               <p style={{ margin: '0 0 6px' }}>
                 <strong>データソース：</strong>DIDデータは政府統計の総合窓口(e-Stat)より。禁止区域は参考データです。飛行前は必ずDIPSで最新情報を確認してください。
+              </p>
+              <p style={{ margin: '0' }}>
+                <strong>* 仮設置データ：</strong>ヘリポート、有人機発着エリア/区域、電波干渉区域、緊急用務空域、リモートID特定区域、風向・風量、LTEは参考データまたは試験的表示です。飛行計画時は公式データベースで確認してください。
               </p>
             </div>
           </div>
