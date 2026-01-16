@@ -9,3 +9,4 @@ rawdata/
 gha-creds-*.json
 
 storybook-static/
+.cursor/

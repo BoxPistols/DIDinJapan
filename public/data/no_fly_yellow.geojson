@@ -1,0 +1,105 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "首相官邸周辺注意区域",
+        "facility_type": "government",
+        "description": "国家重要施設周辺注意区域 - 許可申請後に飛行可能"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7306, 35.6669],
+            [139.7388, 35.6669],
+            [139.7388, 35.6742],
+            [139.7306, 35.6742],
+            [139.7306, 35.6669]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "国会議事堂周辺注意区域",
+        "facility_type": "government",
+        "description": "国家重要施設周辺注意区域 - 許可申請後に飛行可能"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7381, 35.6728],
+            [139.7472, 35.6728],
+            [139.7472, 35.6812],
+            [139.7381, 35.6812],
+            [139.7381, 35.6728]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "最高裁判所周辺注意区域",
+        "facility_type": "government",
+        "description": "国家重要施設周辺注意区域 - 許可申請後に飛行可能"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7599, 35.6722],
+            [139.7689, 35.6722],
+            [139.7689, 35.6804],
+            [139.7599, 35.6804],
+            [139.7599, 35.6722]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "防衛省周辺注意区域",
+        "facility_type": "military",
+        "description": "国家重要施設周辺注意区域 - 許可申請後に飛行可能"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7331, 35.6604],
+            [139.7421, 35.6604],
+            [139.7421, 35.6686],
+            [139.7331, 35.6686],
+            [139.7331, 35.6604]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "皇居周辺注意区域",
+        "facility_type": "imperial",
+        "description": "皇居周辺注意区域 - 許可申請後に飛行可能"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7525, 35.6786],
+            [139.7625, 35.6786],
+            [139.7625, 35.6886],
+            [139.7525, 35.6886],
+            [139.7525, 35.6786]
+          ]
+        ]
+      }
+    }
+  ]
+}

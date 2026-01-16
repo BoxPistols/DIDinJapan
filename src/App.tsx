@@ -2123,6 +2123,8 @@ function App() {
   const KOKUAREA_SOURCE_ID = 'airport-airspace-kokuarea'
   const KOKUAREA_LAYER_PREFIX = 'airport-airspace-kokuarea'
   const KOKUAREA_MAX_TILES = 96
+  const KOKUAREA_MIN_ZOOM = 9
+  const KOKUAREA_FETCH_CONCURRENCY = 6
 
   const kokuareaRef = useRef<{
     enabled: boolean
@@ -2131,50 +2133,38 @@ function App() {
     inflight: Map<string, Promise<KokuareaFC>>
     updateSeq: number
     detach: (() => void) | null
+    lastKeysSig: string | null
   }>({
     enabled: false,
     tileTemplate: null,
     tiles: new Map(),
     inflight: new Map(),
     updateSeq: 0,
-    detach: null
+    detach: null,
+    lastKeysSig: null
   })
 
   const emptyKokuareaFC = (): KokuareaFC => ({ type: 'FeatureCollection', features: [] })
 
-  const safeKokuProps = (v: unknown): Record<string, unknown> => {
-    if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>
-    return {}
-  }
-
-  const normalizeKokuareaFC = (fc: KokuareaFC): KokuareaFC => {
-    const nextFeatures = (fc.features ?? []).map((f) => {
-      const props = safeKokuProps(f.properties)
-      const { kind, label } = classifyKokuareaSurface(props)
-      const nextProps: KokuareaFeatureProperties = {
-        ...props,
-        __koku_kind: kind,
-        __koku_label: label
-      }
-      return { ...f, properties: nextProps }
-    })
-    return { ...fc, features: nextFeatures }
-  }
-
   const computeKokuareaZoomAndTiles = (
     map: maplibregl.Map
-  ): { z: number; keys: string[]; xyzs: Array<{ z: number; x: number; y: number }> } => {
+  ): { z: number; keys: string[]; xyzs: Array<{ z: number; x: number; y: number }>; tooMany: boolean } => {
     const bounds = map.getBounds()
-    let z = Math.max(8, Math.min(14, Math.floor(map.getZoom())))
+    let z = Math.max(KOKUAREA_MIN_ZOOM, Math.min(14, Math.floor(map.getZoom())))
     let xyzs = getVisibleTileXYZs(bounds, z)
 
-    while (xyzs.length > KOKUAREA_MAX_TILES && z > 8) {
+    while (xyzs.length > KOKUAREA_MAX_TILES && z > KOKUAREA_MIN_ZOOM) {
       z -= 1
       xyzs = getVisibleTileXYZs(bounds, z)
     }
 
+    if (xyzs.length > KOKUAREA_MAX_TILES) {
+      // 広域表示すぎるとタイル数が爆発して重くなるため、一定以上は描画しない
+      return { z, keys: [], xyzs: [], tooMany: true }
+    }
+
     const keys = xyzs.map((t) => `${t.z}/${t.x}/${t.y}`)
-    return { z, keys, xyzs }
+    return { z, keys, xyzs, tooMany: false }
   }
 
   const ensureKokuareaLayers = (map: maplibregl.Map): void => {
@@ -2188,6 +2178,25 @@ function App() {
       })
     }
 
+    // NOTE: タイル毎にpropertiesを加工すると重いので、MapLibreの式でnameから分類する
+    const nameExpr: any = ['coalesce', ['get', 'name'], '']
+    const has = (s: string): any => ['>=', ['index-of', s, nameExpr], 0]
+    const filterForKind = (kind: keyof typeof KOKUAREA_STYLE): any => {
+      switch (kind) {
+        case 'approach':
+          return ['any', has('進入表面'), has('延長進入表面')]
+        case 'transitional':
+          return has('転移表面')
+        case 'horizontal':
+          // 外側水平表面も水平表面扱い
+          return ['any', has('外側水平表面'), has('水平表面')]
+        case 'conical':
+          return has('円錐表面')
+        default:
+          return ['all', ['!', filterForKind('approach')], ['!', filterForKind('transitional')], ['!', filterForKind('horizontal')], ['!', filterForKind('conical')]]
+      }
+    }
+
     ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach((kind) => {
       const style = KOKUAREA_STYLE[kind]
       const fillId = `${KOKUAREA_LAYER_PREFIX}-${kind}`
@@ -2198,7 +2207,7 @@ function App() {
           id: fillId,
           type: 'fill',
           source: KOKUAREA_SOURCE_ID,
-          filter: ['==', ['get', '__koku_kind'], kind],
+          filter: filterForKind(kind),
           paint: { 'fill-color': style.fillColor, 'fill-opacity': style.fillOpacity }
         })
       }
@@ -2208,7 +2217,7 @@ function App() {
           id: lineId,
           type: 'line',
           source: KOKUAREA_SOURCE_ID,
-          filter: ['==', ['get', '__koku_kind'], kind],
+          filter: filterForKind(kind),
           paint: { 'line-color': style.lineColor, 'line-width': style.lineWidth }
         })
       }
@@ -2233,8 +2242,7 @@ function App() {
   ): Promise<KokuareaFC> => {
     const url = fillKokuareaTileUrl(tileTemplate, z, x, y)
     try {
-      const raw = await fetchGeoJSONWithCache<KokuareaFC>(url)
-      return normalizeKokuareaFC(raw)
+      return await fetchGeoJSONWithCache<KokuareaFC>(url)
     } catch (e) {
       // NOTE: GSIタイルは空タイルで404を返すケースがあるため、404は「空」として扱う
       const msg = e instanceof Error ? e.message : String(e)
@@ -2243,12 +2251,47 @@ function App() {
     }
   }
 
+  const asyncPool = async <T, R>(
+    concurrency: number,
+    items: T[],
+    worker: (item: T) => Promise<R>
+  ): Promise<R[]> => {
+    const ret: R[] = []
+    const executing = new Set<Promise<void>>()
+    for (const item of items) {
+      const p = (async () => {
+        const r = await worker(item)
+        ret.push(r)
+      })()
+      executing.add(p)
+      p.finally(() => executing.delete(p))
+      if (executing.size >= concurrency) {
+        await Promise.race(executing)
+      }
+    }
+    await Promise.all(executing)
+    return ret
+  }
+
   const updateKokuareaData = async (map: maplibregl.Map): Promise<void> => {
     const state = kokuareaRef.current
     if (!state.enabled || !state.tileTemplate) return
 
     const seq = ++state.updateSeq
-    const { keys, xyzs } = computeKokuareaZoomAndTiles(map)
+    const { keys, xyzs, tooMany } = computeKokuareaZoomAndTiles(map)
+
+    if (tooMany) {
+      state.tiles.clear()
+      state.inflight.clear()
+      state.lastKeysSig = 'tooMany'
+      const src = map.getSource(KOKUAREA_SOURCE_ID)
+      if (src && 'setData' in src) {
+        ;(src as maplibregl.GeoJSONSource).setData(
+          emptyKokuareaFC() as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>
+        )
+      }
+      return
+    }
 
     // 使わなくなったタイルを捨てる（メモリ・feature数を抑制）
     const keep = new Set(keys)
@@ -2256,9 +2299,14 @@ function App() {
       if (!keep.has(k)) state.tiles.delete(k)
     }
 
+    const keysSig = `${keys.length}:${keys.join('|')}`
     const toFetch = xyzs.filter((t) => !state.tiles.has(`${t.z}/${t.x}/${t.y}`))
-    await Promise.all(
-      toFetch.map(async (t) => {
+    if (toFetch.length === 0 && state.lastKeysSig === keysSig) {
+      // タイル構成が変わっていない & 追加取得も無い場合、setDataを省略（メインスレッド負荷削減）
+      return
+    }
+
+    await asyncPool(KOKUAREA_FETCH_CONCURRENCY, toFetch, async (t) => {
         const key = `${t.z}/${t.x}/${t.y}`
         const inflight = state.inflight.get(key)
         if (inflight) {
@@ -2277,22 +2325,27 @@ function App() {
           state.inflight.delete(key)
         }
       })
-    )
 
     // 途中でOFFになった場合など、古い更新を破棄
     if (kokuareaRef.current.updateSeq !== seq) return
 
     const merged: KokuareaFC = {
       type: 'FeatureCollection',
-      features: Array.from(kokuareaRef.current.tiles.values()).flatMap((fc) => fc.features ?? [])
+      features: keys.flatMap((k) => kokuareaRef.current.tiles.get(k)?.features ?? [])
     }
 
     const src = map.getSource(KOKUAREA_SOURCE_ID)
     if (src && 'setData' in src) {
-      ;(src as maplibregl.GeoJSONSource).setData(
-        merged as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>
-      )
+      // setDataは重いので、次フレームに回して入力/描画の詰まりを軽減
+      requestAnimationFrame(() => {
+        const s = kokuareaRef.current
+        if (!s.enabled) return
+        ;(src as maplibregl.GeoJSONSource).setData(
+          merged as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>
+        )
+      })
     }
+    state.lastKeysSig = keysSig
   }
 
   const enableKokuarea = (map: maplibregl.Map, tileTemplate: string): void => {

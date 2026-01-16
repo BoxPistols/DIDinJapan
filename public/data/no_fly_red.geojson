@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "首相官邸周辺",
+        "facility_type": "government",
+        "description": "国家重要施設周辺 - 小型無人機等飛行禁止法指定エリア"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7336, 35.6699],
+            [139.7358, 35.6699],
+            [139.7358, 35.6712],
+            [139.7336, 35.6712],
+            [139.7336, 35.6699]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "国会議事堂周辺",
+        "facility_type": "government",
+        "description": "国家重要施設周辺 - 小型無人機等飛行禁止法指定エリア"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7411, 35.6758],
+            [139.7442, 35.6758],
+            [139.7442, 35.6782],
+            [139.7411, 35.6782],
+            [139.7411, 35.6758]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "最高裁判所周辺",
+        "facility_type": "government",
+        "description": "国家重要施設周辺 - 小型無人機等飛行禁止法指定エリア"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7629, 35.6752],
+            [139.7659, 35.6752],
+            [139.7659, 35.6774],
+            [139.7629, 35.6774],
+            [139.7629, 35.6752]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "防衛省周辺",
+        "facility_type": "military",
+        "description": "国家重要施設周辺 - 小型無人機等飛行禁止法指定エリア"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [139.7361, 35.6634],
+            [139.7391, 35.6634],
+            [139.7391, 35.6656],
+            [139.7361, 35.6656],
+            [139.7361, 35.6634]
+          ]
+        ]
+      }
+    }
+  ]
+}

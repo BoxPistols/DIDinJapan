@@ -39,7 +39,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'National Diet Building',
     type: 'government',
     coordinates: [139.7450, 35.6759],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -48,7 +48,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Prime Minister\'s Official Residence',
     type: 'government',
     coordinates: [139.7412, 35.6731],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -57,7 +57,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Supreme Court of Japan',
     type: 'government',
     coordinates: [139.7424, 35.6795],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -66,7 +66,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Imperial Palace',
     type: 'imperial',
     coordinates: [139.7528, 35.6852],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -75,7 +75,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Akasaka Palace',
     type: 'imperial',
     coordinates: [139.7310, 35.6753],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -84,7 +84,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Togu Palace',
     type: 'imperial',
     coordinates: [139.7270, 35.6763],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   // 危機管理行政機関
@@ -94,7 +94,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Ministry of Land, Infrastructure, Transport and Tourism',
     type: 'government',
     coordinates: [139.7501, 35.6746],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -103,7 +103,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'National Police Agency',
     type: 'government',
     coordinates: [139.7500, 35.6773],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   {
@@ -112,7 +112,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Ministry of Defense',
     type: 'defense',
     coordinates: [139.7285, 35.6933],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red'
   },
   // ============================================
@@ -127,7 +127,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Tomari Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [140.5136, 43.0339],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '北海道電力'
@@ -139,7 +139,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Higashidori Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [141.3861, 41.1861],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '東北電力'
@@ -150,7 +150,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Onagawa Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [141.5003, 38.4019],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '一部運転中',
     source: '東北電力'
@@ -162,7 +162,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Fukushima Daiichi Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [141.0328, 37.4211],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '廃炉作業中',
     source: '東京電力'
@@ -173,7 +173,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Fukushima Daini Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [141.0250, 37.3167],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '廃炉決定',
     source: '東京電力'
@@ -184,7 +184,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Kashiwazaki-Kariwa Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [138.5978, 37.4286],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '東京電力'
@@ -196,7 +196,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Tokai Daini Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [140.6072, 36.4664],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '日本原子力発電'
@@ -207,7 +207,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Tsuruga Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [136.0186, 35.7514],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '日本原子力発電'
@@ -219,7 +219,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Hamaoka Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [138.1428, 34.6219],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '中部電力'
@@ -231,7 +231,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Shika Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [136.7289, 37.0600],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
     source: '北陸電力'
@@ -243,7 +243,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Mihama Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [135.9581, 35.7017],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '一部運転中',
     source: '関西電力'
@@ -254,7 +254,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Ohi Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [135.6561, 35.5422],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
     source: '関西電力'
@@ -265,7 +265,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Takahama Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [135.5050, 35.5203],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
     source: '関西電力'
@@ -277,7 +277,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Shimane Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [132.9992, 35.5386],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '一部運転中',
     source: '中国電力'
@@ -289,7 +289,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Ikata Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [132.3094, 33.4903],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
     source: '四国電力'
@@ -301,7 +301,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Genkai Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [129.8369, 33.5153],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
     source: '九州電力'
@@ -312,7 +312,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Sendai Nuclear Power Plant',
     type: 'nuclear',
     coordinates: [130.1894, 31.8339],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
     source: '九州電力'
@@ -328,7 +328,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Yokota Air Base',
     type: 'defense',
     coordinates: [139.3486, 35.7483],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -339,7 +339,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Naval Air Facility Atsugi',
     type: 'defense',
     coordinates: [139.4500, 35.4547],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -350,7 +350,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'U.S. Fleet Activities Yokosuka',
     type: 'defense',
     coordinates: [139.6667, 35.2833],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -361,7 +361,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Camp Zama',
     type: 'defense',
     coordinates: [139.4000, 35.4833],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -372,7 +372,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Kadena Air Base',
     type: 'defense',
     coordinates: [127.7683, 26.3517],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -383,7 +383,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'MCAS Futenma',
     type: 'defense',
     coordinates: [127.7558, 26.2744],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -394,7 +394,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'Misawa Air Base (USAF)',
     type: 'defense',
     coordinates: [141.3686, 40.7033],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -405,7 +405,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'MCAS Iwakuni',
     type: 'defense',
     coordinates: [132.2361, 34.1456],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
@@ -416,15 +416,18 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     nameEn: 'U.S. Fleet Activities Sasebo',
     type: 'defense',
     coordinates: [129.7167, 33.1500],
-    radiusKm: 0.3,
+    radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
     source: '警察庁'
   },
   // ============================================
+  // イエローゾーン（黄色ゾーン）
+  // 赤ゾーン（レッドゾーン）対象外の施設のみ
+  // 在外公館周辺300m - 事前通報・許可が必要
+  // ============================================
   // 在外公館等（イエローゾーン）
   // ※ 外国公館周辺300mは事前通報が必要
-  // ============================================
   {
     id: 'us-embassy',
     name: 'アメリカ大使館',
@@ -516,9 +519,9 @@ export function generateRedZoneGeoJSON(): GeoJSON.FeatureCollection {
  * Generate GeoJSON for yellow zones
  */
 export function generateYellowZoneGeoJSON(): GeoJSON.FeatureCollection {
-  const facilities = getFacilitiesByZone('yellow')
-  const features: GeoJSON.Feature[] = facilities.map(facility => ({
-    type: 'Feature',
+  // 在外公館のイエローゾーン
+  const foreignMissions = getFacilitiesByZone('yellow').map(facility => ({
+    type: 'Feature' as const,
     properties: {
       id: facility.id,
       name: facility.name,
@@ -530,9 +533,26 @@ export function generateYellowZoneGeoJSON(): GeoJSON.FeatureCollection {
     geometry: createCirclePolygon(facility.coordinates, facility.radiusKm)
   }))
 
+  // レッドゾーン対象施設の周辺300m
+  // ※ radiusKm: 0.5km = 0.2km敷地（赤ゾーン）+ 0.3km周辺（黄色ゾーン）
+  const redZoneFacilities = getFacilitiesByZone('red')
+  const peripheryZones = redZoneFacilities.map(facility => ({
+    type: 'Feature' as const,
+    properties: {
+      id: facility.id + '-perimeter',
+      name: facility.name + '周辺',
+      nameEn: facility.nameEn ? facility.nameEn + ' (Perimeter)' : 'Perimeter',
+      type: facility.type,
+      radiusKm: 0.5,
+      zone: 'yellow' as const,
+      isPerimeter: true
+    },
+    geometry: createCirclePolygon(facility.coordinates, 0.5)
+  }))
+
   return {
     type: 'FeatureCollection',
-    features
+    features: [...foreignMissions, ...peripheryZones]
   }
 }
 
