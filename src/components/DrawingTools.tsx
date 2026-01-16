@@ -66,6 +66,7 @@ export interface DrawingToolsProps {
   darkMode?: boolean
   embedded?: boolean // サイドバー内に埋め込む場合true
   mapLoaded?: boolean // マップロード状態
+  onOpenHelp?: () => void // ヘルプモーダルを開く
 }
 
 // localStorage用のキー
@@ -96,7 +97,7 @@ const loadFromLocalStorage = (): GeoJSON.FeatureCollection | null => {
  * DrawingTools Component
  * 飛行経路・飛行範囲の描画ツール
  */
-export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded = false, mapLoaded = false }: DrawingToolsProps) {
+export function DrawingTools({ map, onFeaturesChange, darkMode = false, embedded = false, mapLoaded = false, onOpenHelp }: DrawingToolsProps) {
   const [isOpen, setIsOpen] = useState(embedded) // 埋め込み時はデフォルトで開く
   const [activeTab, setActiveTab] = useState<'draw' | 'manage' | 'export'>('draw')
   const [showGuide, setShowGuide] = useState(false)
@@ -2043,6 +2044,27 @@ ${kmlFeatures}
                       <li>選択: Shift+ドラッグで複数選択</li>
                       <li>削除: 図形選択後、Delete/Backspaceキー（確認あり）</li>
                     </ul>
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}` }}>
+                      <button
+                        onClick={() => onOpenHelp?.()}
+                        style={{
+                          width: '100%',
+                          padding: '4px 8px',
+                          backgroundColor: darkMode ? '#2563eb' : '#3388ff',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#1d4ed8' : '#2563eb'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#2563eb' : '#3388ff'}
+                      >
+                        ? ヘルプを開く
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

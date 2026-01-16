@@ -2424,6 +2424,7 @@ function App() {
           mapLoaded={mapLoaded}
           darkMode={darkMode}
           embedded={true}
+          onOpenHelp={() => setShowHelp(true)}
           onFeaturesChange={(features) => {
             // Display coordinates when a new feature is added
             if (features.length > previousFeaturesRef.current.length) {
@@ -3029,6 +3030,7 @@ function App() {
                 <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '13px', color: darkMode ? '#ddd' : '#555' }}>
                   <li style={{ marginBottom: '6px' }}><strong>描画リストのズーム:</strong> 右サイドバーの「描画済み」リストの項目をクリックすると、その場所へズームします。<span style={{ color: darkMode ? '#ffb74d' : '#f57c00', fontWeight: 'bold' }}>連続してクリックすると、さらに段階的に拡大</span>します。</li>
                   <li style={{ marginBottom: '6px' }}><strong>地図操作:</strong> 左クリックで移動、右クリック＋ドラッグで回転・チルト（傾き）ができます。</li>
+                  <li style={{ marginBottom: '6px' }}><strong>サイドバーのリサイズ:</strong> 左・右サイドバーの右端にマウスを置くと、カーソルが変わります。ドラッグしてサイドバーの幅を自由に調整できます。</li>
                   <li><strong>検索:</strong> 画面左上の検索ボックスから、地名や住所で場所を検索・移動できます。</li>
                 </ul>
               </div>
