@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import styles from './App.module.css'
 import {
   BASE_MAPS,
   DEFAULT_CENTER,
@@ -189,6 +190,66 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  const getGeoJSONBounds = (
+    geojson: GeoJSON.FeatureCollection
+  ): [[number, number], [number, number]] | null => {
+    let minLng = Infinity
+    let minLat = Infinity
+    let maxLng = -Infinity
+    let maxLat = -Infinity
+    let hasPoint = false
+
+    const extend = (coord: GeoJSON.Position) => {
+      const lng = coord[0]
+      const lat = coord[1]
+      hasPoint = true
+      minLng = Math.min(minLng, lng)
+      minLat = Math.min(minLat, lat)
+      maxLng = Math.max(maxLng, lng)
+      maxLat = Math.max(maxLat, lat)
+    }
+
+    const visitGeometry = (geometry: GeoJSON.Geometry) => {
+      switch (geometry.type) {
+        case 'Point':
+          extend(geometry.coordinates)
+          break
+        case 'MultiPoint':
+        case 'LineString':
+          geometry.coordinates.forEach(extend)
+          break
+        case 'MultiLineString':
+        case 'Polygon':
+          geometry.coordinates.forEach((coords) => {
+            coords.forEach(extend)
+          })
+          break
+        case 'MultiPolygon':
+          geometry.coordinates.forEach((poly) => {
+            poly.forEach((ring) => {
+              ring.forEach(extend)
+            })
+          })
+          break
+        case 'GeometryCollection':
+          geometry.geometries.forEach((geom) => visitGeometry(geom))
+          break
+        default:
+          break
+      }
+    }
+
+    geojson.features.forEach((feature) => {
+      if (feature.geometry) visitGeometry(feature.geometry)
+    })
+
+    if (!hasPoint) return null
+    return [
+      [minLng, minLat],
+      [maxLng, maxLat]
+    ]
+  }
 
   // Ishikawa Noto Comparison layers
   type ComparisonSettings = {
@@ -396,9 +457,9 @@ function App() {
   // ============================================
   const handleBaseMapChange = useCallback(
     (newBaseMap: BaseMapKey) => {
-    if (newBaseMap === baseMap) return
+      if (newBaseMap === baseMap) return
 
-    // #region agent log (debug)
+      // #region agent log (debug)
       fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -416,16 +477,16 @@ function App() {
           hypothesisId: 'I'
         })
       }).catch(() => {})
-    // #endregion agent log (debug)
+      // #endregion agent log (debug)
 
-    const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
-    const url = new URL(window.location.href)
-    if (currentVisible.length > 0) {
-      url.searchParams.set(COMPARISON_VIS_URL_PARAM, encodeURIComponent(currentVisible.join(',')))
-    } else {
-      url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
-    }
-    // #region agent log (debug)
+      const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
+      const url = new URL(window.location.href)
+      if (currentVisible.length > 0) {
+        url.searchParams.set(COMPARISON_VIS_URL_PARAM, encodeURIComponent(currentVisible.join(',')))
+      } else {
+        url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
+      }
+      // #region agent log (debug)
       fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -443,23 +504,23 @@ function App() {
           hypothesisId: 'I'
         })
       }).catch(() => {})
-    // #endregion agent log (debug)
+      // #endregion agent log (debug)
 
-    // 設定を保存
-    try {
-      const settings = {
-        darkMode,
-        baseMap: newBaseMap,
-        enableCoordinateDisplay,
-        timestamp: Date.now()
+      // 設定を保存
+      try {
+        const settings = {
+          darkMode,
+          baseMap: newBaseMap,
+          enableCoordinateDisplay,
+          timestamp: Date.now()
+        }
+        localStorage.setItem('ui-settings', JSON.stringify(settings))
+      } catch (e) {
+        console.error('Failed to save settings:', e)
       }
-      localStorage.setItem('ui-settings', JSON.stringify(settings))
-    } catch (e) {
-      console.error('Failed to save settings:', e)
-    }
 
-    // URLパラメータに比較状態を載せてリロード
-    window.location.assign(url.toString())
+      // URLパラメータに比較状態を載せてリロード
+      window.location.assign(url.toString())
     },
     [baseMap, darkMode]
   )
@@ -682,19 +743,19 @@ function App() {
   // DID検索
   const performDIDSearch = useCallback(
     (term: string) => {
-    if (!term) {
-      setSearchResults([])
-      return []
-    }
+      if (!term) {
+        setSearchResults([])
+        return []
+      }
       const results = searchIndex.filter(
         (item) => item.cityName.includes(term) || item.prefName.includes(term)
-    )
-    const uniqueResults = Array.from(
+      )
+      const uniqueResults = Array.from(
         new Map(results.map((item) => [item.prefName + item.cityName, item])).values()
-    )
-    const sliced = uniqueResults.slice(0, 5)
-    setSearchResults(sliced)
-    return sliced
+      )
+      const sliced = uniqueResults.slice(0, 5)
+      setSearchResults(sliced)
+      return sliced
     },
     [searchIndex]
   )
@@ -917,12 +978,12 @@ function App() {
       )
       const restrictionFeature = features.find(
         (f) =>
-        f.layer.id.startsWith('airport-') ||
-        f.layer.id.startsWith('no-fly-') ||
-        f.layer.id.startsWith(ZONE_IDS.DID_ALL_JAPAN) ||
-        f.layer.id.startsWith('emergency-') ||
-        f.layer.id.startsWith('manned-') ||
-        f.layer.id.startsWith('remote-')
+          f.layer.id.startsWith('airport-') ||
+          f.layer.id.startsWith('no-fly-') ||
+          f.layer.id.startsWith(ZONE_IDS.DID_ALL_JAPAN) ||
+          f.layer.id.startsWith('emergency-') ||
+          f.layer.id.startsWith('manned-') ||
+          f.layer.id.startsWith('remote-')
       )
 
       if (didFeature && popupRef.current) {
@@ -1178,73 +1239,73 @@ function App() {
   // ============================================
   const addLayer = useCallback(
     async (layer: LayerConfig, initialVisible = false) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    // ソースまたはレイヤーが既に存在する場合は早期リターン
-    if (map.getSource(layer.id) || map.getLayer(layer.id)) {
-      return
-    }
+      // ソースまたはレイヤーが既に存在する場合は早期リターン
+      if (map.getSource(layer.id) || map.getLayer(layer.id)) {
+        return
+      }
 
-    try {
+      try {
         type DidProperties = Record<string, unknown> & { CITYNAME?: string }
         type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
 
         const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
 
-      const newItems: SearchIndexItem[] = []
+        const newItems: SearchIndexItem[] = []
         data.features.forEach((feature) => {
           const cityName = feature.properties?.CITYNAME
           if (typeof cityName === 'string' && cityName.length > 0 && feature.geometry) {
-          newItems.push({
-            prefName: layer.name,
+            newItems.push({
+              prefName: layer.name,
               cityName,
-            bbox: calculateBBox(feature.geometry),
-            layerId: layer.id
-          })
-        }
-      })
+              bbox: calculateBBox(feature.geometry),
+              layerId: layer.id
+            })
+          }
+        })
         setSearchIndex((prev) => [...prev, ...newItems])
 
-      // ソースの存在を再確認（非同期処理中に追加された可能性がある）
-      if (map.getSource(layer.id)) {
-        return
-      }
+        // ソースの存在を再確認（非同期処理中に追加された可能性がある）
+        if (map.getSource(layer.id)) {
+          return
+        }
 
         map.addSource(layer.id, {
           type: 'geojson',
           data: data as GeoJSON.FeatureCollection<GeoJSON.Geometry, DidProperties>
         })
 
-      // レイヤーの存在を再確認
-      if (map.getLayer(layer.id) || map.getLayer(`${layer.id}-outline`)) {
-        return
-      }
+        // レイヤーの存在を再確認
+        if (map.getLayer(layer.id) || map.getLayer(`${layer.id}-outline`)) {
+          return
+        }
 
-      map.addLayer({
-        id: layer.id,
-        type: 'fill',
-        source: layer.id,
-        paint: { 'fill-color': layer.color, 'fill-opacity': opacity },
-        layout: { visibility: initialVisible ? 'visible' : 'none' }
-      })
+        map.addLayer({
+          id: layer.id,
+          type: 'fill',
+          source: layer.id,
+          paint: { 'fill-color': layer.color, 'fill-opacity': opacity },
+          layout: { visibility: initialVisible ? 'visible' : 'none' }
+        })
 
-      map.addLayer({
-        id: `${layer.id}-outline`,
-        type: 'line',
-        source: layer.id,
-        paint: { 'line-color': layer.color, 'line-width': 1 },
-        layout: { visibility: initialVisible ? 'visible' : 'none' }
-      })
+        map.addLayer({
+          id: `${layer.id}-outline`,
+          type: 'line',
+          source: layer.id,
+          paint: { 'line-color': layer.color, 'line-width': 1 },
+          layout: { visibility: initialVisible ? 'visible' : 'none' }
+        })
 
         setLayerStates((prev) => {
-        const next = new Map(prev)
-        next.set(layer.id, { id: layer.id, visible: initialVisible })
-        return next
-      })
-    } catch (e) {
-      console.error(`Failed to add layer ${layer.id}:`, e)
-    }
+          const next = new Map(prev)
+          next.set(layer.id, { id: layer.id, visible: initialVisible })
+          return next
+        })
+      } catch (e) {
+        console.error(`Failed to add layer ${layer.id}:`, e)
+      }
     },
     [mapLoaded, opacity]
   )
@@ -1630,24 +1691,24 @@ function App() {
               })
             }
 
-          // ラベルレイヤー（年度表示）
-          map.addLayer({
-            id: `${layerConfig.id}-label`,
-            type: 'symbol',
-            source: layerConfig.id,
-            layout: {
-              'text-field': `${layerConfig.year}`,
-              'text-size': 10,
-              'text-offset': [0, 1.5],
-              visibility: 'none'
-            },
-            paint: {
-              'text-color': layerConfig.color,
-              'text-halo-color': '#fff',
-              'text-halo-width': 1
-            }
-          })
-          // #region agent log (debug)
+            // ラベルレイヤー（年度表示）
+            map.addLayer({
+              id: `${layerConfig.id}-label`,
+              type: 'symbol',
+              source: layerConfig.id,
+              layout: {
+                'text-field': `${layerConfig.year}`,
+                'text-size': 10,
+                'text-offset': [0, 1.5],
+                visibility: 'none'
+              },
+              paint: {
+                'text-color': layerConfig.color,
+                'text-halo-color': '#fff',
+                'text-halo-width': 1
+              }
+            })
+            // #region agent log (debug)
             fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1669,7 +1730,7 @@ function App() {
                 hypothesisId: 'A'
               })
             }).catch(() => {})
-          // #endregion agent log (debug)
+            // #endregion agent log (debug)
 
             // 非同期ロード後に、現在のON/OFFを即反映（初期表示の空振り防止）
             applyComparisonLayerState(layerConfig.id)
@@ -2111,26 +2172,26 @@ function App() {
 
     const interval = setInterval(
       async () => {
-      const map = mapRef.current
-      if (!map || !mapLoaded) return
+        const map = mapRef.current
+        if (!map || !mapLoaded) return
 
-      const path = await updateRainRadar()
-      if (path && map.getSource('rain-radar')) {
-        const tileUrl = buildRainTileUrl(path)
-        map.removeLayer('rain-radar')
-        map.removeSource('rain-radar')
-        map.addSource('rain-radar', {
-          type: 'raster',
-          tiles: [tileUrl],
-          tileSize: 256
-        })
-        map.addLayer({
-          id: 'rain-radar',
-          type: 'raster',
-          source: 'rain-radar',
-          paint: { 'raster-opacity': 0.6 }
-        })
-      }
+        const path = await updateRainRadar()
+        if (path && map.getSource('rain-radar')) {
+          const tileUrl = buildRainTileUrl(path)
+          map.removeLayer('rain-radar')
+          map.removeSource('rain-radar')
+          map.addSource('rain-radar', {
+            type: 'raster',
+            tiles: [tileUrl],
+            tileSize: 256
+          })
+          map.addLayer({
+            id: 'rain-radar',
+            type: 'raster',
+            source: 'rain-radar',
+            paint: { 'raster-opacity': 0.6 }
+          })
+        }
       },
       5 * 60 * 1000
     )
@@ -2703,26 +2764,33 @@ function App() {
   // Custom layer management
   // ============================================
   const handleCustomLayerAdded = useCallback(
-    (layer: CustomLayer) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+    (layer: CustomLayer, options?: { focus?: boolean }) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    if (!map.getSource(layer.id)) {
-      map.addSource(layer.id, { type: 'geojson', data: layer.data })
-      map.addLayer({
-        id: layer.id,
-        type: 'fill',
-        source: layer.id,
-        paint: { 'fill-color': layer.color, 'fill-opacity': layer.opacity }
-      })
-      map.addLayer({
-        id: `${layer.id}-outline`,
-        type: 'line',
-        source: layer.id,
-        paint: { 'line-color': layer.color, 'line-width': 2 }
-      })
-    }
+      if (!map.getSource(layer.id)) {
+        map.addSource(layer.id, { type: 'geojson', data: layer.data })
+        map.addLayer({
+          id: layer.id,
+          type: 'fill',
+          source: layer.id,
+          paint: { 'fill-color': layer.color, 'fill-opacity': layer.opacity }
+        })
+        map.addLayer({
+          id: `${layer.id}-outline`,
+          type: 'line',
+          source: layer.id,
+          paint: { 'line-color': layer.color, 'line-width': 2 }
+        })
+      }
       setCustomLayerVisibility((prev) => new Set(prev).add(layer.id))
+
+      if (options?.focus) {
+        const bounds = getGeoJSONBounds(layer.data)
+        if (bounds) {
+          map.fitBounds(bounds, { padding: 60, maxZoom: 14 })
+        }
+      }
     },
     [mapLoaded]
   )
@@ -2891,34 +2959,34 @@ function App() {
 
   const handleCustomLayerToggle = useCallback(
     (layerId: string, visible: boolean) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    // レイヤーがまだ追加されていない場合は追加
-    if (visible && !map.getSource(layerId)) {
-      const customLayers = getCustomLayers()
+      // レイヤーがまだ追加されていない場合は追加
+      if (visible && !map.getSource(layerId)) {
+        const customLayers = getCustomLayers()
         const layer = customLayers.find((l) => l.id === layerId)
-      if (layer) {
-        handleCustomLayerAdded(layer)
-        return
+        if (layer) {
+          handleCustomLayerAdded(layer)
+          return
+        }
       }
-    }
 
-    if (map.getLayer(layerId)) {
-      const visibility = visible ? 'visible' : 'none'
-      map.setLayoutProperty(layerId, 'visibility', visibility)
-      map.setLayoutProperty(`${layerId}-outline`, 'visibility', visibility)
-    }
+      if (map.getLayer(layerId)) {
+        const visibility = visible ? 'visible' : 'none'
+        map.setLayoutProperty(layerId, 'visibility', visibility)
+        map.setLayoutProperty(`${layerId}-outline`, 'visibility', visibility)
+      }
 
       setCustomLayerVisibility((prev) => {
-      const next = new Set(prev)
-      if (visible) {
-        next.add(layerId)
-      } else {
-        next.delete(layerId)
-      }
-      return next
-    })
+        const next = new Set(prev)
+        if (visible) {
+          next.add(layerId)
+        } else {
+          next.delete(layerId)
+        }
+        return next
+      })
     },
     [mapLoaded, handleCustomLayerAdded]
   )
@@ -2928,11 +2996,11 @@ function App() {
   // ============================================
   const handleComparisonLayerToggle = useCallback(
     (layerId: string, visible: boolean) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
-    if (baseMap !== 'osm') return
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
+      if (baseMap !== 'osm') return
 
-    // #region agent log (debug)
+      // #region agent log (debug)
       fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2946,14 +3014,14 @@ function App() {
           hypothesisId: 'C'
         })
       }).catch(() => {})
-    // #endregion agent log (debug)
+      // #endregion agent log (debug)
 
-    if (visible) {
-      const bounds = comparisonLayerBoundsRef.current.get(layerId)
-      if (bounds) {
-        try {
-          map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
-          // #region agent log (debug)
+      if (visible) {
+        const bounds = comparisonLayerBoundsRef.current.get(layerId)
+        if (bounds) {
+          try {
+            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
+            // #region agent log (debug)
             fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -2967,20 +3035,20 @@ function App() {
                 hypothesisId: 'F'
               })
             }).catch(() => {})
-          // #endregion agent log (debug)
-        } catch {
-          // ignore
+            // #endregion agent log (debug)
+          } catch {
+            // ignore
+          }
         }
       }
-    }
 
       setComparisonLayerVisibility((prev) => {
-      const next = new Set(prev)
-      if (visible) next.add(layerId)
-      else next.delete(layerId)
-      comparisonLayerVisibilityRef.current = next
-      return next
-    })
+        const next = new Set(prev)
+        if (visible) next.add(layerId)
+        else next.delete(layerId)
+        comparisonLayerVisibilityRef.current = next
+        return next
+      })
     },
     [mapLoaded, baseMap]
   )
@@ -3031,7 +3099,16 @@ function App() {
   // Render
   // ============================================
   return (
-    <div style={{ display: 'flex', height: '100vh', position: 'relative' }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        position: 'relative',
+        backgroundColor: theme.colors.pageBg,
+        color: theme.colors.text,
+        colorScheme: darkMode ? 'dark' : 'light'
+      }}
+    >
       {/* Left Toggle Button */}
       <button
         onClick={() => setShowLeftLegend(!showLeftLegend)}
@@ -3062,20 +3139,20 @@ function App() {
       {/* Left Legend Panel */}
       <aside
         style={{
-        position: 'absolute',
-        left: showLeftLegend ? 0 : -leftSidebarWidth,
-        top: 0,
-        bottom: 0,
-        width: `${leftSidebarWidth}px`,
-        padding: '12px',
+          position: 'absolute',
+          left: showLeftLegend ? 0 : -leftSidebarWidth,
+          top: 0,
+          bottom: 0,
+          width: `${leftSidebarWidth}px`,
+          padding: '12px',
           backgroundColor: theme.colors.panelBg,
           color: theme.colors.text,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        zIndex: 10,
-        transition: isResizingLeft ? 'none' : 'left 0.3s ease',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          zIndex: 10,
+          transition: isResizingLeft ? 'none' : 'left 0.3s ease',
           boxShadow: theme.shadows.panel,
-        fontSize: '14px'
+          fontSize: '14px'
         }}
       >
         {/* Resize Handle */}
@@ -3103,9 +3180,9 @@ function App() {
         {/* App Title */}
         <h1
           style={{
-          margin: '0 0 16px',
-          fontSize: '16px',
-          fontWeight: 700,
+            margin: '0 0 16px',
+            fontSize: '16px',
+            fontWeight: 700,
             color: theme.colors.text
           }}
         >
@@ -3134,16 +3211,16 @@ function App() {
           {(searchResults.length > 0 || geoSearchResults.length > 0 || isGeoSearching) && (
             <div
               style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              backgroundColor: darkMode ? '#333' : '#fff',
-              border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
-              borderRadius: '0 0 4px 4px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              zIndex: 100
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: darkMode ? '#333' : '#fff',
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                borderRadius: '0 0 4px 4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 100
               }}
             >
               {/* DID検索結果 */}
@@ -3264,25 +3341,26 @@ function App() {
                 flex: '1 1 auto'
               }}
             >
-            {(Object.keys(BASE_MAPS) as BaseMapKey[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => handleBaseMapChange(key)}
-                style={{
+              {(Object.keys(BASE_MAPS) as BaseMapKey[]).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => handleBaseMapChange(key)}
+                  className={styles.baseMapButton}
+                  style={{
                     flex: '0 0 auto',
-                  padding: '4px 8px',
-                  fontSize: '12px',
+                    padding: '4px 8px',
+                    fontSize: '12px',
                     backgroundColor: baseMap === key ? '#4a90d9' : theme.colors.buttonBg,
                     color: baseMap === key ? '#fff' : theme.colors.text,
                     border: `1px solid ${baseMap === key ? '#4a90d9' : theme.colors.borderStrong}`,
-                  borderRadius: '3px',
+                    borderRadius: '3px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
-                }}
-              >
-                {BASE_MAPS[key].name}
-              </button>
-            ))}
+                  }}
+                >
+                  {BASE_MAPS[key].name}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -3390,7 +3468,7 @@ function App() {
               const lastFeature = features[features.length - 1]
               // Use center for circles and point, or first coordinate for lines
               let center: [number, number] | null = null
-              
+
               if (lastFeature.type === 'circle' && lastFeature.center) {
                 center = lastFeature.center
               } else if (lastFeature.type === 'point' && Array.isArray(lastFeature.coordinates)) {
@@ -3419,7 +3497,7 @@ function App() {
                 const midIndex = Math.floor(lineCoords.length / 2)
                 center = lineCoords[midIndex]
               }
-              
+
               if (center && enableCoordinateDisplay) {
                 setDisplayCoordinates({
                   lng: center[0],
@@ -3543,7 +3621,7 @@ function App() {
               仮設置データ *
             </div>
 
-          {/* Emergency airspace */}
+            {/* Emergency airspace */}
             <label
               title="緊急用務空域 * [E]：警察・消防などの緊急活動が必要な区域（参考データ）"
               style={{
@@ -3554,11 +3632,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.EMERGENCY_AIRSPACE')}
-              onChange={() => toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('ZONE_IDS.EMERGENCY_AIRSPACE')}
+                onChange={() => toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3568,9 +3646,9 @@ function App() {
                 }}
               />
               <span>緊急用務空域 * [E]</span>
-          </label>
+            </label>
 
-          {/* Manned aircraft */}
+            {/* Manned aircraft */}
             <label
               title="有人機発着エリア * [V]：有人航空機の離着陸場所（参考データ）"
               style={{
@@ -3581,11 +3659,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-              onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
+                onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3595,9 +3673,9 @@ function App() {
                 }}
               />
               <span>有人機発着エリア * [V]</span>
-          </label>
+            </label>
 
-          {/* Remote ID */}
+            {/* Remote ID */}
             <label
               title="リモートID特定区域 * [I]：リモートID機能搭載が必要（参考データ）"
               style={{
@@ -3608,11 +3686,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
-              onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
+                onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3622,9 +3700,9 @@ function App() {
                 }}
               />
               <span>リモートID特定区域 * [I]</span>
-          </label>
+            </label>
 
-          {/* Heliports */}
+            {/* Heliports */}
             <label
               title="ヘリポート * [H]：ビル屋上・病院等（参考データ）"
               style={{
@@ -3635,11 +3713,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('heliports')}
-              onChange={() => toggleRestriction('heliports')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('heliports')}
+                onChange={() => toggleRestriction('heliports')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3649,9 +3727,9 @@ function App() {
                 }}
               />
               <span>ヘリポート * [H]</span>
-          </label>
+            </label>
 
-          {/* Radio Interference */}
+            {/* Radio Interference */}
             <label
               title="電波干渉区域 * [F]：電波塔・放送局周辺（参考データ）"
               style={{
@@ -3662,11 +3740,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('radio-interference')}
-              onChange={() => toggleRestriction('radio-interference')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('radio-interference')}
+                onChange={() => toggleRestriction('radio-interference')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3676,9 +3754,9 @@ function App() {
                 }}
               />
               <span>電波干渉区域 * [F]</span>
-          </label>
+            </label>
 
-          {/* Manned Aircraft Zones */}
+            {/* Manned Aircraft Zones */}
             <label
               title="有人機発着区域 * [U]：農薬散布ヘリなど（参考データ）"
               style={{
@@ -3689,11 +3767,11 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-            <input
-              type="checkbox"
-              checked={isRestrictionVisible('manned-aircraft-zones')}
-              onChange={() => toggleRestriction('manned-aircraft-zones')}
-            />
+              <input
+                type="checkbox"
+                checked={isRestrictionVisible('manned-aircraft-zones')}
+                onChange={() => toggleRestriction('manned-aircraft-zones')}
+              />
               <span
                 style={{
                   width: '14px',
@@ -3703,7 +3781,7 @@ function App() {
                 }}
               />
               <span>有人機発着区域 * [U]</span>
-          </label>
+            </label>
           </div>
 
           {/* No-fly law section */}
@@ -3927,20 +4005,20 @@ function App() {
       {/* Right Legend Panel */}
       <aside
         style={{
-        position: 'absolute',
-        right: showRightLegend ? 0 : -rightSidebarWidth,
-        top: 0,
-        bottom: 0,
-        width: `${rightSidebarWidth}px`,
-        padding: '12px',
-        backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
-        color: darkMode ? '#fff' : '#333',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        zIndex: 10,
-        transition: isResizingRight ? 'none' : 'right 0.3s ease',
-        boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
-        fontSize: '14px'
+          position: 'absolute',
+          right: showRightLegend ? 0 : -rightSidebarWidth,
+          top: 0,
+          bottom: 0,
+          width: `${rightSidebarWidth}px`,
+          padding: '12px',
+          backgroundColor: darkMode ? 'rgba(30,30,40,0.95)' : 'rgba(255,255,255,0.95)',
+          color: darkMode ? '#fff' : '#333',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          zIndex: 10,
+          transition: isResizingRight ? 'none' : 'right 0.3s ease',
+          boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
+          fontSize: '14px'
         }}
       >
         {/* Resize Handle */}
@@ -4353,19 +4431,19 @@ function App() {
 
             {/* コンテンツ：スクロール領域（ヘッダー固定のため本文のみスクロール） */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-            {/* コンテンツ：2カラムグリッド */}
+              {/* コンテンツ：2カラムグリッド */}
               <div
                 style={{
-              display: 'grid',
-              gridTemplateColumns: window.innerWidth > 768 ? 'repeat(2, 1fr)' : '1fr',
-              gap: window.innerWidth > 768 ? '24px' : '16px',
-              columnGap: window.innerWidth > 768 ? '32px' : '0px',
-              fontSize: '14px'
+                  display: 'grid',
+                  gridTemplateColumns: window.innerWidth > 768 ? 'repeat(2, 1fr)' : '1fr',
+                  gap: window.innerWidth > 768 ? '24px' : '16px',
+                  columnGap: window.innerWidth > 768 ? '32px' : '0px',
+                  fontSize: '14px'
                 }}
               >
-              {/* ===== 左カラム ===== */}
-              
-              {/* セクション1：基本操作・ヒント */}
+                {/* ===== 左カラム ===== */}
+
+                {/* セクション1：基本操作・ヒント */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4400,8 +4478,8 @@ function App() {
                       <path d="M12 16v-4"></path>
                       <path d="M12 8h.01"></path>
                     </svg>
-                  基本操作・ヒント
-                </div>
+                    基本操作・ヒント
+                  </div>
                   <ul
                     style={{
                       margin: 0,
@@ -4431,10 +4509,10 @@ function App() {
                       <strong>検索:</strong>{' '}
                       画面左上の検索ボックスから、地名や住所で場所を検索・移動できます。
                     </li>
-                </ul>
-              </div>
+                  </ul>
+                </div>
 
-              {/* セクション2：禁止エリア表示 */}
+                {/* セクション2：禁止エリア表示 */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4474,7 +4552,7 @@ function App() {
                     >
                       D
                     </kbd>
-                  <span>人口集中地区（DID）</span>
+                    <span>人口集中地区（DID）</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4487,7 +4565,7 @@ function App() {
                     >
                       A
                     </kbd>
-                  <span>空港周辺空域</span>
+                    <span>空港周辺空域</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4539,7 +4617,7 @@ function App() {
                     >
                       H
                     </kbd>
-                  <span>ヘリポート</span>
+                    <span>ヘリポート</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4592,10 +4670,10 @@ function App() {
                       F
                     </kbd>
                     <span>電波干渉区域 *</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* セクション3：クイックアクセス */}
+                {/* セクション3：クイックアクセス */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4635,7 +4713,7 @@ function App() {
                     >
                       ⌘K
                     </kbd>
-                  <span>検索にフォーカス</span>
+                    <span>検索にフォーカス</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4648,7 +4726,7 @@ function App() {
                     >
                       S
                     </kbd>
-                  <span>左サイドバー開閉</span>
+                    <span>左サイドバー開閉</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4661,7 +4739,7 @@ function App() {
                     >
                       P
                     </kbd>
-                  <span>右サイドバー開閉</span>
+                    <span>右サイドバー開閉</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4674,7 +4752,7 @@ function App() {
                     >
                       M
                     </kbd>
-                  <span>マップスタイル切替</span>
+                    <span>マップスタイル切替</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',
@@ -4779,12 +4857,12 @@ function App() {
                       ?
                     </kbd>
                     <span>ヘルプ表示/非表示</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* ===== 右カラム ===== */}
+                {/* ===== 右カラム ===== */}
 
-              {/* セクション4：描画ツールの使い方 */}
+                {/* セクション4：描画ツールの使い方 */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4818,8 +4896,8 @@ function App() {
                       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                       <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                  描画ツールの使い方
-                </div>
+                    描画ツールの使い方
+                  </div>
                   <ul
                     style={{
                       margin: 0,
@@ -4845,10 +4923,10 @@ function App() {
                       <strong>頂点ラベル:</strong>{' '}
                       描画中は各頂点に座標ラベルが常時表示されます（ツールチップ機能 T キー）。
                     </li>
-                </ul>
-              </div>
+                  </ul>
+                </div>
 
-              {/* セクション5：データエクスポート */}
+                {/* セクション5：データエクスポート */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4883,8 +4961,8 @@ function App() {
                       <polyline points="7 10 12 15 17 10"></polyline>
                       <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                  データエクスポート
-                </div>
+                    データエクスポート
+                  </div>
                   <div
                     style={{
                       fontSize: '13px',
@@ -4892,8 +4970,8 @@ function App() {
                       color: darkMode ? '#ddd' : '#555'
                     }}
                   >
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>GeoJSON</strong> - Web地図/開発ツール連携用
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>GeoJSON</strong> - Web地図/開発ツール連携用
                       <div
                         style={{
                           fontSize: '12px',
@@ -4903,9 +4981,9 @@ function App() {
                       >
                         プログラム処理、QGIS等のGISツール
                       </div>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>KML</strong> - Google Earth/Maps用
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>KML</strong> - Google Earth/Maps用
                       <div
                         style={{
                           fontSize: '12px',
@@ -4915,9 +4993,9 @@ function App() {
                       >
                         可視化、共有、プレゼンテーション
                       </div>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>CSV</strong> - スプレッドシート用
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>CSV</strong> - スプレッドシート用
                       <div
                         style={{
                           fontSize: '12px',
@@ -4927,9 +5005,9 @@ function App() {
                       >
                         Excel、座標一覧の確認・編集
                       </div>
-                  </div>
-                  <div>
-                    <strong>NOTAM/DMS</strong> - 飛行申請用（度分秒形式）
+                    </div>
+                    <div>
+                      <strong>NOTAM/DMS</strong> - 飛行申請用（度分秒形式）
                       <div
                         style={{
                           fontSize: '12px',
@@ -4939,11 +5017,11 @@ function App() {
                       >
                         DIPS申請、航空当局への提出資料
                       </div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* セクション6：座標・表示設定 */}
+                {/* セクション6：座標・表示設定 */}
                 <div
                   style={{
                     marginBottom: '8px',
@@ -4977,8 +5055,8 @@ function App() {
                       <circle cx="12" cy="12" r="10"></circle>
                       <path d="M12 6v6l4 2"></path>
                     </svg>
-                  座標・表示設定
-                </div>
+                    座標・表示設定
+                  </div>
                   <ul
                     style={{
                       margin: 0,
@@ -5004,8 +5082,8 @@ function App() {
                       <strong>表示設定:</strong>{' '}
                       ツールチップの詳細、海抜高度、推奨飛行高度などが画面上部パネルに表示されます。
                     </li>
-                </ul>
-              </div>
+                  </ul>
+                </div>
               </div>
             </div>
 
@@ -5039,16 +5117,16 @@ function App() {
       {/* Attribution */}
       <div
         style={{
-        position: 'absolute',
-        bottom: 4,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        fontSize: '12px',
-        color: '#666',
-        backgroundColor: 'rgba(255,255,255,0.8)',
-        padding: '2px 8px',
-        borderRadius: '2px',
-        zIndex: 5
+          position: 'absolute',
+          bottom: 4,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '12px',
+          color: '#666',
+          backgroundColor: 'rgba(255,255,255,0.8)',
+          padding: '2px 8px',
+          borderRadius: '2px',
+          zIndex: 5
         }}
       >
         出典: 政府統計の総合窓口(e-Stat) / 国土地理院
