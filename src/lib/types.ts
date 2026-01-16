@@ -83,13 +83,13 @@ export interface WeatherOverlay {
 // Restriction Zone Types (ドローン飛行禁止エリア)
 // ============================================
 export type RestrictionType =
-  | 'airport'           // 空港等周辺空域
-  | 'did'               // 人口集中地区
-  | 'emergency'         // 緊急用務空域
-  | 'manned'            // 有人機発着エリア
-  | 'remote_id'         // リモートID特定区域
-  | 'no_fly_red'        // 小型無人機等飛行禁止法 レッドゾーン
-  | 'no_fly_yellow'     // 小型無人機等飛行禁止法 イエローゾーン
+  | 'airport' // 空港等周辺空域
+  | 'did' // 人口集中地区
+  | 'emergency' // 緊急用務空域
+  | 'manned' // 有人機発着エリア
+  | 'remote_id' // リモートID特定区域
+  | 'no_fly_red' // 小型無人機等飛行禁止法 レッドゾーン
+  | 'no_fly_yellow' // 小型無人機等飛行禁止法 イエローゾーン
 
 export interface RestrictionZone {
   id: string
@@ -97,8 +97,9 @@ export interface RestrictionZone {
   type: RestrictionType
   color: string
   opacity: number
-  path?: string          // GeoJSON path
-  tiles?: string[]       // Tile URL
+  path?: string // GeoJSON path
+  tiles?: string[] // Tile URL
+  geojsonTileTemplate?: string // GeoJSON tile URL template (e.g. https://.../{z}/{x}/{y}.geojson)
   description?: string
 }
 
@@ -131,15 +132,15 @@ export interface AirportSurface {
 // Weather Data Types
 // ============================================
 export interface WindData {
-  speed: number      // m/s
-  direction: number  // degrees
-  gust?: number      // m/s
+  speed: number // m/s
+  direction: number // degrees
+  gust?: number // m/s
 }
 
 export interface WeatherData {
   timestamp: number
   wind?: WindData
-  rain?: number      // mm/h
+  rain?: number // mm/h
   visibility?: number // meters
 }
 
@@ -153,7 +154,12 @@ export interface WeatherData {
 export interface SearchIndexItem {
   prefName: string /** Prefecture name (都道府県) */
   cityName: string /** City/municipality name (市区町村) */
-  bbox: [number, number, number, number] /** Bounding box for the feature [minLng, minLat, maxLng, maxLat] */
+  bbox: [
+    number,
+    number,
+    number,
+    number
+  ] /** Bounding box for the feature [minLng, minLat, maxLng, maxLat] */
   layerId: string /** Associated layer identifier */
 }
 
@@ -246,17 +252,17 @@ export interface EmergencyAirspace extends BaseFeatureProperties {
   coordinates: [number, number]
   radiusKm: number
   altitudeLimit?: {
-    min: number  // meters AGL
-    max: number  // meters AGL
+    min: number // meters AGL
+    max: number // meters AGL
   }
   validPeriod?: {
-    start: string  // ISO 8601
-    end: string    // ISO 8601
+    start: string // ISO 8601
+    end: string // ISO 8601
   }
   authority: {
-    name: string           // 管理機関名
-    contact?: string       // 連絡先
-    notamNumber?: string   // NOTAM番号
+    name: string // 管理機関名
+    contact?: string // 連絡先
+    notamNumber?: string // NOTAM番号
   }
   reason: 'disaster' | 'fire' | 'police' | 'rescue' | 'other'
   priority: 'high' | 'medium' | 'low'
@@ -278,8 +284,8 @@ export interface MannedAircraftLanding extends BaseFeatureProperties {
   facilityType: 'heliport' | 'temporary' | 'hospital' | 'rooftop' | 'agricultural'
   surfaceType?: 'concrete' | 'asphalt' | 'grass' | 'unpaved'
   dimensions?: {
-    length: number  // meters
-    width: number   // meters
+    length: number // meters
+    width: number // meters
   }
   operator: {
     name: string
@@ -323,11 +329,20 @@ export interface Building extends BaseFeatureProperties {
   coordinates: [number, number]
   radiusKm?: number
   polygon?: GeoJSON.Polygon
-  buildingType: 'station' | 'commercial' | 'office' | 'public' | 'tower' | 'bridge' | 'powerline' | 'antenna' | 'other'
+  buildingType:
+    | 'station'
+    | 'commercial'
+    | 'office'
+    | 'public'
+    | 'tower'
+    | 'bridge'
+    | 'powerline'
+    | 'antenna'
+    | 'other'
   height: {
-    ground: number      // meters - 地上高
-    asl: number         // meters - 海抜高度
-    rooftop?: number    // meters - 屋上設備高さ
+    ground: number // meters - 地上高
+    asl: number // meters - 海抜高度
+    rooftop?: number // meters - 屋上設備高さ
   }
   obstacleLight?: {
     type: 'low' | 'medium' | 'high'
@@ -350,18 +365,18 @@ export interface WindObservation extends BaseFeatureProperties {
   type: 'wind'
   coordinates: [number, number]
   observation: {
-    direction: number        // degrees (0-360)
-    speed: number           // m/s
-    gust?: number           // m/s - 突風
-    variability?: number    // degrees - 風向変動幅
+    direction: number // degrees (0-360)
+    speed: number // m/s
+    gust?: number // m/s - 突風
+    variability?: number // degrees - 風向変動幅
   }
-  altitude: number          // meters AGL - 観測高度
-  timestamp: string         // ISO 8601
+  altitude: number // meters AGL - 観測高度
+  timestamp: string // ISO 8601
   station: {
     id: string
     name: string
     type: 'amedas' | 'airport' | 'private' | 'buoy'
-    elevation: number       // meters ASL
+    elevation: number // meters ASL
   }
   forecast?: {
     direction: number
@@ -385,24 +400,24 @@ export interface LTECoverage extends BaseFeatureProperties {
   radiusKm: number
   polygon?: GeoJSON.Polygon
   coverage: {
-    strength: number        // dBm or percentage (0-100)
+    strength: number // dBm or percentage (0-100)
     quality: 'excellent' | 'good' | 'fair' | 'poor' | 'none'
-    bandwidth?: number      // Mbps
-    latency?: number        // ms
+    bandwidth?: number // Mbps
+    latency?: number // ms
   }
   carrier: {
-    name: string            // e.g., 'NTT Docomo', 'au', 'SoftBank', 'Rakuten'
-    frequency?: number[]    // MHz bands
+    name: string // e.g., 'NTT Docomo', 'au', 'SoftBank', 'Rakuten'
+    frequency?: number[] // MHz bands
     technology: 'LTE' | '5G' | 'LTE-A' | 'mixed'
   }
   altitude?: {
-    groundLevel: number     // 地上での強度
-    altitude50m?: number    // 50m高度での強度
-    altitude100m?: number   // 100m高度での強度
-    altitude150m?: number   // 150m高度での強度
+    groundLevel: number // 地上での強度
+    altitude50m?: number // 50m高度での強度
+    altitude100m?: number // 100m高度での強度
+    altitude150m?: number // 150m高度での強度
   }
-  reliability?: number      // 通信安定性 (0-100%)
-  lastMeasured: string      // ISO 8601
+  reliability?: number // 通信安定性 (0-100%)
+  lastMeasured: string // ISO 8601
 }
 
 /**
@@ -414,11 +429,11 @@ export interface WeatherRadarData extends BaseFeatureProperties {
   timestamp: string
   coverage: {
     bbox: [number, number, number, number]
-    resolution: number  // km
+    resolution: number // km
   }
   precipitation: {
     type: 'rain' | 'snow' | 'mixed'
-    intensity: number   // mm/h
+    intensity: number // mm/h
     accumulated?: number // mm
   }
 }
@@ -430,12 +445,12 @@ export interface WeatherRadarData extends BaseFeatureProperties {
 export interface FlightPlanPoint extends BaseFeatureProperties {
   type: 'waypoint'
   coordinates: [number, number]
-  altitude: number          // meters AGL
-  speed?: number            // m/s
+  altitude: number // meters AGL
+  speed?: number // m/s
   action?: 'takeoff' | 'landing' | 'hover' | 'photo' | 'video' | 'turn' | 'waypoint'
-  waitTime?: number         // seconds
-  heading?: number          // degrees
-  gimbalAngle?: number      // degrees
+  waitTime?: number // seconds
+  heading?: number // degrees
+  gimbalAngle?: number // degrees
   order: number
 }
 
@@ -446,12 +461,12 @@ export interface FlightPlanPoint extends BaseFeatureProperties {
 export interface FlightRoute extends BaseFeatureProperties {
   type: 'route'
   points: FlightPlanPoint[]
-  totalDistance: number     // km
+  totalDistance: number // km
   estimatedDuration: number // minutes
-  maxAltitude: number       // meters
+  maxAltitude: number // meters
   aircraft?: {
     model: string
-    weight: number          // kg
+    weight: number // kg
     registration?: string
   }
   pilot?: {
@@ -459,7 +474,14 @@ export interface FlightRoute extends BaseFeatureProperties {
     license?: string
     contact?: string
   }
-  purpose: 'survey' | 'inspection' | 'photography' | 'delivery' | 'agriculture' | 'training' | 'other'
+  purpose:
+    | 'survey'
+    | 'inspection'
+    | 'photography'
+    | 'delivery'
+    | 'agriculture'
+    | 'training'
+    | 'other'
   status: 'draft' | 'submitted' | 'approved' | 'completed' | 'cancelled'
 }
 
@@ -479,6 +501,7 @@ export interface TypedFeature<T extends MockFeatureProperties> extends GeoJSON.F
   properties: T
 }
 
-export interface TypedFeatureCollection<T extends MockFeatureProperties> extends GeoJSON.FeatureCollection {
+export interface TypedFeatureCollection<T extends MockFeatureProperties>
+  extends GeoJSON.FeatureCollection {
   features: Array<TypedFeature<T>>
 }

@@ -165,13 +165,14 @@ export function getAllLayers() {
 export const TERRAIN_2024_COLOR = '#FF4444' // 地震後の地形：赤
 export const TERRAIN_2020_COLOR = '#4444FF' // 地震前の地形：青
 
-export interface TerrainLayer extends Omit<any, 'color'> {
+export interface TerrainLayer {
   id: string
   name: string
   path: string
   year: 2020 | 2024
   region: string
   description: string
+  color: string
 }
 
 // 2024年地形データレイヤー（能登半島対応）

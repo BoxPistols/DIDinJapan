@@ -394,8 +394,8 @@ export function createRestrictionZoneTemplate(
  * Create a point-based layer template
  */
 export function createPointLayerTemplate(
-  points: Array<{ name: string; coordinates: [number, number]; properties?: Record<string, any> }>
-): GeoJSON.FeatureCollection {
+  points: Array<{ name: string; coordinates: [number, number]; properties?: Record<string, unknown> }>
+): GeoJSON.FeatureCollection<GeoJSON.Geometry, Record<string, unknown>> {
   return {
     type: 'FeatureCollection',
     features: points.map((p, i) => ({

@@ -110,7 +110,8 @@ export const RESTRICTION_ZONES: RestrictionZone[] = [
     type: 'airport',
     color: RESTRICTION_COLORS.airport,
     opacity: 0.6,
-    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/kokuarea/{z}/{x}/{y}.png'],
+    // NOTE: ラスタタイルは廃止し、ベクトル（タイルGeoJSON）を優先してクライアント側で描画する
+    geojsonTileTemplate: 'https://maps.gsi.go.jp/xyz/kokuarea/{z}/{x}/{y}.geojson',
     path: '/GeoJSON/airports/airport_surfaces.geojson',
     description: '空港等の周辺空域（航空局提供：進入表面・転移表面等）および敷地範囲'
   },

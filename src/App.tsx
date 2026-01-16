@@ -9,6 +9,10 @@ import {
   GEO_OVERLAYS,
   RESTRICTION_COLORS,
   getAllRestrictionZones,
+  KOKUAREA_STYLE,
+  fillKokuareaTileUrl,
+  getVisibleTileXYZs,
+  classifyKokuareaSurface,
   createLayerIdToNameMap,
   fetchRainRadarTimestamp,
   buildRainTileUrl,
@@ -35,9 +39,17 @@ import {
   ISHIKAWA_NOTO_COMPARISON_LAYERS
 } from './lib'
 import type { GeocodingResult } from './lib'
-import type { BaseMapKey, LayerConfig, LayerGroup, SearchIndexItem, LayerState, CustomLayer } from './lib'
+import type {
+  BaseMapKey,
+  LayerConfig,
+  LayerGroup,
+  SearchIndexItem,
+  LayerState,
+  CustomLayer,
+  KokuareaFeatureProperties
+} from './lib'
 import { CustomLayerManager } from './components/CustomLayerManager'
-import { DrawingTools } from './components/DrawingTools'
+import { DrawingTools, type DrawnFeature } from './components/DrawingTools'
 import { CoordinateDisplay } from './components/CoordinateDisplay'
 // NOTE: 右下の比較パネル（重複ボタン）は廃止し、隆起表示は右上UIに統一
 import { ToastContainer } from './components/Toast'
@@ -93,7 +105,7 @@ function App() {
     pitch: 0,
     bearing: 0
   })
-  const previousFeaturesRef = useRef<any[]>([])
+  const previousFeaturesRef = useRef<DrawnFeature[]>([])
   const enableCoordinateDisplayRef = useRef(true)
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(new Map())
   const debugRunIdRef = useRef<string>('')
@@ -960,6 +972,15 @@ function App() {
             map.setPaintProperty(sourceId, 'fill-opacity', opacity)
           }
         })
+      } else if (restrictionId === 'airport-airspace') {
+        // kokuarea（空港周辺空域）: 種別ごとにベース不透明度が異なるため、UIのopacityは倍率として扱う
+        ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+          const id = `${KOKUAREA_LAYER_PREFIX}-${kind}`
+          if (!map.getLayer(id)) return
+          const base = KOKUAREA_STYLE[kind].fillOpacity
+          const scaled = Math.max(0, Math.min(1, opacity * base * 2))
+          map.setPaintProperty(id, 'fill-opacity', scaled)
+        })
       } else {
         if (map.getLayer(restrictionId)) {
           map.setPaintProperty(restrictionId, 'fill-opacity', opacity)
@@ -981,14 +1002,18 @@ function App() {
     }
 
     try {
-      const data = await fetchGeoJSONWithCache(layer.path)
+      type DidProperties = Record<string, unknown> & { CITYNAME?: string }
+      type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
+
+      const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
 
       const newItems: SearchIndexItem[] = []
-      data.features.forEach((feature: any) => {
-        if (feature.properties?.CITYNAME) {
+      data.features.forEach(feature => {
+        const cityName = feature.properties?.CITYNAME
+        if (typeof cityName === 'string' && cityName.length > 0 && feature.geometry) {
           newItems.push({
             prefName: layer.name,
-            cityName: feature.properties.CITYNAME,
+            cityName,
             bbox: calculateBBox(feature.geometry),
             layerId: layer.id
           })
@@ -1001,7 +1026,7 @@ function App() {
         return
       }
 
-      map.addSource(layer.id, { type: 'geojson', data })
+      map.addSource(layer.id, { type: 'geojson', data: data as GeoJSON.FeatureCollection<GeoJSON.Geometry, DidProperties> })
 
       // レイヤーの存在を再確認
       if (map.getLayer(layer.id) || map.getLayer(`${layer.id}-outline`)) {
@@ -1753,6 +1778,206 @@ function App() {
   // ============================================
   // Restriction zone management
   // ============================================
+  type KokuareaFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, KokuareaFeatureProperties>
+
+  const KOKUAREA_SOURCE_ID = 'airport-airspace-kokuarea'
+  const KOKUAREA_LAYER_PREFIX = 'airport-airspace-kokuarea'
+  const KOKUAREA_MAX_TILES = 96
+
+  const kokuareaRef = useRef<{
+    enabled: boolean
+    tileTemplate: string | null
+    tiles: Map<string, KokuareaFC>
+    inflight: Map<string, Promise<KokuareaFC>>
+    updateSeq: number
+    detach: (() => void) | null
+  }>({
+    enabled: false,
+    tileTemplate: null,
+    tiles: new Map(),
+    inflight: new Map(),
+    updateSeq: 0,
+    detach: null
+  })
+
+  const emptyKokuareaFC = (): KokuareaFC => ({ type: 'FeatureCollection', features: [] })
+
+  const safeKokuProps = (v: unknown): Record<string, unknown> => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>
+    return {}
+  }
+
+  const normalizeKokuareaFC = (fc: KokuareaFC): KokuareaFC => {
+    const nextFeatures = (fc.features ?? []).map(f => {
+      const props = safeKokuProps(f.properties)
+      const { kind, label } = classifyKokuareaSurface(props)
+      const nextProps: KokuareaFeatureProperties = {
+        ...props,
+        __koku_kind: kind,
+        __koku_label: label
+      }
+      return { ...f, properties: nextProps }
+    })
+    return { ...fc, features: nextFeatures }
+  }
+
+  const computeKokuareaZoomAndTiles = (map: maplibregl.Map): { z: number; keys: string[]; xyzs: Array<{ z: number; x: number; y: number }> } => {
+    const bounds = map.getBounds()
+    let z = Math.max(8, Math.min(14, Math.floor(map.getZoom())))
+    let xyzs = getVisibleTileXYZs(bounds, z)
+
+    while (xyzs.length > KOKUAREA_MAX_TILES && z > 8) {
+      z -= 1
+      xyzs = getVisibleTileXYZs(bounds, z)
+    }
+
+    const keys = xyzs.map(t => `${t.z}/${t.x}/${t.y}`)
+    return { z, keys, xyzs }
+  }
+
+  const ensureKokuareaLayers = (map: maplibregl.Map): void => {
+    if (!map.getSource(KOKUAREA_SOURCE_ID)) {
+      map.addSource(KOKUAREA_SOURCE_ID, { type: 'geojson', data: emptyKokuareaFC() as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties> })
+    }
+
+    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+      const style = KOKUAREA_STYLE[kind]
+      const fillId = `${KOKUAREA_LAYER_PREFIX}-${kind}`
+      const lineId = `${KOKUAREA_LAYER_PREFIX}-${kind}-outline`
+
+      if (!map.getLayer(fillId)) {
+        map.addLayer({
+          id: fillId,
+          type: 'fill',
+          source: KOKUAREA_SOURCE_ID,
+          filter: ['==', ['get', '__koku_kind'], kind],
+          paint: { 'fill-color': style.fillColor, 'fill-opacity': style.fillOpacity }
+        })
+      }
+
+      if (!map.getLayer(lineId)) {
+        map.addLayer({
+          id: lineId,
+          type: 'line',
+          source: KOKUAREA_SOURCE_ID,
+          filter: ['==', ['get', '__koku_kind'], kind],
+          paint: { 'line-color': style.lineColor, 'line-width': style.lineWidth }
+        })
+      }
+    })
+  }
+
+  const removeKokuareaLayers = (map: maplibregl.Map): void => {
+    ;(Object.keys(KOKUAREA_STYLE) as Array<keyof typeof KOKUAREA_STYLE>).forEach(kind => {
+      const fillId = `${KOKUAREA_LAYER_PREFIX}-${kind}`
+      const lineId = `${KOKUAREA_LAYER_PREFIX}-${kind}-outline`
+      if (map.getLayer(lineId)) map.removeLayer(lineId)
+      if (map.getLayer(fillId)) map.removeLayer(fillId)
+    })
+    if (map.getSource(KOKUAREA_SOURCE_ID)) map.removeSource(KOKUAREA_SOURCE_ID)
+  }
+
+  const fetchKokuareaTile = async (
+    tileTemplate: string,
+    z: number,
+    x: number,
+    y: number
+  ): Promise<KokuareaFC> => {
+    const url = fillKokuareaTileUrl(tileTemplate, z, x, y)
+    try {
+      const raw = await fetchGeoJSONWithCache<KokuareaFC>(url)
+      return normalizeKokuareaFC(raw)
+    } catch (e) {
+      // NOTE: GSIタイルは空タイルで404を返すケースがあるため、404は「空」として扱う
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes('404')) return emptyKokuareaFC()
+      throw e
+    }
+  }
+
+  const updateKokuareaData = async (map: maplibregl.Map): Promise<void> => {
+    const state = kokuareaRef.current
+    if (!state.enabled || !state.tileTemplate) return
+
+    const seq = ++state.updateSeq
+    const { keys, xyzs } = computeKokuareaZoomAndTiles(map)
+
+    // 使わなくなったタイルを捨てる（メモリ・feature数を抑制）
+    const keep = new Set(keys)
+    for (const k of Array.from(state.tiles.keys())) {
+      if (!keep.has(k)) state.tiles.delete(k)
+    }
+
+    const toFetch = xyzs.filter(t => !state.tiles.has(`${t.z}/${t.x}/${t.y}`))
+    await Promise.all(
+      toFetch.map(async t => {
+        const key = `${t.z}/${t.x}/${t.y}`
+        const inflight = state.inflight.get(key)
+        if (inflight) {
+          const fc = await inflight
+          state.tiles.set(key, fc)
+          return
+        }
+        const tileTemplate = state.tileTemplate
+        if (!tileTemplate) return
+        const p = fetchKokuareaTile(tileTemplate, t.z, t.x, t.y)
+        state.inflight.set(key, p)
+        try {
+          const fc = await p
+          state.tiles.set(key, fc)
+        } finally {
+          state.inflight.delete(key)
+        }
+      })
+    )
+
+    // 途中でOFFになった場合など、古い更新を破棄
+    if (kokuareaRef.current.updateSeq !== seq) return
+
+    const merged: KokuareaFC = {
+      type: 'FeatureCollection',
+      features: Array.from(kokuareaRef.current.tiles.values()).flatMap(fc => fc.features ?? [])
+    }
+
+    const src = map.getSource(KOKUAREA_SOURCE_ID)
+    if (src && 'setData' in src) {
+      ;(src as maplibregl.GeoJSONSource).setData(merged as GeoJSON.FeatureCollection<GeoJSON.Geometry, KokuareaFeatureProperties>)
+    }
+  }
+
+  const enableKokuarea = (map: maplibregl.Map, tileTemplate: string): void => {
+    const state = kokuareaRef.current
+    state.enabled = true
+    state.tileTemplate = tileTemplate
+
+    ensureKokuareaLayers(map)
+
+    // 既存listenerがあれば張り直し
+    state.detach?.()
+    const handler = () => {
+      void updateKokuareaData(map).catch(err => console.error('kokuarea update failed:', err))
+    }
+    map.on('moveend', handler)
+    map.on('zoomend', handler)
+    state.detach = () => {
+      map.off('moveend', handler)
+      map.off('zoomend', handler)
+    }
+
+    void updateKokuareaData(map).catch(err => console.error('kokuarea initial update failed:', err))
+  }
+
+  const disableKokuarea = (map: maplibregl.Map): void => {
+    const state = kokuareaRef.current
+    state.enabled = false
+    state.tileTemplate = null
+    state.tiles.clear()
+    state.inflight.clear()
+    state.detach?.()
+    state.detach = null
+    removeKokuareaLayers(map)
+  }
+
   const toggleRestriction = async (restrictionId: string) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
@@ -1766,6 +1991,15 @@ function App() {
 
       if (restrictionId === 'airport-airspace') {
         const zone = getAllRestrictionZones().find(z => z.id === restrictionId);
+        if (zone?.geojsonTileTemplate) {
+          try {
+            enableKokuarea(map, zone.geojsonTileTemplate)
+            setRestrictionStates(prev => new Map(prev).set(restrictionId, true))
+            return
+          } catch (e) {
+            console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
+          }
+        }
         if (zone?.path) {
           try {
             geojson = await fetchGeoJSONWithCache(zone.path);
@@ -1897,6 +2131,9 @@ function App() {
             map.setLayoutProperty(`${sourceId}-outline`, 'visibility', 'none')
           }
         }
+      } else if (restrictionId === 'airport-airspace') {
+        // kokuarea（タイルGeoJSON）表示の場合
+        disableKokuarea(map)
       } else {
         if (map.getLayer(restrictionId)) {
           map.setLayoutProperty(restrictionId, 'visibility', 'none')
@@ -2014,7 +2251,9 @@ function App() {
     {
       const safeRenderedCount = (layers: string[]): number => {
         try {
-          return map.queryRenderedFeatures(undefined, { layers }).length
+          const existingLayers = layers.filter(layerId => map.getLayer(layerId))
+          if (existingLayers.length === 0) return 0
+          return map.queryRenderedFeatures(undefined, { layers: existingLayers }).length
         } catch {
           return -1
         }
@@ -3066,6 +3305,14 @@ function App() {
                   <span>右サイドバー開閉</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>M</kbd>
                   <span>マップスタイル切替</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>T</kbd>
+                  <span>ツールチップ表示</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>L</kbd>
+                  <span>ダークモード/ライトモード</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>2 / 3</kbd>
+                  <span>2D / 3D表示切替</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>?</kbd>
+                  <span>ヘルプ表示</span>
                 </div>
               </div>
 

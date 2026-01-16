@@ -28,13 +28,21 @@
     "preview": "vite preview",
     "test": "vitest",
     "prepublishOnly": "npm run build:lib",
+    "fix": "npm run lint:fix && npm run format",
+    "lint:fix": "eslint --fix --ext .ts,.tsx,.js,.jsx src",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "convert:did": "node scripts/convert_did_2020.js",
-    "download:did": "python3 scripts/download_did_2020.py",
-    "convert:airport": "node scripts/convert_airport_data.js",
-    "convert:gsi2024": "node scripts/convert_gsi_2024.js",
-    "download:gsi2024": "python3 scripts/download_gsi_2024.py"
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "repository": {
     "type": "git",
@@ -79,8 +87,12 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
+    "lint-staged": "^16.2.7",
     "mapshaper": "^0.6.113",
+    "prettier": "^3.8.0",
     "storybook": "^8.6.15",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",

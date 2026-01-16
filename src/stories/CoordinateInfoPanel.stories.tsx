@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { useState, useEffect } from 'react'
 import { CoordinateInfoPanel } from '../components/CoordinateInfoPanel'
 import { mockGetCoordinateInfo, mockGetRecommendedFlightAltitude } from './helpers/mockElevationService'
+import type { CoordinateInfo } from '../lib/services/elevationService'
 
 /**
  * CoordinateInfoPanel - 座標・高度情報表示パネル
@@ -281,7 +282,7 @@ export const Loading: Story = {
  */
 export const WithElevation: Story = {
   render: (args) => {
-    const [coordInfo, setCoordInfo] = useState<any>(null)
+    const [coordInfo, setCoordInfo] = useState<CoordinateInfo | null>(null)
 
     useEffect(() => {
       if (!args.isVisible || !args.lngLat) return
@@ -440,7 +441,7 @@ export const NoElevation: Story = {
  */
 export const WithRecommendedAltitude: Story = {
   render: (args) => {
-    const [coordInfo, setCoordInfo] = useState<any>(null)
+    const [coordInfo, setCoordInfo] = useState<CoordinateInfo | null>(null)
     const [recommendedAltitude, setRecommendedAltitude] = useState<number | null>(null)
 
     useEffect(() => {
@@ -575,7 +576,7 @@ GSI APIから取得した地形高度に、安全マージン（デフォルト3
  */
 export const NotoUpliftArea: Story = {
   render: (args) => {
-    const [coordInfo, setCoordInfo] = useState<any>(null)
+    const [coordInfo, setCoordInfo] = useState<CoordinateInfo | null>(null)
 
     useEffect(() => {
       const loadData = async () => {

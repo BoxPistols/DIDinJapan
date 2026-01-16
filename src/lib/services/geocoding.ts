@@ -76,16 +76,26 @@ export async function searchAddress(
       throw new Error(`Geocoding failed: ${response.status}`)
     }
 
-    const results = await response.json()
+    const results = (await response.json()) as unknown
+    if (!Array.isArray(results)) return []
 
-    return results.map((r: any) => ({
-      displayName: r.display_name,
-      lat: parseFloat(r.lat),
-      lng: parseFloat(r.lon),
-      type: r.type,
-      importance: r.importance,
-      address: r.address,
-      boundingBox: r.boundingbox?.map(Number)
+    type NominatimSearchItem = Record<string, unknown>
+    const parseNum = (v: unknown): number => (typeof v === 'string' ? Number.parseFloat(v) : typeof v === 'number' ? v : NaN)
+    const parseStr = (v: unknown): string => (typeof v === 'string' ? v : '')
+    const parseBBox = (v: unknown): [number, number, number, number] | undefined => {
+      if (!Array.isArray(v) || v.length !== 4) return undefined
+      const nums = v.map(x => (typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN))
+      return nums.every(n => Number.isFinite(n)) ? (nums as [number, number, number, number]) : undefined
+    }
+
+    return (results as NominatimSearchItem[]).map(r => ({
+      displayName: parseStr(r.display_name),
+      lat: parseNum(r.lat),
+      lng: parseNum(r.lon),
+      type: parseStr(r.type),
+      importance: typeof r.importance === 'number' ? r.importance : 0,
+      address: (r.address && typeof r.address === 'object' && !Array.isArray(r.address)) ? (r.address as GeocodingResult['address']) : undefined,
+      boundingBox: parseBBox(r.boundingbox)
     }))
   } catch (error) {
     console.error('Geocoding error:', error)
@@ -122,20 +132,24 @@ export async function reverseGeocode(
       throw new Error(`Reverse geocoding failed: ${response.status}`)
     }
 
-    const result = await response.json()
+    const result = (await response.json()) as unknown
+    if (!result || typeof result !== 'object' || Array.isArray(result)) return null
 
-    if (result.error) {
+    const r = result as Record<string, unknown>
+    if (r.error) {
       return null
     }
 
     return {
-      displayName: result.display_name,
-      lat: parseFloat(result.lat),
-      lng: parseFloat(result.lon),
-      type: result.type,
-      importance: result.importance || 0,
-      address: result.address,
-      boundingBox: result.boundingbox?.map(Number)
+      displayName: typeof r.display_name === 'string' ? r.display_name : '',
+      lat: typeof r.lat === 'string' ? Number.parseFloat(r.lat) : typeof r.lat === 'number' ? r.lat : NaN,
+      lng: typeof r.lon === 'string' ? Number.parseFloat(r.lon) : typeof r.lon === 'number' ? r.lon : NaN,
+      type: typeof r.type === 'string' ? r.type : '',
+      importance: typeof r.importance === 'number' ? r.importance : 0,
+      address: (r.address && typeof r.address === 'object' && !Array.isArray(r.address)) ? (r.address as GeocodingResult['address']) : undefined,
+      boundingBox: Array.isArray(r.boundingbox) && r.boundingbox.length === 4
+        ? (r.boundingbox.map(x => (typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN)) as [number, number, number, number])
+        : undefined
     }
   } catch (error) {
     console.error('Reverse geocoding error:', error)
@@ -147,12 +161,12 @@ export async function reverseGeocode(
  * デバウンスヘルパー
  * 連続した呼び出しを遅延させ、最後の呼び出しのみ実行
  */
-export function debounce<T extends (...args: any[]) => any>(
-  fn: T,
+export function debounce<Args extends unknown[]>(
+  fn: (...args: Args) => void,
   delay: number
-): (...args: Parameters<T>) => void {
+): (...args: Args) => void {
   let timeoutId: ReturnType<typeof setTimeout>
-  return (...args: Parameters<T>) => {
+  return (...args: Args) => {
     clearTimeout(timeoutId)
     timeoutId = setTimeout(() => fn(...args), delay)
   }

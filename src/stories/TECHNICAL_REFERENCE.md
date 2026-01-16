@@ -495,7 +495,7 @@ function exportAsGeoJSON(features: DrawnFeature[]): string {
     features: features.map(f => ({
       type: 'Feature',
       id: f.id,
-      geometry: { type: f.type as any, coordinates: f.coordinates },
+      geometry: { type: f.type as GeoJSON.Geometry['type'], coordinates: f.coordinates },
       properties: {
         name: f.name,
         type: f.type,

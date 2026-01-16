@@ -47,7 +47,7 @@ const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
 }
 
 // 描画されたフィーチャーの型
-interface DrawnFeature {
+export interface DrawnFeature {
   id: string
   type: 'polygon' | 'circle' | 'point' | 'line'
   name: string

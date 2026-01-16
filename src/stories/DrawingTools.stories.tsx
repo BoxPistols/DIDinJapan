@@ -264,19 +264,19 @@ export class MockMap {
   private _zoom = 10
   private _center: [number, number] = [137.0, 36.5]
   private _listeners: Map<EventType, Set<MapEventHandler>> = new Map()
-  private _controls: any[] = []
-  private _layers: Map<string, any> = new Map()
-  private _sources: Map<string, any> = new Map()
+  private _controls: unknown[] = []
+  private _layers: Map<string, Record<string, unknown>> = new Map()
+  private _sources: Map<string, Record<string, unknown>> = new Map()
 
   getZoom(): number { return this._zoom }
   setZoom(zoom: number): this { this._zoom = zoom; return this }
   getCenter(): { lng: number; lat: number } { /* ... */ }
   setCenter(lngLat: [number, number] | { lng: number; lat: number }): this { /* ... */ }
-  addControl(control: any): this { this._controls.push(control); return this }
-  removeControl(control: any): this { /* ... */ }
+  addControl(control: unknown): this { this._controls.push(control); return this }
+  removeControl(control: unknown): this { /* ... */ }
   on(event: EventType, handler: MapEventHandler): this { /* ... */ }
-  addLayer(layer: any): this { /* ... */ }
-  addSource(sourceId: string, source: any): this { /* ... */ }
+  addLayer(layer: Record<string, unknown>): this { /* ... */ }
+  addSource(sourceId: string, source: Record<string, unknown>): this { /* ... */ }
   // その他の必要なメソッド
 }
 \`\`\`

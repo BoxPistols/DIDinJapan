@@ -62,12 +62,16 @@ export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | mapli
   },
 }
 
-// 初期表示座標：石川県能登半島（輪島市周辺）
-// 2024年能登半島地震の影響地域を中心に表示
-export const DEFAULT_CENTER: [number, number] = [136.876, 37.405]
-export const DEFAULT_ZOOM = 11
+// 初期表示座標：日本全体
+// アプリケーション起動時は全国マップを表示
+export const DEFAULT_CENTER: [number, number] = [137.0, 36.5]
+export const DEFAULT_ZOOM = 5
 
-// 日本全体表示用（フォールバック）
+// 能登地域表示用
+export const NOTO_CENTER: [number, number] = [136.876, 37.405]
+export const NOTO_ZOOM = 11
+
+// 日本全体表示用（従来の名前）
 export const JAPAN_CENTER: [number, number] = [137.0, 36.5]
 export const JAPAN_ZOOM = 5
 

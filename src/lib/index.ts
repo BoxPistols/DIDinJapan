@@ -133,6 +133,15 @@ export {
   generateMannedAircraftZonesGeoJSON
 } from './utils/geo'
 
+// kokuarea (airport airspace) helpers
+export {
+  KOKUAREA_STYLE,
+  fillKokuareaTileUrl,
+  getVisibleTileXYZs,
+  classifyKokuareaSurface
+} from './kokuarea'
+export type { KokuareaSurfaceKind, KokuareaFeatureProperties } from './kokuarea'
+
 // Library metadata
 export const VERSION = '1.0.0'
 export const LIBRARY_NAME = 'did-map'
