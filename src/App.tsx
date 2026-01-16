@@ -1849,33 +1849,20 @@ function App() {
 
               
 
-                        if (!map.getSource(`${restrictionId}-circles`)) {
+          if (!map.getSource(`${restrictionId}-circles`)) {
+            map.addSource(`${restrictionId}-circles`, { type: 'geojson', data: circleGeoJSON });
+            map.addLayer({
+              id: `${restrictionId}-circles`,
+              type: 'fill',
+              source: `${restrictionId}-circles`,
+              paint: { 
+                'fill-color': RESTRICTION_COLORS.airport, 
+                'fill-opacity': 0.2 // Very transparent
+              },
+              layout: {}
+            }, `${restrictionId}-tiles`); // Put behind tiles if possible
 
-                          map.addSource(`${restrictionId}-circles`, { type: 'geojson', data: circleGeoJSON });
-
-                          map.addLayer({
-
-                            id: `${restrictionId}-circles`,
-
-                            type: 'fill',
-
-                            source: `${restrictionId}-circles`,
-
-                            paint: { 
-
-                              'fill-color': RESTRICTION_COLORS.airport, 
-
-                              'fill-opacity': 0.2 // Very transparent
-
-                            },
-
-                            layout: {},
-
-                            // beforeId: `${restrictionId}-tiles` // Put behind tiles if possible (commented due to TypeScript issue)
-
-                          });
-
-                          map.addLayer({
+            map.addLayer({
 
                             id: `${restrictionId}-circles-outline`,
 
@@ -2280,9 +2267,7 @@ function App() {
     })
   }, [mapLoaded, baseMap])
 
-  const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
-    setComparisonLayerOpacity(prev => new Map(prev).set(layerId, opacity))
-  }, [])
+
 
   // ============================================
   // Sidebar Resizing Logic
