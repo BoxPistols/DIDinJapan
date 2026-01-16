@@ -11,18 +11,37 @@ export interface Toast {
   duration?: number
 }
 
+const DUPLICATE_TOAST_SUPPRESSION_MS = 1500
+
 let toastId = 0
 const listeners: Set<(toasts: Toast[]) => void> = new Set()
 const toasts: Toast[] = []
+const lastToastByKey = new Map<string, { id: string; shownAt: number }>()
+const toastKeyById = new Map<string, string>()
+
+const buildToastKey = (message: string, type: ToastType): string => `${type}::${message}`
 
 /**
  * Show a toast notification
  */
-export function showToast(message: string, type: ToastType = 'info', duration: number = 3000) {
+export function showToast(
+  message: string,
+  type: ToastType = 'info',
+  duration: number = 3000
+): string {
+  const now = Date.now()
+  const key = buildToastKey(message, type)
+  const last = lastToastByKey.get(key)
+  if (last && now - last.shownAt < DUPLICATE_TOAST_SUPPRESSION_MS) {
+    return last.id
+  }
+
   const id = `toast-${toastId++}`
   const toast: Toast = { id, message, type, duration }
 
   toasts.push(toast)
+  lastToastByKey.set(key, { id, shownAt: now })
+  toastKeyById.set(id, key)
   notifyListeners()
 
   if (duration > 0) {
@@ -42,6 +61,12 @@ export function removeToast(id: string) {
   if (index > -1) {
     toasts.splice(index, 1)
     notifyListeners()
+  }
+  const key = toastKeyById.get(id)
+  if (key) {
+    const last = lastToastByKey.get(key)
+    if (last && last.id === id) lastToastByKey.delete(key)
+    toastKeyById.delete(id)
   }
 }
 
@@ -67,6 +92,8 @@ function notifyListeners() {
  */
 export function clearToasts() {
   toasts.length = 0
+  lastToastByKey.clear()
+  toastKeyById.clear()
   notifyListeners()
 }
 

@@ -34,6 +34,41 @@ export interface CustomLayerConfig {
 
 const STORAGE_KEY = 'japan-drone-map-custom-layers'
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const randomHex = (len: number): string => {
+  const chars = '0123456789abcdef'
+  let out = ''
+  for (let i = 0; i < len; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return out
+}
+
+const generateLayerId = (prefix: string): string => {
+  const c = globalThis.crypto
+  if (c && typeof c.randomUUID === 'function') {
+    return `${prefix}-${c.randomUUID()}`
+  }
+  return `${prefix}-${Date.now()}-${randomHex(8)}`
+}
+
+const ensureUniqueId = (requested: string, used: Set<string>): string => {
+  const base = requested.trim() ? requested.trim() : generateLayerId('custom')
+  if (!used.has(base)) {
+    used.add(base)
+    return base
+  }
+  let i = 1
+  while (used.has(`${base}-${i}`)) {
+    i += 1
+  }
+  const next = `${base}-${i}`
+  used.add(next)
+  return next
+}
+
 // ============================================
 // Local Storage Operations
 // ============================================
@@ -45,7 +80,61 @@ export function getCustomLayers(): CustomLayer[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY)
     if (!data) return []
-    return JSON.parse(data)
+    const parsed = JSON.parse(data) as unknown
+    if (!Array.isArray(parsed)) return []
+
+    const used = new Set<string>()
+    let changed = false
+
+    const layers: CustomLayer[] = parsed
+      .filter((item): item is Record<string, unknown> => isRecord(item))
+      .map((raw): CustomLayer | null => {
+        const idRaw = typeof raw.id === 'string' ? raw.id : ''
+        const id = ensureUniqueId(idRaw || generateLayerId('custom'), used)
+        if (id !== idRaw) changed = true
+
+        const name = typeof raw.name === 'string' ? raw.name : 'Untitled'
+        const typeRaw = raw.type
+        const type: CustomLayer['type'] =
+          typeRaw === 'custom' || typeRaw === 'restriction' || typeRaw === 'poi' ? typeRaw : 'custom'
+        const category = typeof raw.category === 'string' ? raw.category : 'custom'
+        const color = typeof raw.color === 'string' ? raw.color : '#888888'
+        const opacity = typeof raw.opacity === 'number' ? raw.opacity : 0.5
+        const createdAt = typeof raw.createdAt === 'number' ? raw.createdAt : Date.now()
+        const updatedAt = typeof raw.updatedAt === 'number' ? raw.updatedAt : createdAt
+        const description = typeof raw.description === 'string' ? raw.description : undefined
+
+        const dataValue = raw.data
+        if (!isRecord(dataValue)) return null
+        if (dataValue.type !== 'FeatureCollection') return null
+        if (!Array.isArray(dataValue.features)) return null
+
+        const fc: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: dataValue.features as GeoJSON.Feature[]
+        }
+
+        return {
+          id,
+          name,
+          type,
+          category,
+          color,
+          opacity,
+          data: fc,
+          createdAt,
+          updatedAt,
+          description
+        }
+      })
+      .filter((layer): layer is CustomLayer => layer !== null)
+
+    if (changed) {
+      // 重複ID救済：読み込み時に自動修正して保存しておく
+      saveCustomLayers(layers)
+    }
+
+    return layers
   } catch (error) {
     console.error('Failed to load custom layers:', error)
     return []
@@ -74,15 +163,18 @@ export function addCustomLayer(
 ): CustomLayer {
   const layers = getCustomLayers()
   const now = Date.now()
+  const used = new Set(layers.map((l) => l.id))
+  const id = ensureUniqueId(config.id || `custom-${now}`, used)
 
   const newLayer: CustomLayer = {
-    id: config.id || `custom-${now}`,
+    id,
     name: config.name,
     type: 'custom',
     category: config.category,
     color: config.color,
     opacity: config.opacity,
-    data,
+    // 独立性担保：参照共有を避ける（GeoJSONなのでJSON経由でclone）
+    data: JSON.parse(JSON.stringify(data)) as GeoJSON.FeatureCollection,
     createdAt: now,
     updatedAt: now,
     description: config.description
@@ -184,7 +276,7 @@ export function exportLayerAsGeoJSON(id: string): string | null {
  */
 export function importCustomLayers(jsonString: string): { success: boolean; count: number; error?: string } {
   try {
-    const imported = JSON.parse(jsonString)
+    const imported = JSON.parse(jsonString) as unknown
 
     if (!imported || typeof imported !== 'object') {
       return { success: false, count: 0, error: 'Invalid JSON: must be an object or array' }
@@ -195,35 +287,44 @@ export function importCustomLayers(jsonString: string): { success: boolean; coun
       const layers = getCustomLayers()
       const now = Date.now()
       let validCount = 0
+      const used = new Set(layers.map((l) => l.id))
 
       imported.forEach((item, index) => {
         // Validate required properties
-        if (!item || typeof item !== 'object' || !item.data || !item.name) {
+        if (!isRecord(item) || !item.data || typeof item.name !== 'string') {
           return
         }
 
         // Validate data is a FeatureCollection
-        if (
-          !item.data.type ||
-          (item.data.type !== 'FeatureCollection' && item.data.type !== 'Feature')
-        ) {
+        if (!isRecord(item.data)) {
+          return
+        }
+        const dataType = item.data.type
+        if (dataType !== 'FeatureCollection' && dataType !== 'Feature') {
           return
         }
 
+        const requestedId =
+          typeof item.id === 'string' ? item.id : `imported-${now}-${index}`
+        const id = ensureUniqueId(requestedId, used)
+
         const newLayer: CustomLayer = {
-          id: item.id || `imported-${now}-${index}`,
+          id,
           name: item.name,
           type: 'custom',
-          category: item.category || 'custom',
-          color: item.color || '#888888',
-          opacity: item.opacity ?? 0.5,
-          data:
-            item.data.type === 'Feature'
-              ? { type: 'FeatureCollection', features: [item.data] }
-              : item.data,
-          createdAt: item.createdAt || now,
+          category: typeof item.category === 'string' ? item.category : 'custom',
+          color: typeof item.color === 'string' ? item.color : '#888888',
+          opacity: typeof item.opacity === 'number' ? item.opacity : 0.5,
+          data: JSON.parse(
+            JSON.stringify(
+              dataType === 'Feature'
+                ? { type: 'FeatureCollection', features: [item.data] }
+                : item.data
+            )
+          ) as GeoJSON.FeatureCollection,
+          createdAt: typeof item.createdAt === 'number' ? item.createdAt : now,
           updatedAt: now,
-          description: item.description
+          description: typeof item.description === 'string' ? item.description : undefined
         }
         layers.push(newLayer)
         validCount++
@@ -231,31 +332,34 @@ export function importCustomLayers(jsonString: string): { success: boolean; coun
 
       saveCustomLayers(layers)
       return { success: validCount > 0, count: validCount }
-    } else if (imported.type === 'FeatureCollection') {
+    } else if (isRecord(imported) && imported.type === 'FeatureCollection') {
       // Validate FeatureCollection structure
-      if (!Array.isArray(imported.features)) {
+      const features = imported.features
+      if (!Array.isArray(features)) {
         return { success: false, count: 0, error: 'Invalid FeatureCollection: features must be an array' }
       }
 
       // Import single GeoJSON file
       const layers = getCustomLayers()
       const now = Date.now()
+      const used = new Set(layers.map((l) => l.id))
 
-      const metadata = imported.metadata || {}
+      const metadata = isRecord(imported.metadata) ? imported.metadata : {}
+      const requestedId = typeof metadata.id === 'string' ? metadata.id : `imported-${now}`
       const newLayer: CustomLayer = {
-        id: metadata.id || `imported-${now}`,
-        name: metadata.name || 'Imported Layer',
+        id: ensureUniqueId(requestedId, used),
+        name: typeof metadata.name === 'string' ? metadata.name : 'Imported Layer',
         type: 'custom',
-        category: metadata.category || 'custom',
-        color: metadata.color || '#888888',
-        opacity: metadata.opacity ?? 0.5,
+        category: typeof metadata.category === 'string' ? metadata.category : 'custom',
+        color: typeof metadata.color === 'string' ? metadata.color : '#888888',
+        opacity: typeof metadata.opacity === 'number' ? metadata.opacity : 0.5,
         data: {
           type: 'FeatureCollection',
-          features: imported.features
+          features: JSON.parse(JSON.stringify(features)) as GeoJSON.Feature[]
         },
         createdAt: now,
         updatedAt: now,
-        description: metadata.description
+        description: typeof metadata.description === 'string' ? metadata.description : undefined
       }
 
       layers.push(newLayer)

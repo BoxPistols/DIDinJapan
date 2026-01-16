@@ -88,6 +88,66 @@ const COMPARISON_VIS_URL_PARAM = 'cmpv'
 // DID UI state persistence
 const DID_EXPANDED_GROUPS_KEY = 'did-expanded-groups'
 
+// 一時的なマップビュー保持（ベースマップ切替のリロード対策）
+type MapViewState = {
+  center: [number, number]
+  zoom: number
+  pitch: number
+  bearing: number
+}
+
+const MAP_VIEW_STATE_KEY = 'map-view-state-once'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const parseMapViewState = (value: unknown): MapViewState | null => {
+  if (!isRecord(value)) return null
+
+  const center = value.center
+  const zoom = value.zoom
+  const pitch = value.pitch
+  const bearing = value.bearing
+
+  if (!Array.isArray(center) || center.length !== 2) return null
+  const [lng, lat] = center
+  if (typeof lng !== 'number' || typeof lat !== 'number') return null
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null
+  if (typeof zoom !== 'number' || !Number.isFinite(zoom)) return null
+  if (typeof pitch !== 'number' || !Number.isFinite(pitch)) return null
+  if (typeof bearing !== 'number' || !Number.isFinite(bearing)) return null
+
+  return { center: [lng, lat], zoom, pitch, bearing }
+}
+
+const readMapViewStateFromSessionStorage = (): MapViewState | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(MAP_VIEW_STATE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    const state = parseMapViewState(parsed)
+    sessionStorage.removeItem(MAP_VIEW_STATE_KEY)
+    return state
+  } catch {
+    try {
+      sessionStorage.removeItem(MAP_VIEW_STATE_KEY)
+    } catch {
+      // ignore
+    }
+    return null
+  }
+}
+
+const saveMapViewStateToSessionStorage = (state: MapViewState): void => {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(MAP_VIEW_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // ignore
+  }
+}
+
 // ============================================
 // Main App Component
 // ============================================
@@ -519,6 +579,18 @@ function App() {
         console.error('Failed to save settings:', e)
       }
 
+      // 現在のビューを一時保存（リロード後に復元）
+      const map = mapRef.current
+      if (map) {
+        const center = map.getCenter()
+        saveMapViewStateToSessionStorage({
+          center: [center.lng, center.lat],
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing()
+        })
+      }
+
       // URLパラメータに比較状態を載せてリロード
       window.location.assign(url.toString())
     },
@@ -703,12 +775,13 @@ function App() {
           toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
           break
         case 'm':
-          // マップスタイル切替（循環）
+          // マップスタイル切替（循環）: M=次, Shift+M=前
           {
             const keys = Object.keys(BASE_MAPS) as BaseMapKey[]
             const currentIndex = keys.indexOf(baseMap)
             const nextIndex = (currentIndex + 1) % keys.length
-            handleBaseMapChange(keys[nextIndex])
+            const prevIndex = (currentIndex - 1 + keys.length) % keys.length
+            handleBaseMapChange(keys[e.shiftKey ? prevIndex : nextIndex])
           }
           break
         case '2':
@@ -901,6 +974,13 @@ function App() {
       mapRef.current.remove()
       mapRef.current = null
       setMapLoaded(false)
+    }
+
+    // ベースマップ切替時に保存されたビュー状態があれば復元
+    const restoredViewState = readMapViewStateFromSessionStorage()
+    if (restoredViewState) {
+      mapStateRef.current = restoredViewState
+      setIs3DMode(restoredViewState.pitch > 0)
     }
 
     const styleConfig = BASE_MAPS[baseMap].style
@@ -4822,7 +4902,7 @@ function App() {
                     >
                       M
                     </kbd>
-                    <span>マップスタイル切替</span>
+                    <span>マップスタイル切替（M: 次 / Shift+M: 前）</span>
                     <kbd
                       style={{
                         backgroundColor: darkMode ? '#444' : '#eee',

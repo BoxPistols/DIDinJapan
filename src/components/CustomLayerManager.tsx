@@ -3,7 +3,7 @@
  * ユーザーがカスタムレイヤーをインポート/エクスポート/管理するUI
  */
 
-import { useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import {
   CustomLayerService,
   CustomLayer,
@@ -22,6 +22,102 @@ export interface CustomLayerManagerProps {
   onLayerFocus?: (layerId: string) => void
   visibleLayers: Set<string>
   darkMode: boolean
+}
+
+type GeometryCounts = {
+  polygon: number
+  line: number
+  point: number
+}
+
+const DRAWING_STORAGE_KEY = 'did-map-drawn-features'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const isGeometryType = (t: unknown): t is GeoJSON.Geometry['type'] => {
+  if (typeof t !== 'string') return false
+  return (
+    t === 'Point' ||
+    t === 'MultiPoint' ||
+    t === 'LineString' ||
+    t === 'MultiLineString' ||
+    t === 'Polygon' ||
+    t === 'MultiPolygon' ||
+    t === 'GeometryCollection'
+  )
+}
+
+const loadDrawingFeatureCollection = (): GeoJSON.FeatureCollection | null => {
+  try {
+    const raw = localStorage.getItem(DRAWING_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    if (!isRecord(parsed)) return null
+    if (parsed.type !== 'FeatureCollection') return null
+    const featuresRaw = parsed.features
+    if (!Array.isArray(featuresRaw)) return null
+
+    const features: Array<GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>>> = []
+    for (const f of featuresRaw) {
+      if (!isRecord(f)) continue
+      if (f.type !== 'Feature') continue
+      const geomRaw = f.geometry
+      if (!isRecord(geomRaw)) continue
+      if (!isGeometryType(geomRaw.type)) continue
+
+      const idRaw = f.id
+      const id = typeof idRaw === 'string' || typeof idRaw === 'number' ? idRaw : undefined
+      const props = isRecord(f.properties) ? (f.properties as Record<string, unknown>) : {}
+
+      features.push({
+        type: 'Feature',
+        id,
+        properties: props,
+        geometry: geomRaw as unknown as GeoJSON.Geometry
+      })
+    }
+
+    return { type: 'FeatureCollection', features }
+  } catch {
+    return null
+  }
+}
+
+const getDrawingKindLabel = (kind: 'polygon' | 'line' | 'point' | 'all'): string => {
+  if (kind === 'polygon') return 'ポリゴン'
+  if (kind === 'line') return '経路'
+  if (kind === 'point') return 'WP'
+  return '全て'
+}
+
+const countGeometryTypes = (fc: GeoJSON.FeatureCollection): GeometryCounts => {
+  const counts: GeometryCounts = { polygon: 0, line: 0, point: 0 }
+
+  fc.features.forEach((f) => {
+    const t = f.geometry?.type
+    if (!t) return
+    if (t === 'Polygon' || t === 'MultiPolygon') {
+      counts.polygon += 1
+      return
+    }
+    if (t === 'LineString' || t === 'MultiLineString') {
+      counts.line += 1
+      return
+    }
+    if (t === 'Point' || t === 'MultiPoint') {
+      counts.point += 1
+    }
+  })
+
+  return counts
+}
+
+const getLayerSignature = (layer: CustomLayer): string => {
+  // NOTE: 「完全に同じレイヤー（データ＋見た目）」のみを重複扱いにする
+  // - データだけで重複判定すると、色違いで同じ形状を持ちたいケースを潰してしまう
+  // - JSON.stringify は順序依存だが、アプリ内生成・保存データなら安定する想定
+  return `${JSON.stringify(layer.data)}|${layer.category}|${layer.color}|${layer.opacity}`
 }
 
 /**
@@ -60,8 +156,12 @@ export function CustomLayerManager({
 }: CustomLayerManagerProps) {
   const theme = useMemo(() => getAppTheme(darkMode), [darkMode])
   const [isOpen, setIsOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [customLayers, setCustomLayers] = useState<CustomLayer[]>(() => CustomLayerService.getAll())
   const [importing, setImporting] = useState(false)
+  const [drawingFC, setDrawingFC] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [drawingKind, setDrawingKind] = useState<'polygon' | 'line' | 'point' | 'all'>('polygon')
+  const [importSource, setImportSource] = useState<'file' | 'drawing'>('drawing')
   const [newLayerConfig, setNewLayerConfig] = useState<Partial<CustomLayerConfig>>({
     category: 'custom',
     color: '#888888',
@@ -156,6 +256,156 @@ export function CustomLayerManager({
     onLayerFocus?.(layerId)
   }
 
+  const refreshLayers = () => {
+    setCustomLayers(CustomLayerService.getAll())
+  }
+
+  const refreshDrawing = () => {
+    const fc = loadDrawingFeatureCollection()
+    setDrawingFC(fc)
+    if (!fc || fc.features.length === 0) {
+      setImportSource('file')
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return
+    const fc = loadDrawingFeatureCollection()
+    setDrawingFC(fc)
+    setImportSource(fc && fc.features.length > 0 ? 'drawing' : 'file')
+    setShowHelp(false)
+  }, [isOpen])
+
+  const getFilteredDrawingFeatures = (
+    fc: GeoJSON.FeatureCollection,
+    kind: 'polygon' | 'line' | 'point' | 'all'
+  ): Array<GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>>> => {
+    const isMatch = (t: GeoJSON.Geometry['type']): boolean => {
+      if (kind === 'all') return true
+      if (kind === 'polygon') return t === 'Polygon' || t === 'MultiPolygon'
+      if (kind === 'line') return t === 'LineString' || t === 'MultiLineString'
+      if (kind === 'point') return t === 'Point' || t === 'MultiPoint'
+      return false
+    }
+
+    return fc.features.filter((f): f is GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>> => {
+      const t = f.geometry?.type
+      return !!t && isMatch(t)
+    })
+  }
+
+  const handleImportFromDrawing = () => {
+    const fc = drawingFC ?? loadDrawingFeatureCollection()
+    setDrawingFC(fc)
+    if (!fc || fc.features.length === 0) {
+      showToast('描画データがありません（左の描画ツールで作成してください）', 'error')
+      return
+    }
+
+    const features = getFilteredDrawingFeatures(fc, drawingKind)
+    if (features.length === 0) {
+      showToast(`描画データに「${getDrawingKindLabel(drawingKind)}」がありません`, 'error')
+      return
+    }
+
+    const ts = new Date().toISOString().replace('T', ' ').slice(0, 16)
+    const kindLabel = getDrawingKindLabel(drawingKind)
+
+    const config: CustomLayerConfig = {
+      id: `custom-drawing-${Date.now()}`,
+      name: newLayerConfig.name || `描画（${kindLabel}） ${ts}`,
+      category: newLayerConfig.category || 'custom',
+      color: newLayerConfig.color || '#888888',
+      opacity: newLayerConfig.opacity ?? 0.5,
+      description: `描画ツールから登録（${kindLabel}）`
+    }
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: features as unknown as GeoJSON.Feature[]
+    }
+
+    const newLayer = CustomLayerService.importGeoJSON(geojson, config)
+    setCustomLayers(CustomLayerService.getAll())
+    onLayerAdded(newLayer)
+    focusLayer(newLayer.id)
+    showToast('描画データをカスタムレイヤーに登録しました', 'success')
+  }
+
+  const duplicateCountByLayerId = useMemo(() => {
+    const sigToIds = new Map<string, string[]>()
+    customLayers.forEach((layer) => {
+      const sig = getLayerSignature(layer)
+      const arr = sigToIds.get(sig)
+      if (arr) {
+        arr.push(layer.id)
+      } else {
+        sigToIds.set(sig, [layer.id])
+      }
+    })
+
+    const byId = new Map<string, number>()
+    sigToIds.forEach((ids) => {
+      if (ids.length <= 1) return
+      ids.forEach((id) => byId.set(id, ids.length))
+    })
+    return byId
+  }, [customLayers])
+
+  const duplicateGroupsCount = useMemo(() => {
+    const sigToCount = new Map<string, number>()
+    customLayers.forEach((layer) => {
+      const sig = getLayerSignature(layer)
+      sigToCount.set(sig, (sigToCount.get(sig) ?? 0) + 1)
+    })
+    let groups = 0
+    sigToCount.forEach((c) => {
+      if (c > 1) groups += 1
+    })
+    return groups
+  }, [customLayers])
+
+  const handleRemoveDuplicateLayers = async () => {
+    if (customLayers.length === 0) return
+
+    const confirmed = await showConfirm(
+      '同内容（データ・色・透明度が同一）のレイヤー重複を整理しますか？\n※各グループで最新の1件だけ残し、残りは削除します。',
+      { confirmText: '整理する', cancelText: 'キャンセル' }
+    )
+    if (!confirmed) return
+
+    const layers = CustomLayerService.getAll()
+    const sigToLayers = new Map<string, CustomLayer[]>()
+    layers.forEach((layer) => {
+      const sig = getLayerSignature(layer)
+      const arr = sigToLayers.get(sig)
+      if (arr) {
+        arr.push(layer)
+      } else {
+        sigToLayers.set(sig, [layer])
+      }
+    })
+
+    let removed = 0
+    sigToLayers.forEach((group) => {
+      if (group.length <= 1) return
+      const sorted = [...group].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+      const keep = sorted[0]
+      sorted.slice(1).forEach((l) => {
+        if (l.id === keep.id) return
+        CustomLayerService.remove(l.id)
+        onLayerRemoved(l.id)
+        removed += 1
+      })
+    })
+
+    setCustomLayers(CustomLayerService.getAll())
+    showToast(
+      removed > 0 ? `重複レイヤーを${removed}件削除しました` : '重複は見つかりませんでした',
+      'success'
+    )
+  }
+
   /**
    * Handles bulk import of multiple layers from JSON file
    * Reads JSON file and imports all layers defined in it
@@ -186,17 +436,19 @@ export function CustomLayerManager({
         style={{
           position: 'fixed',
           bottom: 20,
-          right: 20,
+          right: 64, // 右下・固定UIと被らない位置
           padding: '10px 16px',
-          backgroundColor: theme.colors.buttonBgActive,
+          backgroundColor: 'rgba(51, 136, 255, 0.85)', // 少し透過して地図を邪魔しない
           color: '#fff',
           border: 'none',
-          borderRadius: '8px',
+          borderRadius: '10px',
           cursor: 'pointer',
           fontSize: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
           zIndex: 1000
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.95)')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(51, 136, 255, 0.85)')}
       >
         カスタムレイヤー管理
       </button>
@@ -207,7 +459,7 @@ export function CustomLayerManager({
     <div style={{
       position: 'fixed',
       bottom: 20,
-      right: 20,
+      right: 64, // 右端の固定UI（2D/ヘルプ等）と被らないように余白を確保
       width: '360px',
       maxHeight: '80vh',
       backgroundColor: theme.colors.panelBg,
@@ -228,32 +480,111 @@ export function CustomLayerManager({
         alignItems: 'center'
       }}>
         <h3 style={{ margin: 0, fontSize: '14px' }}>カスタムレイヤー管理</h3>
-        <button
-          onClick={() => setIsOpen(false)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#fff',
-            cursor: 'pointer',
-            fontSize: '18px'
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setShowHelp((v) => !v)}
+            title={showHelp ? 'ヘルプを閉じる' : 'ヘルプ'}
+            style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255,255,255,0.18)',
+              border: '1px solid rgba(255,255,255,0.35)',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1
+            }}
+          >
+            ?
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '18px'
+            }}
+            title="閉じる"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-        {/* Import Section */}
+        {showHelp && (
+          <div
+            style={{
+              marginBottom: '12px',
+              padding: '10px',
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: '8px',
+              backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : theme.colors.panelBgMuted,
+              color: theme.colors.text,
+              fontSize: '11px',
+              lineHeight: 1.5
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: '6px' }}>これは何？</div>
+            <div style={{ color: theme.colors.textMuted }}>
+              公開データが無い/足りない場合に、あなたのGeoJSON（ファイル or 描画）を地図に追加して保存・管理する機能です。
+            </div>
+            <div style={{ marginTop: '8px', fontWeight: 800 }}>できること</div>
+            <div style={{ marginTop: '4px', color: theme.colors.textMuted }}>
+              - ファイル（GeoJSON）や描画ツールの作成データからレイヤー追加
+              <br />
+              - 表示ON/OFF、ズーム、エクスポート、削除
+              <br />
+              - 一括エクスポート/一括インポート、同内容重複の整理
+            </div>
+            <div style={{ marginTop: '8px', fontWeight: 800 }}>注意</div>
+            <div style={{ marginTop: '4px', color: theme.colors.textMuted }}>
+              - データはブラウザのローカルストレージに保存されます（端末/ブラウザが変わると引き継がれません）
+              <br />
+              - 同じ内容を複数回登録すると重複します（必要なら「重複整理」）
+            </div>
+          </div>
+        )}
+
+        {/* Add Layer (unified) */}
         <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
-            GeoJSONファイルをインポート
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
+              レイヤーを追加
+            </h4>
+            {importSource === 'drawing' && (
+              <button
+                type="button"
+                onClick={refreshDrawing}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.colors.textSubtle,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  padding: 0
+                }}
+                title="描画データを再読み込み"
+              >
+                更新
+              </button>
+            )}
+          </div>
 
           <div style={{ marginBottom: '8px' }}>
             <input
               type="text"
-              placeholder="レイヤー名"
+              placeholder="レイヤー名（任意）"
               value={newLayerConfig.name || ''}
               onChange={(e) => setNewLayerConfig({ ...newLayerConfig, name: e.target.value })}
               style={{
@@ -273,7 +604,7 @@ export function CustomLayerManager({
             <select
               value={newLayerConfig.category}
               onChange={(e) => {
-                const cat = CATEGORIES.find(c => c.id === e.target.value)
+                const cat = CATEGORIES.find((c) => c.id === e.target.value)
                 setNewLayerConfig({
                   ...newLayerConfig,
                   category: e.target.value,
@@ -290,8 +621,10 @@ export function CustomLayerManager({
                 color: theme.colors.text
               }}
             >
-              {CATEGORIES.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
             </select>
 
@@ -303,37 +636,167 @@ export function CustomLayerManager({
             />
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.geojson"
-            onChange={handleFileSelect}
-            style={{ display: 'none' }}
-          />
+          {/* Data source selector */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setImportSource('file')}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                backgroundColor: importSource === 'file' ? theme.colors.buttonBgActive : theme.colors.buttonBg,
+                color: importSource === 'file' ? '#fff' : theme.colors.text,
+                border: importSource === 'file' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 700
+              }}
+              title="GeoJSONファイルから追加"
+            >
+              ファイル
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportSource('drawing')}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                backgroundColor:
+                  importSource === 'drawing' ? theme.colors.buttonBgActive : theme.colors.buttonBg,
+                color: importSource === 'drawing' ? '#fff' : theme.colors.text,
+                border: importSource === 'drawing' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 700
+              }}
+              title="描画ツールの保存データから追加"
+            >
+              描画
+            </button>
+          </div>
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: importing ? theme.colors.borderStrong : theme.colors.buttonBgActive,
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: importing ? 'not-allowed' : 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            {importing ? 'インポート中...' : 'GeoJSONファイルを選択'}
-          </button>
+          {importSource === 'file' ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.geojson"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: importing ? theme.colors.borderStrong : theme.colors.buttonBgActive,
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: importing ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 800
+                }}
+              >
+                {importing ? 'インポート中...' : 'GeoJSONファイルを選択'}
+              </button>
+              <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
+                GeoJSONを取り込んでカスタムレイヤーとして保存します
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <select
+                  value={drawingKind}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v === 'polygon' || v === 'line' || v === 'point' || v === 'all') {
+                      setDrawingKind(v)
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '6px 8px',
+                    border: `1px solid ${theme.colors.borderStrong}`,
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    backgroundColor: theme.colors.buttonBg,
+                    color: theme.colors.text
+                  }}
+                >
+                  <option value="polygon">ポリゴンのみ</option>
+                  <option value="line">経路のみ</option>
+                  <option value="point">WPのみ</option>
+                  <option value="all">すべて</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleImportFromDrawing}
+                  disabled={!drawingFC || drawingFC.features.length === 0}
+                  style={{
+                    padding: '6px 10px',
+                    backgroundColor:
+                      !drawingFC || drawingFC.features.length === 0
+                        ? (darkMode ? 'rgba(255,255,255,0.08)' : '#eee')
+                        : theme.colors.buttonBgActive,
+                    color:
+                      !drawingFC || drawingFC.features.length === 0 ? theme.colors.textSubtle : '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: !drawingFC || drawingFC.features.length === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap'
+                  }}
+                  title={
+                    !drawingFC || drawingFC.features.length === 0
+                      ? '描画データがありません'
+                      : `描画データを登録（${drawingFC.features.length} features）`
+                  }
+                >
+                  登録
+                </button>
+              </div>
+
+              <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
+                {drawingFC ? `${drawingFC.features.length} features（描画ツールの保存データ）` : '描画データなし'}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Existing Layers */}
         <div style={{ marginBottom: '16px' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
-            登録済みレイヤー ({customLayers.length})
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
+              登録済みレイヤー ({customLayers.length})
+            </h4>
+            <button
+              type="button"
+              onClick={refreshLayers}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.colors.textSubtle,
+                cursor: 'pointer',
+                fontSize: '11px',
+                padding: 0
+              }}
+              title="一覧を再読み込み（ID重複も自動修復されます）"
+            >
+              更新
+            </button>
+          </div>
+
+          {duplicateGroupsCount > 0 && (
+            <div style={{ fontSize: '10px', color: theme.colors.textSubtle, marginBottom: '6px' }}>
+              同内容の重複が {duplicateGroupsCount} グループあります（必要なら「重複整理」で解消できます）
+            </div>
+          )}
 
           {customLayers.length === 0 ? (
             <p style={{ fontSize: '11px', color: theme.colors.textSubtle, textAlign: 'center', padding: '16px' }}>
@@ -393,6 +856,32 @@ export function CustomLayerManager({
                     <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
                       {layer.data.features.length} features
                     </span>
+                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
+                      {(() => {
+                        const c = countGeometryTypes(layer.data)
+                        return `ポリゴン:${c.polygon} 経路:${c.line} WP:${c.point}`
+                      })()}
+                    </span>
+                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }} title={layer.id}>
+                      id:{layer.id.slice(-6)}
+                    </span>
+                    {duplicateCountByLayerId.has(layer.id) && (
+                      <>
+                        <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                        <span
+                          style={{
+                            color: darkMode ? '#ffca28' : '#8d6e63',
+                            fontSize: '10px',
+                            fontWeight: 700
+                          }}
+                          title="同内容（データ・色・透明度が同一）のレイヤーが複数あります"
+                        >
+                          同内容×{duplicateCountByLayerId.get(layer.id)}
+                        </span>
+                      </>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', marginLeft: '24px' }}>
                     <button
@@ -452,7 +941,7 @@ export function CustomLayerManager({
         {/* Bulk Operations */}
         <div style={{ borderTop: `1px solid ${theme.colors.border}`, paddingTop: '12px' }}>
           <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>一括操作</h4>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               onClick={handleExportAll}
               disabled={customLayers.length === 0}
@@ -491,6 +980,29 @@ export function CustomLayerManager({
                 style={{ display: 'none' }}
               />
             </label>
+            <button
+              onClick={handleRemoveDuplicateLayers}
+              disabled={duplicateGroupsCount === 0}
+              style={{
+                flex: 1,
+                padding: '8px',
+                fontSize: '11px',
+                backgroundColor:
+                  duplicateGroupsCount === 0
+                    ? (darkMode ? 'rgba(255,255,255,0.08)' : '#eee')
+                    : (darkMode ? 'rgba(255, 202, 40, 0.16)' : 'rgba(255, 202, 40, 0.22)'),
+                border: 'none',
+                borderRadius: '4px',
+                cursor: duplicateGroupsCount === 0 ? 'not-allowed' : 'pointer',
+                color: duplicateGroupsCount === 0 ? theme.colors.textSubtle : (darkMode ? '#ffca28' : '#7b5a00'),
+                fontWeight: 700
+              }}
+              title={
+                duplicateGroupsCount === 0 ? '同内容の重複はありません' : '同内容の重複を整理（最新のみ残す）'
+              }
+            >
+              重複整理
+            </button>
           </div>
         </div>
       </div>

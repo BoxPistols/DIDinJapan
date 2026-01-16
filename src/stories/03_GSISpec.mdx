@@ -13,12 +13,42 @@ import { Meta } from '@storybook/blocks'
 
 ## 2. GSI タイルサービス一覧
 
-| サービス | URL | タイプ | 用途 |
-|---------|-----|--------|------|
-| 標準地図 | std/zoom/x/y.png | ラスタ | 汎用地図 |
-| 淡色地図 | pale/zoom/x/y.png | ラスタ | 軽い背景 |
-| 航空写真 | seamlessphoto/zoom/x/y.jpg | ラスタ | 詳細画像 |
-| Kokuarea | kokuarea/zoom/x/y.geojson | ベクタ | 空港空域 |
+<table>
+  <thead>
+    <tr>
+      <th>サービス</th>
+      <th>URL</th>
+      <th>タイプ</th>
+      <th>用途</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>標準地図</td>
+      <td>std/zoom/x/y.png</td>
+      <td>ラスタ</td>
+      <td>汎用地図</td>
+    </tr>
+    <tr>
+      <td>淡色地図</td>
+      <td>pale/zoom/x/y.png</td>
+      <td>ラスタ</td>
+      <td>軽い背景</td>
+    </tr>
+    <tr>
+      <td>航空写真</td>
+      <td>seamlessphoto/zoom/x/y.jpg</td>
+      <td>ラスタ</td>
+      <td>詳細画像</td>
+    </tr>
+    <tr>
+      <td>Kokuarea</td>
+      <td>kokuarea/zoom/x/y.geojson</td>
+      <td>ベクタ</td>
+      <td>空港空域</td>
+    </tr>
+  </tbody>
+</table>
 
 ※ zoom = ズームレベル（0-18）、x = 経度インデックス、y = 緯度インデックス
 
@@ -32,4 +62,3 @@ import { Meta } from '@storybook/blocks'
 ## 4. 属性表記要件
 
 **必須**: `<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>`
-
