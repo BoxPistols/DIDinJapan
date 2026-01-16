@@ -503,6 +503,18 @@ function App() {
         case 'h':
           toggleRestriction('heliports')
           break
+        case 'i':
+          toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')
+          break
+        case 'v':
+          toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')
+          break
+        case 'u':
+          toggleRestriction('manned-aircraft-zones')
+          break
+        case 'f':
+          toggleRestriction('radio-interference')
+          break
         case 't':
           setShowTooltip(prev => !prev)
           break
@@ -513,6 +525,12 @@ function App() {
         case 'p':
           // サイドバートグル（右）
           setShowRightLegend(prev => !prev)
+          break
+        case 'w':
+          toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
+          break
+        case 'c':
+          toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
           break
         case 'm':
           // マップスタイル切替（循環）
@@ -3290,6 +3308,14 @@ function App() {
                   <span>緊急用務空域</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>H</kbd>
                   <span>ヘリポート</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>I</kbd>
+                  <span>リモートID特定区域</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>V</kbd>
+                  <span>有人機発着エリア</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>U</kbd>
+                  <span>有人機発着区域</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>F</kbd>
+                  <span>電波干渉区域</span>
                 </div>
               </div>
 
@@ -3311,8 +3337,12 @@ function App() {
                   <span>ダークモード/ライトモード</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>2 / 3</kbd>
                   <span>2D / 3D表示切替</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>W</kbd>
+                  <span>風向・風量（見本）</span>
+                  <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>C</kbd>
+                  <span>LTE（見本）</span>
                   <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 6px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' }}>?</kbd>
-                  <span>ヘルプ表示</span>
+                  <span>ヘルプ表示/非表示</span>
                 </div>
               </div>
 
