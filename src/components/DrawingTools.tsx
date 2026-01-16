@@ -1435,7 +1435,7 @@ ${kmlFeatures}
         ? '1つのフィーチャーに名前が設定されていません。エクスポート前に名前を入力してください。'
         : `${featuresWithEmptyNames.length}個のフィーチャーに名前が設定されていません。エクスポート前に名前を入力してください。`
 
-      alert(message)
+      showToast(message, 'error')
       return
     }
 
@@ -2832,15 +2832,15 @@ ${kmlFeatures}
             <button
               onClick={async () => {
                 if (!navigator.clipboard || !navigator.clipboard.writeText) {
-                  alert('このブラウザではクリップボードへのコピーがサポートされていません')
+                  showToast('このブラウザではクリップボードへのコピーがサポートされていません', 'error')
                   return
                 }
                 try {
                   await navigator.clipboard.writeText(previewData)
-                  alert('クリップボードにコピーしました')
+                  showToast('クリップボードにコピーしました', 'success')
                 } catch (error) {
                   console.error('Failed to copy to clipboard:', error)
-                  alert('クリップボードへのコピーに失敗しました')
+                  showToast('クリップボードへのコピーに失敗しました', 'error')
                 }
               }}
               style={{
