@@ -7,3 +7,5 @@ rawdata/
 
 .gemini/
 gha-creds-*.json
+
+storybook-static/

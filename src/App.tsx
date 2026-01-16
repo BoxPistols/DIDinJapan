@@ -2800,7 +2800,7 @@ function App() {
               onChange={() => toggleRestriction('radio-interference')}
             />
             <span style={{ width: '14px', height: '14px', backgroundColor: '#9B59B6', borderRadius: '2px' }} />
-            <span>電波干渉区域 [F]</span>
+            <span>(見本)電波干渉区域 [F]</span>
           </label>
 
           {/* Manned Aircraft Zones */}
@@ -2811,7 +2811,7 @@ function App() {
               onChange={() => toggleRestriction('manned-aircraft-zones')}
             />
             <span style={{ width: '14px', height: '14px', backgroundColor: '#3498DB', borderRadius: '2px' }} />
-            <span>有人機発着区域 [U]</span>
+            <span>(見本)有人機発着区域 [U]</span>
           </label>
 
           {/* No-fly law section */}
