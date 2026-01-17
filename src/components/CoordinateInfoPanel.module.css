@@ -1,97 +1,29 @@
 /**
  * CoordinateInfoPanel styles
+ * Uses GlassPanel base with theme tokens
  */
 
-.panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 320px;
-  max-height: 600px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  overflow-y: auto;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* ダークモード対応 */
-@media (prefers-color-scheme: dark) {
-  .panel {
-    background: #2a2a2a;
-    color: #e0e0e0;
-  }
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 2px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-radius: 8px 8px 0 0;
-}
-
-.header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.closeBtn {
-  background: rgba(255, 255, 255, 0.3);
-  border: none;
-  color: white;
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.closeBtn:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.content {
-  padding: 16px;
-}
-
-.section {
-  margin-bottom: 16px;
-}
-
-.section h4 {
-  margin: 0 0 10px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #667eea;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* 座標情報ボックス */
-.coordBox {
-  background: #f5f5f5;
+.infoBox {
   padding: 12px;
   border-radius: 6px;
-  border-left: 3px solid #667eea;
   margin-bottom: 10px;
+  border-left: 3px solid;
 }
 
-@media (prefers-color-scheme: dark) {
-  .coordBox {
-    background: #1f1f1f;
-    border-left-color: #764ba2;
-  }
+/* Info boxes with semantic colors */
+.coordBox {
+  background: rgba(102, 126, 234, 0.08);
+  border-left-color: rgba(102, 126, 234, 0.6);
+}
+
+.elevationBox {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: rgba(16, 185, 129, 0.6);
+}
+
+.altitudeBox {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: rgba(245, 158, 11, 0.6);
 }
 
 .row {
@@ -108,139 +40,106 @@
 
 .label {
   font-weight: 500;
-  color: #666;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-@media (prefers-color-scheme: dark) {
-  .label {
-    color: #aaa;
-  }
+:global([data-theme="light"]) .label {
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .value {
   font-family: 'Monaco', 'Courier New', monospace;
-  color: #667eea;
+  color: #4a9eff;
   font-size: 12px;
   padding: 2px 6px;
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(74, 158, 255, 0.15);
   border-radius: 3px;
   word-break: break-all;
 }
 
-@media (prefers-color-scheme: dark) {
-  .value {
-    color: #a0c7ff;
-    background: rgba(102, 126, 234, 0.2);
-  }
+:global([data-theme="light"]) .value {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
 }
 
-/* 高度ボックス */
-.elevationBox {
-  background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
-  padding: 12px;
-  border-radius: 6px;
-  border-left: 3px solid #10b981;
-  margin-bottom: 8px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .elevationBox {
-    background: linear-gradient(135deg, #1f1f1f 0%, #252525 100%);
-    border-left-color: #34d399;
-  }
-}
-
-.elevation {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.elevation .value {
+.largeValue {
   font-size: 28px;
   font-weight: bold;
-  color: #10b981;
   padding: 0;
   background: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  .elevation .value {
-    color: #34d399;
-  }
+.coordBox .largeValue {
+  color: #4a9eff;
+}
+
+.elevationBox .largeValue {
+  color: #10b981;
+}
+
+.altitudeBox .largeValue {
+  color: #f59e0b;
+}
+
+:global([data-theme="light"]) .coordBox .largeValue {
+  color: #2563eb;
+}
+
+:global([data-theme="light"]) .elevationBox .largeValue {
+  color: #059669;
+}
+
+:global([data-theme="light"]) .altitudeBox .largeValue {
+  color: #d97706;
 }
 
 .unit {
   font-size: 12px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
 }
 
-@media (prefers-color-scheme: dark) {
-  .unit {
-    color: #aaa;
-  }
+:global([data-theme="light"]) .unit {
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .note {
   margin: 0;
   font-size: 11px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
   line-height: 1.4;
 }
 
-@media (prefers-color-scheme: dark) {
-  .note {
-    color: #777;
-  }
+:global([data-theme="light"]) .note {
+  color: rgba(0, 0, 0, 0.45);
 }
 
-/* 飛行高度ボックス */
-.altitudeBox {
-  background: linear-gradient(135deg, #fff4f0 0%, #fffbf8 100%);
-  padding: 12px;
-  border-radius: 6px;
-  border-left: 3px solid #f59e0b;
-  margin-bottom: 8px;
+/* Section header */
+.section {
+  margin-bottom: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .altitudeBox {
-    background: linear-gradient(135deg, #1f1a0f 0%, #2a2310 100%);
-    border-left-color: #fbbf24;
-  }
+.section h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a9eff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.altitude {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
+:global([data-theme="light"]) .section h4 {
+  color: #2563eb;
 }
 
-.altitude .value {
-  font-size: 28px;
-  font-weight: bold;
-  color: #f59e0b;
-  padding: 0;
-  background: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .altitude .value {
-    color: #fbbf24;
-  }
-}
-
-/* ボタン */
+/* Action button */
 .copyBtn {
   width: 100%;
   padding: 8px 12px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  background: rgba(74, 158, 255, 0.2);
+  border: 1px solid rgba(74, 158, 255, 0.4);
+  color: #4a9eff;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -249,39 +148,48 @@
 }
 
 .copyBtn:hover {
-  background: #764ba2;
+  background: rgba(74, 158, 255, 0.3);
+  border-color: rgba(74, 158, 255, 0.6);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .copyBtn:active {
   transform: translateY(0);
 }
 
-/* ガイドリスト */
+:global([data-theme="light"]) .copyBtn {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #2563eb;
+}
+
+:global([data-theme="light"]) .copyBtn:hover {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(37, 99, 235, 0.5);
+}
+
+/* Guide list */
 .guideList {
   margin: 0;
   padding-left: 20px;
   font-size: 12px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.7);
   line-height: 1.6;
 }
 
-@media (prefers-color-scheme: dark) {
-  .guideList {
-    color: #aaa;
-  }
+:global([data-theme="light"]) .guideList {
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .guideList li {
   margin-bottom: 6px;
 }
 
-/* ローディング */
+/* Loading state */
 .loading {
   text-align: center;
   padding: 12px;
-  color: #667eea;
+  color: #4a9eff;
   font-size: 12px;
   font-weight: 500;
   animation: pulse 1.5s ease-in-out infinite;
@@ -296,29 +204,25 @@
   }
 }
 
-/* データなし */
+/* Empty state */
 .noData {
   text-align: center;
   padding: 12px;
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
-  background: #f5f5f5;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .noData {
-    background: #1f1f1f;
-    color: #777;
-  }
+:global([data-theme="light"]) .noData {
+  background: rgba(0, 0, 0, 0.03);
+  color: rgba(0, 0, 0, 0.45);
 }
 
-/* レスポンシブ */
+/* Responsive */
 @media (max-width: 600px) {
   .panel {
     width: calc(100vw - 40px);
     max-height: 400px;
-    right: 20px;
-    bottom: 20px;
   }
 }

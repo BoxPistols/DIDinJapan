@@ -11,6 +11,7 @@ import {
   CoordinateInfo
 } from '../lib/services/elevationService'
 import styles from './CoordinateInfoPanel.module.css'
+import { GlassPanel } from './GlassPanel'
 import { toast } from '../utils/toast'
 
 interface CoordinatePanelProps {
@@ -64,21 +65,18 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
   }
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
-        <h3>📍 座標・高度情報</h3>
-        {onClose && (
-          <button className={styles.closeBtn} onClick={onClose}>
-            ✕
-          </button>
-        )}
-      </div>
-
-      <div className={styles.content}>
-        {/* 座標情報 */}
+    <GlassPanel
+      title="📍 座標・高度情報"
+      onClose={onClose}
+      width={320}
+      maxHeight={600}
+      bottom={20}
+      right={20}
+    >
+      {/* 座標情報 */}
         <div className={styles.section}>
           <h4>座標（WGS84）</h4>
-          <div className={styles.coordBox}>
+          <div className={`${styles.infoBox} ${styles.coordBox}`}>
             <div className={styles.row}>
               <span className={styles.label}>緯度:</span>
               <code className={styles.value}>{coordInfo.lat.toFixed(6)}°N</code>
@@ -106,9 +104,11 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
         ) : coordInfo.elevation !== undefined ? (
           <div className={styles.section}>
             <h4>海抜高度</h4>
-            <div className={styles.elevationBox}>
-              <div className={styles.elevation}>
-                <span className={styles.value}>{coordInfo.elevation.toFixed(1)}</span>
+            <div className={`${styles.infoBox} ${styles.elevationBox}`}>
+              <div className={styles.row}>
+                <span className={`${styles.value} ${styles.largeValue}`}>
+                  {coordInfo.elevation.toFixed(1)}
+                </span>
                 <span className={styles.unit}>m ASL</span>
               </div>
               <p className={styles.note}>* ASL = Above Sea Level（海上レベル）</p>
@@ -124,9 +124,11 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
         {recommendedAltitude !== null && (
           <div className={styles.section}>
             <h4>🚁 推奨飛行高度</h4>
-            <div className={styles.altitudeBox}>
-              <div className={styles.altitude}>
-                <span className={styles.value}>{recommendedAltitude.toFixed(1)}</span>
+            <div className={`${styles.infoBox} ${styles.altitudeBox}`}>
+              <div className={styles.row}>
+                <span className={`${styles.value} ${styles.largeValue}`}>
+                  {recommendedAltitude.toFixed(1)}
+                </span>
                 <span className={styles.unit}>m AGL</span>
               </div>
               <p className={styles.note}>
@@ -147,8 +149,7 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
             <li>DID（人口集中地区）表示を確認</li>
           </ul>
         </div>
-      </div>
-    </div>
+    </GlassPanel>
   )
 }
 
