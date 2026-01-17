@@ -44,7 +44,7 @@ const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
   geojson: 'GeoJSON',
   kml: 'KML',
   csv: 'CSV',
-  dms: 'NOTAM'
+  dms: 'DMS'
 }
 
 const IMPORT_ACCEPT = '.geojson,.json,.kml,.csv'
@@ -4032,26 +4032,80 @@ ${kmlFeatures}
 
                 {/* エクスポート形式選択 */}
                 <div style={{ marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {(['geojson', 'kml', 'csv', 'dms'] as ExportFormat[]).map((format) => (
+                  {/* Row 1: GeoJSON, KML, CSV */}
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                    {(['geojson', 'kml', 'csv'] as ExportFormat[]).map((format) => (
                       <button
                         key={format}
                         onClick={() => setExportFormat(format)}
                         style={{
-                          flex: '1 0 auto',
+                          flex: 1,
                           padding: '6px 12px',
-                          backgroundColor: exportFormat === format ? '#2563eb' : buttonBg,
-                          color: exportFormat === format ? '#fff' : darkMode ? '#ccc' : '#666',
-                          border: `1px solid ${exportFormat === format ? '#2563eb' : borderColor}`,
+                          backgroundColor:
+                            exportFormat === format
+                              ? darkMode
+                                ? 'rgba(171, 71, 188, 0.2)'
+                                : 'rgba(156, 39, 176, 0.1)'
+                              : buttonBg,
+                          color:
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : darkMode
+                                ? '#ccc'
+                                : '#666',
+                          border: `1px solid ${
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : borderColor
+                          }`,
                           borderRadius: '4px',
                           cursor: 'pointer',
                           fontSize: '11px',
-                          fontWeight: exportFormat === format ? 'bold' : 'normal'
+                          fontWeight: exportFormat === format ? '700' : 'normal',
+                          transition: 'all 0.2s'
                         }}
                       >
                         {EXPORT_FORMAT_LABELS[format]}
                       </button>
                     ))}
+                  </div>
+                  {/* Row 2: DMS */}
+                  <div style={{ display: 'flex' }}>
+                    <button
+                      onClick={() => setExportFormat('dms')}
+                      style={{
+                        width: '100%',
+                        padding: '6px 12px',
+                        backgroundColor:
+                          exportFormat === 'dms'
+                            ? darkMode
+                              ? 'rgba(171, 71, 188, 0.2)'
+                              : 'rgba(156, 39, 176, 0.1)'
+                            : buttonBg,
+                        color:
+                          exportFormat === 'dms'
+                            ? darkMode
+                              ? '#ab47bc'
+                              : '#9c27b0'
+                            : darkMode
+                              ? '#ccc'
+                              : '#666',
+                        border: `1px solid ${
+                          exportFormat === 'dms' ? (darkMode ? '#ab47bc' : '#9c27b0') : borderColor
+                        }`,
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: exportFormat === 'dms' ? '700' : 'normal',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {EXPORT_FORMAT_LABELS['dms']}
+                    </button>
                   </div>
                 </div>
 
@@ -4068,14 +4122,29 @@ ${kmlFeatures}
                     style={{
                       width: '100%',
                       padding: '12px 10px',
-                      backgroundColor: drawnFeatures.length > 0 ? '#2563eb' : buttonBg,
-                      color: drawnFeatures.length > 0 ? '#fff' : darkMode ? '#666' : '#999',
-                      border: `1px solid ${drawnFeatures.length > 0 ? '#2563eb' : borderColor}`,
+                      backgroundColor:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? 'rgba(40, 167, 69, 0.2)'
+                            : 'rgba(40, 167, 69, 0.1)'
+                          : buttonBg,
+                      color:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? '#66bb6a'
+                            : '#2e7d32'
+                          : darkMode
+                            ? '#666'
+                            : '#999',
+                      border: `1px solid ${
+                        drawnFeatures.length > 0 ? (darkMode ? '#66bb6a' : '#2e7d32') : borderColor
+                      }`,
                       borderRadius: '6px',
                       cursor: drawnFeatures.length > 0 ? 'pointer' : 'not-allowed',
                       fontSize: '13px',
                       fontWeight: 800,
-                      letterSpacing: '0.2px'
+                      letterSpacing: '0.2px',
+                      transition: 'all 0.2s'
                     }}
                   >
                     データ出力（ダウンロード）
@@ -4098,7 +4167,14 @@ ${kmlFeatures}
                             ? 'rgba(66, 165, 245, 0.14)'
                             : '#e3f2fd'
                           : buttonBg,
-                      color: drawnFeatures.length > 0 ? '#1565c0' : darkMode ? '#666' : '#999',
+                      color:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? '#64b5f6'
+                            : '#1565c0'
+                          : darkMode
+                            ? '#888'
+                            : '#999',
                       border: `1px solid ${borderColor}`,
                       borderRadius: '6px',
                       cursor: drawnFeatures.length > 0 ? 'pointer' : 'not-allowed',
@@ -4119,7 +4195,7 @@ ${kmlFeatures}
                       marginTop: '8px',
                       padding: '6px',
                       backgroundColor: 'transparent',
-                      color: '#c62828',
+                      color: darkMode ? '#ef5350' : '#c62828',
                       border: 'none',
                       borderRadius: '4px',
                       cursor: 'pointer',
@@ -4134,7 +4210,7 @@ ${kmlFeatures}
                 style={{
                   marginBottom: '12px',
                   padding: '10px',
-                  backgroundColor: darkMode ? '#2b2336' : '#f3e5f5',
+                  backgroundColor: darkMode ? 'rgba(255, 193, 7, 0.05)' : '#fffde7',
                   borderRadius: '6px',
                   border: `1px solid ${borderColor}`
                 }}
@@ -4142,13 +4218,13 @@ ${kmlFeatures}
                 <label
                   style={{
                     fontSize: '12px',
-                    color: darkMode ? '#ce93d8' : '#6a1b9a',
+                    color: darkMode ? '#ffd54f' : '#ff8f00',
                     display: 'block',
                     marginBottom: '8px',
                     fontWeight: 600
                   }}
                 >
-                  インポート（GeoJSON/KML/CSV）
+                  ファイル読み込み(GeoJSON/KML/CSV)
                 </label>
                 <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                   <button
@@ -4157,16 +4233,29 @@ ${kmlFeatures}
                     style={{
                       width: '100%',
                       padding: '10px',
-                      backgroundColor: isImporting ? buttonBg : '#6366f1',
-                      color: isImporting ? (darkMode ? '#666' : '#999') : '#fff',
-                      border: `1px solid ${isImporting ? borderColor : '#6366f1'}`,
+                      backgroundColor: isImporting
+                        ? buttonBg
+                        : darkMode
+                          ? 'rgba(255, 193, 7, 0.1)'
+                          : 'rgba(255, 193, 7, 0.05)',
+                      color: isImporting
+                        ? darkMode
+                          ? '#666'
+                          : '#999'
+                        : darkMode
+                          ? '#ffd54f'
+                          : '#ff8f00',
+                      border: `1px solid ${
+                        isImporting ? borderColor : darkMode ? '#ffd54f' : '#ff8f00'
+                      }`,
                       borderRadius: '6px',
                       cursor: isImporting ? 'not-allowed' : 'pointer',
                       fontSize: '12px',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      transition: 'all 0.2s'
                     }}
                   >
-                    {isImporting ? 'インポート中...' : 'インポート（GeoJSON/KML/CSV）'}
+                    {isImporting ? '読み込み中...' : 'ファイルを選択'}
                   </button>
                   <div
                     style={{
