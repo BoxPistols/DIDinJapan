@@ -81,23 +81,50 @@ input[type="checkbox"] {
   accent-color: #3388ff;
 }
 
-/* Modal and panel content theming fixes */
-/* Force modal/dialog content to use theme colors */
-[role="dialog"] {
-  background: rgba(26, 31, 46, 0.85) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+/* Modal and panel content theming fixes - Dark Mode Only */
+@media (prefers-color-scheme: dark) {
+  [role="dialog"] {
+    background: rgba(26, 31, 46, 0.85) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  [role="dialog"] * {
+    color: inherit;
+  }
+
+  /* Override hardcoded white backgrounds in dark modals */
+  [role="dialog"] [style*="backgroundColor"],
+  [role="dialog"] div[style*="background"] {
+    background-color: rgba(26, 31, 46, 0.5) !important;
+    background-image: none !important;
+  }
 }
 
-[role="dialog"] * {
-  color: inherit;
-}
+/* Modal and panel content theming fixes - Light Mode */
+@media (prefers-color-scheme: light) {
+  [role="dialog"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
 
-/* Override hardcoded white backgrounds in modals */
-[role="dialog"] [style*="backgroundColor"],
-[role="dialog"] div[style*="background"] {
-  background-color: rgba(26, 31, 46, 0.5) !important;
-  background-image: none !important;
+  [role="dialog"] * {
+    color: inherit;
+  }
+
+  /* Override dark backgrounds in light modals */
+  [role="dialog"] [style*="backgroundColor"],
+  [role="dialog"] div[style*="background"] {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+    background-image: none !important;
+  }
+
+  /* Fix dark text in light modals */
+  [role="dialog"] [style*="color: #333"],
+  [role="dialog"] [style*="color: #000"] {
+    color: rgba(0, 0, 0, 0.87) !important;
+  }
 }
 
 /* Interactive button hover effects for better UX */
