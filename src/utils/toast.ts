@@ -57,7 +57,7 @@ export function showToast(
  * Remove a toast notification
  */
 export function removeToast(id: string) {
-  const index = toasts.findIndex(t => t.id === id)
+  const index = toasts.findIndex((t) => t.id === id)
   if (index > -1) {
     toasts.splice(index, 1)
     notifyListeners()
@@ -84,7 +84,7 @@ export function subscribeToToasts(listener: (toasts: Toast[]) => void) {
  * Notify all listeners of toast changes
  */
 function notifyListeners() {
-  listeners.forEach(listener => listener([...toasts]))
+  listeners.forEach((listener) => listener([...toasts]))
 }
 
 /**

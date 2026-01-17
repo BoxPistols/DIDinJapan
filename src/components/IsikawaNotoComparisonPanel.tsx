@@ -42,11 +42,21 @@ export function IsikawaNotoComparisonPanel({
         borderRadius: '10px',
         border: darkMode ? '1px solid #444' : '1px solid #e0e0e0',
         backgroundColor: !isSupported
-          ? (darkMode ? '#2a2a2a' : '#f3f3f3')
-          : (isVisible ? '#d63031' : '#ffffff'),
+          ? darkMode
+            ? '#2a2a2a'
+            : '#f3f3f3'
+          : isVisible
+            ? '#d63031'
+            : '#ffffff',
         color: !isSupported
-          ? (darkMode ? '#888' : '#777')
-          : (isVisible ? '#fff' : (darkMode ? '#fff' : '#222')),
+          ? darkMode
+            ? '#888'
+            : '#777'
+          : isVisible
+            ? '#fff'
+            : darkMode
+              ? '#fff'
+              : '#222',
         cursor: !isSupported ? 'not-allowed' : 'pointer',
         boxShadow: darkMode ? '0 6px 18px rgba(0,0,0,0.35)' : '0 6px 18px rgba(0,0,0,0.18)',
         zIndex: 999,

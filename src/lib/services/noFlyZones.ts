@@ -27,7 +27,7 @@ interface NoFlyFacility {
   radiusKm: number
   zone: 'red' | 'yellow'
   category?: string // サブカテゴリ（原発の運転状況等）
-  source?: string   // データソース
+  source?: string // データソース
 }
 
 // 小型無人機等飛行禁止法の対象施設
@@ -38,14 +38,14 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '国会議事堂',
     nameEn: 'National Diet Building',
     type: 'government',
-    coordinates: [139.7450, 35.6759],
+    coordinates: [139.745, 35.6759],
     radiusKm: 0.2,
     zone: 'red'
   },
   {
     id: 'kantei',
     name: '首相官邸',
-    nameEn: 'Prime Minister\'s Official Residence',
+    nameEn: "Prime Minister's Official Residence",
     type: 'government',
     coordinates: [139.7412, 35.6731],
     radiusKm: 0.2,
@@ -74,7 +74,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '赤坂御所',
     nameEn: 'Akasaka Palace',
     type: 'imperial',
-    coordinates: [139.7310, 35.6753],
+    coordinates: [139.731, 35.6753],
     radiusKm: 0.2,
     zone: 'red'
   },
@@ -83,7 +83,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '東宮御所',
     nameEn: 'Togu Palace',
     type: 'imperial',
-    coordinates: [139.7270, 35.6763],
+    coordinates: [139.727, 35.6763],
     radiusKm: 0.2,
     zone: 'red'
   },
@@ -102,7 +102,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '警察庁',
     nameEn: 'National Police Agency',
     type: 'government',
-    coordinates: [139.7500, 35.6773],
+    coordinates: [139.75, 35.6773],
     radiusKm: 0.2,
     zone: 'red'
   },
@@ -172,7 +172,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '福島第二原子力発電所',
     nameEn: 'Fukushima Daini Nuclear Power Plant',
     type: 'nuclear',
-    coordinates: [141.0250, 37.3167],
+    coordinates: [141.025, 37.3167],
     radiusKm: 0.2,
     zone: 'red',
     category: '廃炉決定',
@@ -230,7 +230,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '志賀原子力発電所',
     nameEn: 'Shika Nuclear Power Plant',
     type: 'nuclear',
-    coordinates: [136.7289, 37.0600],
+    coordinates: [136.7289, 37.06],
     radiusKm: 0.2,
     zone: 'red',
     category: '停止中',
@@ -264,7 +264,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '高浜発電所',
     nameEn: 'Takahama Nuclear Power Plant',
     type: 'nuclear',
-    coordinates: [135.5050, 35.5203],
+    coordinates: [135.505, 35.5203],
     radiusKm: 0.2,
     zone: 'red',
     category: '運転中',
@@ -338,7 +338,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '厚木基地',
     nameEn: 'Naval Air Facility Atsugi',
     type: 'defense',
-    coordinates: [139.4500, 35.4547],
+    coordinates: [139.45, 35.4547],
     radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
@@ -360,7 +360,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '座間キャンプ',
     nameEn: 'Camp Zama',
     type: 'defense',
-    coordinates: [139.4000, 35.4833],
+    coordinates: [139.4, 35.4833],
     radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
@@ -415,7 +415,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: '佐世保基地',
     nameEn: 'U.S. Fleet Activities Sasebo',
     type: 'defense',
-    coordinates: [129.7167, 33.1500],
+    coordinates: [129.7167, 33.15],
     radiusKm: 0.2,
     zone: 'red',
     category: '在日米軍',
@@ -451,7 +451,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
     name: 'ロシア大使館',
     nameEn: 'Embassy of Russia',
     type: 'foreign_mission',
-    coordinates: [139.7439, 35.6630],
+    coordinates: [139.7439, 35.663],
     radiusKm: 0.3,
     zone: 'yellow'
   },
@@ -488,7 +488,7 @@ export const NO_FLY_FACILITIES: NoFlyFacility[] = [
  * Get facilities by zone type
  */
 export function getFacilitiesByZone(zone: 'red' | 'yellow'): NoFlyFacility[] {
-  return NO_FLY_FACILITIES.filter(f => f.zone === zone)
+  return NO_FLY_FACILITIES.filter((f) => f.zone === zone)
 }
 
 /**
@@ -496,7 +496,7 @@ export function getFacilitiesByZone(zone: 'red' | 'yellow'): NoFlyFacility[] {
  */
 export function generateRedZoneGeoJSON(): GeoJSON.FeatureCollection {
   const facilities = getFacilitiesByZone('red')
-  const features: GeoJSON.Feature[] = facilities.map(facility => ({
+  const features: GeoJSON.Feature[] = facilities.map((facility) => ({
     type: 'Feature',
     properties: {
       id: facility.id,
@@ -520,7 +520,7 @@ export function generateRedZoneGeoJSON(): GeoJSON.FeatureCollection {
  */
 export function generateYellowZoneGeoJSON(): GeoJSON.FeatureCollection {
   // 在外公館のイエローゾーン
-  const foreignMissions = getFacilitiesByZone('yellow').map(facility => ({
+  const foreignMissions = getFacilitiesByZone('yellow').map((facility) => ({
     type: 'Feature' as const,
     properties: {
       id: facility.id,
@@ -536,7 +536,7 @@ export function generateYellowZoneGeoJSON(): GeoJSON.FeatureCollection {
   // レッドゾーン対象施設の周辺300m
   // ※ radiusKm: 0.5km = 0.2km敷地（赤ゾーン）+ 0.3km周辺（黄色ゾーン）
   const redZoneFacilities = getFacilitiesByZone('red')
-  const peripheryZones = redZoneFacilities.map(facility => ({
+  const peripheryZones = redZoneFacilities.map((facility) => ({
     type: 'Feature' as const,
     properties: {
       id: facility.id + '-perimeter',
@@ -560,7 +560,7 @@ export function generateYellowZoneGeoJSON(): GeoJSON.FeatureCollection {
  * Generate GeoJSON for all no-fly zones
  */
 export function generateAllNoFlyGeoJSON(): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = NO_FLY_FACILITIES.map(facility => ({
+  const features: GeoJSON.Feature[] = NO_FLY_FACILITIES.map((facility) => ({
     type: 'Feature',
     properties: {
       id: facility.id,
@@ -602,7 +602,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'emergency-1',
       name: '大規模火災対応区域（見本）',
       nameEn: 'Large Fire Response Area (Sample)',
-      coordinates: [139.7500, 35.6800],
+      coordinates: [139.75, 35.68],
       radiusKm: 1.0,
       altitudeLimit: { min: 0, max: 300 },
       validPeriod: {
@@ -623,7 +623,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'emergency-2',
       name: '警察捜索活動区域（見本）',
       nameEn: 'Police Search Operation Area (Sample)',
-      coordinates: [139.7400, 35.6900],
+      coordinates: [139.74, 35.69],
       radiusKm: 0.8,
       altitudeLimit: { min: 0, max: 200 },
       validPeriod: {
@@ -644,7 +644,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'emergency-3',
       name: '災害救助活動区域（見本）',
       nameEn: 'Disaster Rescue Area (Sample)',
-      coordinates: [139.6900, 35.7100],
+      coordinates: [139.69, 35.71],
       radiusKm: 1.5,
       altitudeLimit: { min: 0, max: 500 },
       validPeriod: {
@@ -665,7 +665,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'emergency-4',
       name: '医療搬送活動区域（見本）',
       nameEn: 'Medical Transport Area (Sample)',
-      coordinates: [139.7800, 35.6600],
+      coordinates: [139.78, 35.66],
       radiusKm: 0.5,
       altitudeLimit: { min: 0, max: 150 },
       authority: {
@@ -681,7 +681,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'emergency-5',
       name: '要人警護空域（見本）',
       nameEn: 'VIP Security Airspace (Sample)',
-      coordinates: [139.7450, 35.6759],
+      coordinates: [139.745, 35.6759],
       radiusKm: 0.3,
       altitudeLimit: { min: 0, max: 1000 },
       validPeriod: {
@@ -699,7 +699,7 @@ export function generateEmergencyAirspaceGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockEmergencies.map(item => ({
+  const features: GeoJSON.Feature[] = mockEmergencies.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -747,7 +747,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
       id: 'manned-1',
       name: '東京ヘリポート（見本）',
       nameEn: 'Tokyo Heliport (Sample)',
-      coordinates: [139.8100, 35.6400],
+      coordinates: [139.81, 35.64],
       radiusKm: 0.6,
       altitudeLimit: { min: 0, max: 200 },
       facilityType: 'heliport',
@@ -767,8 +767,8 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
     {
       id: 'manned-2',
       name: '聖路加国際病院屋上ヘリポート（見本）',
-      nameEn: 'St. Luke\'s Hospital Rooftop Heliport (Sample)',
-      coordinates: [139.7720, 35.6680],
+      nameEn: "St. Luke's Hospital Rooftop Heliport (Sample)",
+      coordinates: [139.772, 35.668],
       radiusKm: 0.3,
       altitudeLimit: { min: 0, max: 150 },
       facilityType: 'hospital',
@@ -789,7 +789,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
       id: 'manned-3',
       name: '臨時農薬散布離着陸場（見本）',
       nameEn: 'Temporary Agricultural Landing Site (Sample)',
-      coordinates: [139.6500, 35.8000],
+      coordinates: [139.65, 35.8],
       radiusKm: 0.4,
       altitudeLimit: { min: 0, max: 100 },
       facilityType: 'agricultural',
@@ -810,7 +810,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
       id: 'manned-4',
       name: '新宿三井ビル屋上ヘリポート（見本）',
       nameEn: 'Shinjuku Mitsui Building Heliport (Sample)',
-      coordinates: [139.6920, 35.6930],
+      coordinates: [139.692, 35.693],
       radiusKm: 0.25,
       altitudeLimit: { min: 0, max: 250 },
       facilityType: 'rooftop',
@@ -830,7 +830,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
       id: 'manned-5',
       name: '臨時訓練場（見本）',
       nameEn: 'Temporary Training Ground (Sample)',
-      coordinates: [139.5800, 35.7200],
+      coordinates: [139.58, 35.72],
       radiusKm: 0.5,
       facilityType: 'temporary',
       surfaceType: 'unpaved',
@@ -849,7 +849,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
       id: 'manned-6',
       name: '災害時臨時離着陸場（見本）',
       nameEn: 'Emergency Temporary Landing Site (Sample)',
-      coordinates: [139.7100, 35.7500],
+      coordinates: [139.71, 35.75],
       radiusKm: 0.35,
       facilityType: 'temporary',
       surfaceType: 'asphalt',
@@ -866,7 +866,7 @@ export function generateMannedAircraftLandingGeoJSON(): GeoJSON.FeatureCollectio
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockLandings.map(item => ({
+  const features: GeoJSON.Feature[] = mockLandings.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -916,7 +916,7 @@ export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
       id: 'remoteid-1',
       name: '東京都心リモートID特定区域（見本）',
       nameEn: 'Tokyo Central Remote ID Zone (Sample)',
-      coordinates: [139.7450, 35.6750],
+      coordinates: [139.745, 35.675],
       radiusKm: 3.0,
       requirement: {
         remoteIdRequired: true,
@@ -935,7 +935,7 @@ export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
       id: 'remoteid-2',
       name: '成田空港周辺リモートID特定区域（見本）',
       nameEn: 'Narita Airport Remote ID Zone (Sample)',
-      coordinates: [140.3929, 35.7720],
+      coordinates: [140.3929, 35.772],
       radiusKm: 5.0,
       requirement: {
         remoteIdRequired: true,
@@ -973,7 +973,7 @@ export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
       id: 'remoteid-4',
       name: '国会周辺リモートID特定区域（見本）',
       nameEn: 'National Diet Remote ID Zone (Sample)',
-      coordinates: [139.7450, 35.6759],
+      coordinates: [139.745, 35.6759],
       radiusKm: 1.0,
       requirement: {
         remoteIdRequired: true,
@@ -991,7 +991,7 @@ export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
       id: 'remoteid-5',
       name: '大規模イベント会場（見本）',
       nameEn: 'Large Event Venue Remote ID Zone (Sample)',
-      coordinates: [139.7100, 35.6800],
+      coordinates: [139.71, 35.68],
       radiusKm: 0.8,
       requirement: {
         remoteIdRequired: true,
@@ -1008,7 +1008,7 @@ export function generateRemoteIDZoneGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockRemoteID.map(item => ({
+  const features: GeoJSON.Feature[] = mockRemoteID.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -1036,12 +1036,7 @@ export function isInNoFlyZone(
   lng: number
 ): { inZone: boolean; facility?: NoFlyFacility; zone?: 'red' | 'yellow' } {
   for (const facility of NO_FLY_FACILITIES) {
-    const distance = calculateDistance(
-      lat,
-      lng,
-      facility.coordinates[1],
-      facility.coordinates[0]
-    )
+    const distance = calculateDistance(lat, lng, facility.coordinates[1], facility.coordinates[0])
 
     if (distance <= facility.radiusKm) {
       return { inZone: true, facility, zone: facility.zone }

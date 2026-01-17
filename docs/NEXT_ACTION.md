@@ -2,7 +2,7 @@
 
 ## プロジェクト概要
 
-**プロジェクト名**: DID in Japan (Japan Drone Map)
+**プロジェクト名**: DID-J26
 **説明**: 日本の地理データ（人口集中地区）とドローン飛行禁止エリア、気象情報をオーバーレイ表示できるWebGISアプリケーション
 **バージョン**: 1.0.0
 **ライセンス**: MIT
@@ -28,10 +28,6 @@ DIDinJapan/
 │   ├── 2010_did_ddsw_01.zip
 │   ├── 2010_did_ddsw_02.zip
 │   └── ... (x47)
-│
-├── SHP/                            # シェープファイル（サンプル）
-│   ├── h22_did_13.shp/dbf/prj/shx
-│   └── h22_did_14.shp/dbf/prj/shx
 │
 ├── scripts/                        # ビルドスクリプト
 │   └── download_did_2020.sh
@@ -127,7 +123,7 @@ DIDinJapan/
 
 | コマンド | 説明 |
 |---------|------|
-| `npm run dev` | 開発サーバー起動（http://localhost:5173） |
+| `npm run dev` | 開発サーバー起動（<http://localhost:5173）> |
 | `npm run build` | 本体 + ライブラリビルド |
 | `npm run build:lib` | ライブラリのみビルド |
 | `npm run preview` | ビルド結果をプレビュー |
@@ -141,16 +137,19 @@ DIDinJapan/
 ### 1. RainViewer API（雨雲レーダー）✅ 本番運用
 
 #### エンドポイント
+
 ```
 GET https://api.rainviewer.com/public/weather-maps.json
 ```
 
 #### 実装ファイル
+
 - **メイン**: `src/lib/services/rainViewer.ts`
 - **設定**: `src/lib/config/overlays.ts` （Line 42-60）
 - **UI統合**: `src/App.tsx` （Line 477-517, 522-549）
 
 #### 仕様
+
 ```typescript
 // fetchRainRadarTimestamp(): Promise<string | null>
 // 最新の雨�云レーダータイムスタンプを取得
@@ -176,18 +175,21 @@ interface RainViewerTimestamp {
 ```
 
 #### タイルURL形式
+
 ```
 https://tilecache.rainviewer.com/{path}/{z}/{x}/{y}/tile.png
 例) https://tilecache.rainviewer.com/radar/1234567890/256/10/100/50/tile.png
 ```
 
 #### 特徴
+
 - **APIキー不要** ✓
 - **更新頻度**: 5分ごと自動更新
 - **キャッシュ戦略**: 5分間有効
 - **フォールバック**: API失敗時 → `(見本)` プレフィックス付きモック
 
 #### フォールバック処理
+
 ```typescript
 // API失敗時の処理（rainViewer.ts:45-49）
 catch (error) {
@@ -203,22 +205,26 @@ catch (error) {
 #### エンドポイント（2種類）
 
 **天気情報**
+
 ```
 GET https://api.openweathermap.org/data/2.5/weather
 パラメータ: lat, lon, appid, units=metric
 ```
 
 **タイルレイヤー**
+
 ```
 GET https://tile.openweathermap.org/map/{layer}/{z}/{x}/{y}.png
 パラメータ: appid（オプション）
 ```
 
 #### 実装ファイル
+
 - **メイン**: `src/lib/services/openWeather.ts`
 - **型定義**: `src/lib/types.ts` （WeatherData, WindData）
 
 #### 利用可能なレイヤー
+
 ```typescript
 type OWMLayer =
   | 'clouds_new'        // 雲量
@@ -229,6 +235,7 @@ type OWMLayer =
 ```
 
 #### 仕様
+
 ```typescript
 interface WeatherData {
   timestamp: number       // Unix timestamp (ms)
@@ -245,7 +252,8 @@ interface WindData {
 ```
 
 #### 必須要件
-- **APIキー**: 必須（https://openweathermap.org/api で取得）
+
+- **APIキー**: 必須（<https://openweathermap.org/api> で取得）
 - **現在の状態**: APIキー未設定のため、タイルレイヤーのみ限定機能で利用可能
 
 ### 3. モックデータ（デモンストレーション）
@@ -253,24 +261,28 @@ interface WindData {
 #### 生成場所と機能
 
 **建物・地物** (`src/lib/utils/geo.ts:194-206`)
+
 ```typescript
 // generateBuildingsGeoJSON()
 // 駅舎、官公庁舎などのダミーGeoJSON生成
 ```
 
 **風フィールド** (`src/App.tsx:398-426`)
+
 ```typescript
 // handleMockGeoJSON()内で生成
 // ベクトルフィールドの可視化（デモ用）
 ```
 
 **LTEカバレッジ** (`src/App.tsx:382`)
+
 ```typescript
 // ローカル定義モック
 // カバレッジエリアを表示
 ```
 
 #### マーク方法
+
 - API失敗時またはデモ時: **`(見本)`** プレフィックス付きで表示
 - 例: `(見本)風向・風量`
 
@@ -281,6 +293,7 @@ interface WindData {
 ### App.tsx（メインアプリケーション）
 
 #### 主要な状態管理
+
 ```typescript
 // Line 82-95: 天候オーバーレイの状態管理
 const [weatherStates, setWeatherStates] = useState<
@@ -297,6 +310,7 @@ const [map, setMap] = useState<maplibregl.Map | null>(null)
 #### 主要な処理フロー
 
 **雨雲レーダー更新** (Line 522-549)
+
 ```typescript
 useEffect(() => {
   if (!weatherStates.get('rain-radar')) return
@@ -313,6 +327,7 @@ useEffect(() => {
 ```
 
 **オーバーレイの動的追加** (Line 464-549)
+
 ```typescript
 // toggleWeatherOverlay(): 天候レイヤーの追加/削除
 // 雨雲, 風, 気圧などを動的に切り替え
@@ -321,6 +336,7 @@ useEffect(() => {
 ### CustomLayerManager.tsx
 
 ユーザー定義レイヤー（GeoJSON）の管理UI：
+
 - アップロード
 - スタイル編集
 - 表示/非表示切り替え
@@ -328,6 +344,7 @@ useEffect(() => {
 ### 設定ファイル
 
 #### overlays.ts（オーバーレイ設定）
+
 ```typescript
 export const WEATHER_OVERLAYS: WeatherOverlay[] = [
   {
@@ -349,11 +366,13 @@ export const WEATHER_OVERLAYS: WeatherOverlay[] = [
 ```
 
 #### layers.ts（DIDレイヤー）
+
 - 47都道府県ごとのGeoJSONソース定義
 - 色分けスキーム
 - ホバー機能
 
 #### baseMaps.ts（ベースマップ）
+
 - OpenStreetMap
 - 衛星画像
 - 濃淡起伏図
@@ -428,6 +447,7 @@ import { buildRainTileUrl, fetchWeatherData } from 'japan-drone-map'
 ## TypeScript設定
 
 ### tsconfig.json（本体アプリ）
+
 ```json
 {
   "compilerOptions": {
@@ -445,6 +465,7 @@ import { buildRainTileUrl, fetchWeatherData } from 'japan-drone-map'
 ```
 
 ### tsconfig.lib.json（ライブラリビルド）
+
 - ライブラリ出力用の独立した設定
 - `dist/lib` に型定義（.d.ts）を出力
 
@@ -468,6 +489,7 @@ import { buildRainTileUrl, fetchWeatherData } from 'japan-drone-map'
 ```
 
 #### 公開API（src/lib/index.ts）
+
 - `buildRainTileUrl()`
 - `fetchRainRadarTimestamp()`
 - `buildOWMTileUrl()`

@@ -13,7 +13,7 @@ import { Meta } from '@storybook/blocks'
 
 ### Ray Casting Algorithm (光線投影法)
 
-任意の点 $P$ から半直線を伸ばし、ポリゴンの境界線と交差する回数を数えます。
+任意の点 P から半直線を伸ばし、ポリゴンの境界線と交差する回数を数えます。
 - **奇数回**: 内部
 - **偶数回**: 外部
 
@@ -41,13 +41,13 @@ function isPointInPolygon(point: number[], vs: number[][]) {
 
 ### Haversine Formula (半正矢関数)
 
-```latex
-a = \sin^2\left(\frac{\Delta\phi}{2}\right) + \cos \phi_1 \cdot \cos \phi_2 \cdot \sin^2\left(\frac{\Delta\lambda}{2}\right)
-c = 2 \cdot \text{atan2}(\sqrt{a}, \sqrt{1-a})
-d = R \cdot c
+```
+a = sin²(Δφ/2) + cos(φ1) × cos(φ2) × sin²(Δλ/2)
+c = 2 × atan2(√a, √(1-a))
+d = R × c
 ```
 
-ここで、$\phi$ は緯度 (radian)、$\lambda$ は経度 (radian)、$R$ は地球半径です。
+ここで、φ は緯度 (radian)、λ は経度 (radian)、R は地球半径です。
 
 ```typescript
 function calculateHaversineDistance(p1: [number, number], p2: [number, number]): number {
@@ -72,9 +72,11 @@ function calculateHaversineDistance(p1: [number, number], p2: [number, number]):
 
 空港周辺では、滑走路からの距離に応じて高度制限（進入表面）が変化します。これは幾何学的には「滑走路を基準線とした斜平面との距離計算」となります。
 
-$$ H_{limit} = \tan(\theta) \times D_{runway} + H_{runway} $$
+```
+H_limit = tan(θ) × D_runway + H_runway
+```
 
-勾配 $\theta$ は 1/50 (2%) 等と法律で定義されています。
+勾配 θ は 1/50 (2%) 等と法律で定義されています。
 
 ## 4. コンプライアンス・エンジニアリング
 
@@ -82,4 +84,3 @@ $$ H_{limit} = \tan(\theta) \times D_{runway} + H_{runway} $$
 
 1.  **Fail-Safe**: データ取得失敗時は「飛行不可」と判定（安全側に倒す）。
 2.  **Audit Trail**: 飛行計画作成時の使用データバージョンと判定ロジックバージョンを記録し、事後検証可能性を担保。
-

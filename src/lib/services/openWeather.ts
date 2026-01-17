@@ -7,12 +7,7 @@ import { WindData, WeatherData } from '../types'
 import { degreesToJapanese } from '../utils/geo'
 
 // OpenWeatherMap layer types
-export type OWMLayer =
-  | 'clouds_new'
-  | 'precipitation_new'
-  | 'pressure_new'
-  | 'wind_new'
-  | 'temp_new'
+export type OWMLayer = 'clouds_new' | 'precipitation_new' | 'pressure_new' | 'wind_new' | 'temp_new'
 
 const OWM_TILE_BASE = 'https://tile.openweathermap.org/map'
 
@@ -74,22 +69,14 @@ export async function fetchWindData(
  * Alternative: Use Windy.com embed (no API key required)
  * Returns an iframe URL for embedding wind map
  */
-export function getWindyEmbedUrl(
-  lat: number,
-  lon: number,
-  zoom: number = 8
-): string {
+export function getWindyEmbedUrl(lat: number, lon: number, zoom: number = 8): string {
   return `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&zoom=${zoom}&level=surface&overlay=wind&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&detailLat=${lat}&detailLon=${lon}&metricWind=m%2Fs&metricTemp=%C2%B0C&radarRange=-1`
 }
 
 /**
  * Alternative: Use earth.nullschool.net visualization
  */
-export function getEarthNullschoolUrl(
-  lat: number,
-  lon: number,
-  zoom: number = 1000
-): string {
+export function getEarthNullschoolUrl(lat: number, lon: number, zoom: number = 1000): string {
   return `https://earth.nullschool.net/#current/wind/surface/level/orthographic=${lon},${lat},${zoom}`
 }
 

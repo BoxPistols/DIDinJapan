@@ -10,21 +10,25 @@ export function ToastContainer() {
 
   useEffect(() => {
     const unsubscribe = subscribeToToasts(setToasts)
-    return () => { unsubscribe() }
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      maxWidth: '400px'
-    }}>
-      {toasts.map(toast => (
+    <div
+      style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        maxWidth: '400px'
+      }}
+    >
+      {toasts.map((toast) => (
         <div
           key={toast.id}
           style={{

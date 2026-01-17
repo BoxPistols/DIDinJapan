@@ -136,7 +136,7 @@ export const DarkMode: Story = {
  */
 export const WithAutoClose: Story = {
   args: {
-    lng: 135.500,
+    lng: 135.5,
     lat: 34.732,
     darkMode: false,
     onClose: fn()
@@ -167,7 +167,7 @@ export const DifferentCoordinates: Story = {
   render: () => {
     const coordinates = [
       { name: '東京駅', lng: 139.767125, lat: 35.681236 },
-      { name: '大阪駅', lng: 135.499616, lat: 34.732490 },
+      { name: '大阪駅', lng: 135.499616, lat: 34.73249 },
       { name: '那覇空港', lng: 127.648, lat: 26.197 },
       { name: '能登半島', lng: 137.35, lat: 37.55 }
     ]
@@ -200,11 +200,7 @@ export const DifferentCoordinates: Story = {
             <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#666' }}>
               緯度: {coord.lat.toFixed(6)}°
             </p>
-            <CoordinateDisplay
-              lng={coord.lng}
-              lat={coord.lat}
-              darkMode={false}
-            />
+            <CoordinateDisplay lng={coord.lng} lat={coord.lat} darkMode={false} />
           </div>
         ))}
       </div>

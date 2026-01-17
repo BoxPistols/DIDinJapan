@@ -128,35 +128,41 @@ type Story = StoryObj<typeof meta>
  */
 export const Default: Story = {
   render: () => (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#f5f5f5',
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+    <div
+      style={{
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>コンポーネント情報</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
-          このコンポーネントは fixed position のボタンで、画面の右下に固定されます。
-          Storybook では fixed position の要素が正常に描画されない場合があるため、
+          このコンポーネントは fixed position のボタンで、画面の右下に固定されます。 Storybook では
+          fixed position の要素が正常に描画されない場合があるため、
           ドキュメントと実装例を参照してください。
         </p>
-        <div style={{
-          backgroundColor: '#f0f0f0',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#333',
-          fontFamily: 'monospace'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f0f0f0',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#333',
+            fontFamily: 'monospace'
+          }}
+        >
           <div style={{ marginBottom: '8px' }}>位置: 画面右下 (bottom: 20px, right: 20px)</div>
           <div style={{ marginBottom: '8px' }}>非表示状態: 白いボタン</div>
           <div style={{ marginBottom: '8px' }}>表示状態: 赤いボタン (#d63031)</div>
@@ -178,37 +184,44 @@ export const Default: Story = {
  */
 export const Disabled: Story = {
   render: () => (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#f5f5f5',
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+    <div
+      style={{
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>無効状態</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
           このコンポーネントは標準ベースマップのみサポートしています。
           航空写真や地理院系のベースマップが選択されている場合は、
           無効状態（グレーアウト）になります。
         </p>
-        <div style={{
-          backgroundColor: '#f3f3f3',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#777',
-          border: '1px solid #ddd',
-          marginBottom: '12px'
-        }}>
-          <strong>ツールチップ:</strong><br/>
+        <div
+          style={{
+            backgroundColor: '#f3f3f3',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#777',
+            border: '1px solid #ddd',
+            marginBottom: '12px'
+          }}
+        >
+          <strong>ツールチップ:</strong>
+          <br />
           簡易モード：地形比較は「標準」ベースマップのみ対応です（航空写真/地理院系ではOFFになります）。
         </div>
         <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
@@ -221,7 +234,8 @@ export const Disabled: Story = {
     visibleLayers: new Set(),
     isSupported: false,
     darkMode: false,
-    unsupportedMessage: '簡易モード：地形比較は「標準」ベースマップのみ対応です（航空写真/地理院系ではOFFになります）。'
+    unsupportedMessage:
+      '簡易モード：地形比較は「標準」ベースマップのみ対応です（航空写真/地理院系ではOFFになります）。'
   }
 }
 
@@ -231,37 +245,42 @@ export const Disabled: Story = {
  */
 export const DarkMode: Story = {
   render: () => (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#1e1e1e',
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#e0e0e0'
-    }}>
-      <div style={{
-        backgroundColor: '#2d2d2d',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        maxWidth: '600px',
-        border: '1px solid #444'
-      }}>
+    <div
+      style={{
+        padding: '20px',
+        backgroundColor: '#1e1e1e',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#e0e0e0'
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#2d2d2d',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          maxWidth: '600px',
+          border: '1px solid #444'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0', color: '#fff' }}>ダークモード</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#aaa' }}>
-          ダークモードではボタンの背景色が調整され、
-          より暗い配色でユーザーの目に優しくなります。
+          ダークモードではボタンの背景色が調整され、 より暗い配色でユーザーの目に優しくなります。
         </p>
-        <div style={{
-          backgroundColor: '#1a1a1a',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#ccc',
-          border: '1px solid #444',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#1a1a1a',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#ccc',
+            border: '1px solid #444',
+            marginBottom: '12px'
+          }}
+        >
           <div style={{ marginBottom: '8px' }}>背景: #1e1e1e</div>
           <div style={{ marginBottom: '8px' }}>非表示状態: 白いボタン（#ffffff）</div>
           <div style={{ marginBottom: '8px' }}>表示状態: 赤いボタン（#d63031）</div>
@@ -286,44 +305,52 @@ export const DarkMode: Story = {
  */
 export const Active: Story = {
   render: () => (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#f5f5f5',
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+    <div
+      style={{
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>アクティブ状態</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
           隆起エリアが表示されている状態です。
           ボタンが赤色（#d63031）になり、ユーザーが現在レイヤーが
           アクティブであることを視認できます。
         </p>
-        <div style={{
-          backgroundColor: '#fef2f2',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#333',
-          border: '1px solid #fecaca',
-          marginBottom: '12px'
-        }}>
-          <strong style={{ color: '#d63031' }}>ボタンの外観:</strong><br/>
-          背景色: #d63031（赤）<br/>
-          テキスト色: #fff（白）<br/>
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#333',
+            border: '1px solid #fecaca',
+            marginBottom: '12px'
+          }}
+        >
+          <strong style={{ color: '#d63031' }}>ボタンの外観:</strong>
+          <br />
+          背景色: #d63031（赤）
+          <br />
+          テキスト色: #fff（白）
+          <br />
           fontWeight: 700（太字）
         </div>
         <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
-          ボタンをクリックすると、隆起エリアが非表示になり、
-          ボタンが白色に戻ります。
+          ボタンをクリックすると、隆起エリアが非表示になり、 ボタンが白色に戻ります。
         </p>
       </div>
     </div>

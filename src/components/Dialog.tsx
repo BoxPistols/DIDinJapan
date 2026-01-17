@@ -3,19 +3,26 @@
  */
 
 import { useEffect, useState } from 'react'
-import { subscribeToDialogs, confirmDialog, cancelDialog, type ConfirmDialog } from '../utils/dialog'
+import {
+  subscribeToDialogs,
+  confirmDialog,
+  cancelDialog,
+  type ConfirmDialog
+} from '../utils/dialog'
 
 export function DialogContainer() {
   const [dialogs, setDialogs] = useState<ConfirmDialog[]>([])
 
   useEffect(() => {
     const unsubscribe = subscribeToDialogs(setDialogs)
-    return () => { unsubscribe() }
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   return (
     <>
-      {dialogs.map(dialog => (
+      {dialogs.map((dialog) => (
         <div
           key={dialog.id}
           style={{
@@ -46,27 +53,33 @@ export function DialogContainer() {
               minWidth: '300px'
             }}
           >
-            <h2 style={{
-              margin: '0 0 12px 0',
-              fontSize: '18px',
-              fontWeight: 600,
-              color: '#333'
-            }}>
+            <h2
+              style={{
+                margin: '0 0 12px 0',
+                fontSize: '18px',
+                fontWeight: 600,
+                color: '#333'
+              }}
+            >
               {dialog.title}
             </h2>
-            <p style={{
-              margin: '0 0 24px 0',
-              fontSize: '14px',
-              color: '#666',
-              lineHeight: 1.5
-            }}>
+            <p
+              style={{
+                margin: '0 0 24px 0',
+                fontSize: '14px',
+                color: '#666',
+                lineHeight: 1.5
+              }}
+            >
               {dialog.message}
             </p>
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end'
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}
+            >
               <button
                 onClick={() => cancelDialog(dialog.id)}
                 style={{
@@ -81,10 +94,10 @@ export function DialogContainer() {
                   transition: 'background-color 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  (e.target as HTMLButtonElement).style.backgroundColor = '#e0e0e0'
+                  ;(e.target as HTMLButtonElement).style.backgroundColor = '#e0e0e0'
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
+                  ;(e.target as HTMLButtonElement).style.backgroundColor = '#f5f5f5'
                 }}
               >
                 {dialog.cancelText || 'キャンセル'}
@@ -103,10 +116,10 @@ export function DialogContainer() {
                   transition: 'background-color 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  (e.target as HTMLButtonElement).style.backgroundColor = '#1976D2'
+                  ;(e.target as HTMLButtonElement).style.backgroundColor = '#1976D2'
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLButtonElement).style.backgroundColor = '#2196F3'
+                  ;(e.target as HTMLButtonElement).style.backgroundColor = '#2196F3'
                 }}
               >
                 {dialog.confirmText || 'OK'}

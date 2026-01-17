@@ -1,11 +1,15 @@
 /**
  * CoordinateInfoPanel - 座標・高度情報表示パネル
- * 
+ *
  * マップのクリック位置の座標、海抜高度、推奨飛行高度を表示します。
  */
 
 import React, { useState, useEffect } from 'react'
-import { getCoordinateInfo, getRecommendedFlightAltitude, CoordinateInfo } from '../lib/services/elevationService'
+import {
+  getCoordinateInfo,
+  getRecommendedFlightAltitude,
+  CoordinateInfo
+} from '../lib/services/elevationService'
 import styles from './CoordinateInfoPanel.module.css'
 import { toast } from '../utils/toast'
 
@@ -126,8 +130,8 @@ export const CoordinateInfoPanel: React.FC<CoordinatePanelProps> = ({
                 <span className={styles.unit}>m AGL</span>
               </div>
               <p className={styles.note}>
-                * AGL = Above Ground Level（地上レベル）<br/>
-                * 安全マージン: 30m
+                * AGL = Above Ground Level（地上レベル）
+                <br />* 安全マージン: 30m
               </p>
             </div>
           </div>

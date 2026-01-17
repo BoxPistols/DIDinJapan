@@ -1,0 +1,173 @@
+{/* DroneSafetyMapSystem.mdx */}
+import { Meta } from '@storybook/blocks'
+
+<Meta title="Learning/10_実践：ドローン安全飛行マップ構築" />
+
+# 実践：ドローン安全飛行マップシステムの構築
+
+本章では、これまでに学習した理論（React設計、地理空間情報技術、アルゴリズム）を統合し、ドローン飛行申請および安全運航に必要な「禁止・注意区域」の可視化システムを構築する一連のデータパイプラインを体系的に解説します。
+
+## 1. システム要件とデータアーキテクチャ
+
+ドローン飛行における「安全性」と「適法性」を担保するため、以下の3層構造を持つ地理空間情報システムを設計します。
+
+### 1-A. データレイヤー分類
+
+| レイヤー | 定義 | データソース例 | 更新頻度 | 重要度 |
+|---------|------|---------------|----------|--------|
+| **Base Layer** | 地理的コンテキスト（道路、地形） | 国土地理院 (Std/Pale) | 中 | 参考 |
+| **Regulatory Layer** | 法的に飛行が禁止/制限される区域 | e-Stat(DID), GSI(空港) | 低 | **Critical** |
+| **Dynamic Layer** | 一時的な規制や気象情報 | NOTAM, 気象庁API | 高 | High |
+
+### 1-B. 形式定義：安全評価関数
+
+ある地点 `P(lat, lon, alt, time)` における飛行可能性 `S` を以下の関数として定義します。
+
+```
+S(P) = AND(¬R_0(P), ¬R_1(P), ..., ¬R_n(P))
+```
+
+ここで `R_i` は i番目の規制区域判定関数（内部にあればTrue）です。「全ての規制区域に含まれていない」ことが飛行可能条件となります（※許可取得時は例外）。
+
+## 2. データ収集フロー (Data Ingestion Pipeline)
+
+異種混合なデータソースから、アプリケーションで利用可能な形式へ変換する ETL (Extract, Transform, Load) パイプラインの実装詳細です。
+
+### 2-A. Extract: 規制データの取得
+
+主要な規制データは、形式も提供元も異なります。
+
+1.  **人口集中地区 (DID)**
+    *   形式: Shapefile または GeoJSON
+    *   ソース: e-Stat (政府統計の総合窓口)
+    *   特性: 5年ごとの国勢調査で更新。ポリゴン数が膨大で重い。
+2.  **空港周辺空域 (Surface)**
+    *   形式: GSI Vector Tiles (GeoJSON)
+    *   ソース: 国土地理院
+    *   特性: 進入表面など複雑な3次元形状の2次元投影。
+3.  **重要施設周辺**
+    *   形式: XML / CSV / PDF
+    *   ソース: 各省庁HP
+    *   特性: 非構造化データであることが多く、スクレイピングや手動整備が必要。
+
+### 2-B. Transform: 座標変換と幾何正規化
+
+取得したデータは、Web Mercator (EPSG:3857) または WGS84 (EPSG:4326) に統一する必要があります。
+
+```typescript
+// 座標参照系 (CRS) の統一化プロセス
+import proj4 from 'proj4';
+
+// JGD2011 (平面直角座標系) -> WGS84 変換定義
+proj4.defs("EPSG:xxxx", "+proj=tmerc +lat_0=0 +lon_0=0...");
+
+function normalizeGeometry(feature: RawFeature): GeoJSON.Feature {
+  // 1. 座標変換
+  const wgs84Coords = feature.geometry.coordinates.map(c => proj4('EPSG:xxxx', 'WGS84', c));
+  
+  // 2. トポロジー修復 (Polygon Closing)
+  // ポリゴンの始点と終点は一致していなければならない
+  if (!isClosed(wgs84Coords)) {
+    wgs84Coords.push(wgs84Coords[0]);
+  }
+
+  // 3. 簡素化 (Simplification)
+  // Web表示用にDouglas-Peucker法で頂点数を削減
+  const simplified = simplify(wgs84Coords, tolerance);
+
+  return createGeoJSON(simplified);
+}
+```
+
+## 3. レンダリングと可視化 (Visualization Strategy)
+
+ブラウザ（MapLibre GL JS）における効率的な描画戦略です。
+
+### 3-A. 重ね合わせの優先順位 (Z-Index Strategy)
+
+情報の重要度に応じて描画順序（Z-Order）を制御します。
+
+1.  **最前面**: ユーザーの飛行経路、ドローン現在位置
+2.  **前面**: 禁止区域（赤）、制限区域（黄）
+3.  **背面**: 地図注記（ラベル）
+4.  **最背面**: 地形図、航空写真
+
+### 3-B. 視覚的警告表現 (Visual Semantics)
+
+色彩心理学とUIデザイン原則に基づいた配色を行います。
+
+*   **Red (`#FF0000`, opacity 0.3)**: **No-Fly Zone (飛行禁止)**
+    *   空港敷地、重要施設
+*   **Yellow (`#FFFF00`, opacity 0.3)**: **Restricted Zone (要許可/注意)**
+    *   DID地区、空港進入表面下
+*   **Green (`#00FF00`, opacity 0.2)**: **Allowed Zone (飛行推奨)**
+    *   テストフィールド等
+
+```typescript
+// MapLibre GL JS Style Specification
+const layers = [
+  {
+    id: 'did-layer',
+    type: 'fill',
+    source: 'did-source',
+    paint: {
+      'fill-color': [
+        'match', ['get', 'type'],
+        'prohibited', '#ff0000', // 禁止は赤
+        'restricted', '#ffff00', // 制限は黄
+        '#cccccc' // その他
+      ],
+      'fill-opacity': 0.4
+    }
+  }
+];
+```
+
+## 4. リアルタイム空間解析 (Real-time Spatial Analysis)
+
+Map上への単なる表示だけでなく、システムが能動的に危険を検知するメカニズムです。
+
+### 4-A. 飛行経路バリデーション
+
+ユーザーがウェイポイントを配置するたびに、バックグラウンドで衝突判定を実行します。
+
+1.  **空間インデックス検索**: R-Tree を用いて、当該ポイント近傍の規制ポリゴンのみを `O(log N)` で抽出。
+2.  **幾何判定**: Ray Casting法により包含判定。
+3.  **法的解釈**: 判定されたエリア属性（例：「空港周辺」）に基づき、「航空法第132条違反」等の警告メッセージを生成。
+
+### 4-B. アラート・フィードバックループ
+
+```typescript
+type FlightSafetyStatus = 'SAFE' | 'WARNING' | 'PROHIBITED';
+
+function assessFlightSafety(path: LineString, restrictions: RTree): FlightAnalysis {
+  const conflits = [];
+  
+  for (const segment of path.segments) {
+    // 線分とポリゴンの交差判定
+    const hits = restrictions.search(segment.bbox);
+    for (const area of hits) {
+      if (intersects(segment, area.geometry)) {
+        conflits.push({
+          segmentIndex: segment.index,
+          areaName: area.properties.name,
+          regulationType: area.properties.lawType
+        });
+      }
+    }
+  }
+
+  return {
+    status: conflits.length > 0 ? 'PROHIBITED' : 'SAFE',
+    details: conflits
+  };
+}
+```
+
+## 5. まとめ：信頼性の高いシステムに向けて
+
+本システムの実装においては、以下の点を継続的に考慮する必要があります。
+
+*   **情報の鮮度**: 規制は法改正や工事等で変化します。データの自動更新パイプラインが重要です。
+*   **責任分界点**: システムはあくまで「支援」であり、最終的な飛行判断は操縦者にある旨のUX設計（免責事項の明示、確認フロー）が不可欠です。
+*   **パフォーマンス**: 大量のポリゴンデータを扱うため、WebGLの活用やデータのタイリング（Vector Tiles）化による最適化が求められます。

@@ -24,14 +24,9 @@ import {
   generateHeliportGeoJSON,
   generateRedZoneGeoJSON,
   generateYellowZoneGeoJSON,
-  generateEmergencyAirspaceGeoJSON,
-  generateMannedAircraftLandingGeoJSON,
-  generateRemoteIDZoneGeoJSON,
   generateBuildingsGeoJSON,
   generateWindFieldGeoJSON,
   generateLTECoverageGeoJSON,
-  generateRadioInterferenceGeoJSON,
-  generateMannedAircraftZonesGeoJSON,
   calculateBBox,
   mergeBBoxes,
   getCustomLayers,
@@ -76,10 +71,7 @@ const ZONE_IDS = {
   DID_ALL_JAPAN: 'ZONE_IDS.DID_ALL_JAPAN',
   AIRPORT: 'airport',
   NO_FLY_RED: 'ZONE_IDS.NO_FLY_RED',
-  NO_FLY_YELLOW: 'ZONE_IDS.NO_FLY_YELLOW',
-  EMERGENCY_AIRSPACE: 'ZONE_IDS.EMERGENCY_AIRSPACE',
-  MANNED_AIRCRAFT_LANDING: 'ZONE_IDS.MANNED_AIRCRAFT_LANDING',
-  REMOTE_ID_ZONE: 'ZONE_IDS.REMOTE_ID_ZONE'
+  NO_FLY_YELLOW: 'ZONE_IDS.NO_FLY_YELLOW'
 } as const
 
 // ============================================
@@ -791,50 +783,42 @@ function App() {
         case 'y':
           toggleRestriction('ZONE_IDS.NO_FLY_YELLOW')
           break
-        case 'e':
-          toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')
-          break
+
+        // [H] Heliport / Airport
         case 'h':
-          toggleRestriction('heliports')
+          toggleRestriction('facility-landing')
           break
-        case 'i':
-          toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')
+
+        // [M] Military (Self Defense Force)
+        // Was: map style (moved to 'b')
+        case 'm':
+          toggleRestriction('facility-military')
           break
-        case 'v':
-          toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')
-          break
-        case 'u':
-          toggleRestriction('manned-aircraft-zones')
-          break
+
+        // [F] Fire Station
         case 'f':
-          toggleRestriction('radio-interference')
+          toggleRestriction('facility-fire')
           break
-        case 't':
-          setShowTooltip((prev) => !prev)
-          break
-        case 'g':
-          setEnableCoordinateDisplay((prev) => {
-            const next = !prev
-            if (!next) setDisplayCoordinates(null)
-            return next
-          })
-          break
-        case 's':
-          // サイドバートグル（左）
-          setShowLeftLegend((prev) => !prev)
-          break
+
+        // [P] Physician / Medical
+        // Was: right sidebar (disabled for now or needs remapping)
         case 'p':
-          // サイドバートグル（右）
-          setShowRightLegend((prev) => !prev)
+          toggleRestriction('facility-medical')
           break
+
+        // [W] Wind Field (Mock) - Keeping for now as per plan, or user didn't explicitly ask to remove this one?
+        // User said "Temporary Data" section. Wind is an overlay. Let's keep existing behavior for 'w' and 'c' unless confusing.
+        // Actually, user said "仮設置データは全て削除" (Delete all temporary data).
+        // These are overlays, not strictly "restriction" temporary data. I will leave them for now to avoid over-deletion.
         case 'w':
           toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
           break
         case 'c':
           toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
           break
-        case 'm':
-          // マップスタイル切替（循環）: M=次, Shift+M=前
+
+        // [B] Base Map (moved from 'm')
+        case 'b':
           {
             const keys = Object.keys(BASE_MAPS) as BaseMapKey[]
             const currentIndex = keys.indexOf(baseMap)
@@ -2906,24 +2890,6 @@ function App() {
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_YELLOW') {
         geojson = generateYellowZoneGeoJSON()
         color = RESTRICTION_COLORS.no_fly_yellow
-      } else if (restrictionId === 'ZONE_IDS.EMERGENCY_AIRSPACE') {
-        geojson = generateEmergencyAirspaceGeoJSON()
-        color = RESTRICTION_COLORS.emergency
-      } else if (restrictionId === 'ZONE_IDS.MANNED_AIRCRAFT_LANDING') {
-        geojson = generateMannedAircraftLandingGeoJSON()
-        color = RESTRICTION_COLORS.manned
-      } else if (restrictionId === 'ZONE_IDS.REMOTE_ID_ZONE') {
-        geojson = generateRemoteIDZoneGeoJSON()
-        color = RESTRICTION_COLORS.remote_id
-      } else if (restrictionId === 'heliports') {
-        geojson = generateHeliportGeoJSON()
-        color = '#FF6B6B' // ヘリポート用カラー
-      } else if (restrictionId === 'radio-interference') {
-        geojson = generateRadioInterferenceGeoJSON()
-        color = '#9B59B6' // 電波干渉区域用カラー
-      } else if (restrictionId === 'manned-aircraft-zones') {
-        geojson = generateMannedAircraftZonesGeoJSON()
-        color = '#3498DB' // 有人機発着区域用カラー
       } else if (restrictionId === ZONE_IDS.DID_ALL_JAPAN) {
         // DID全国一括表示モード - 全47都道府県を赤色で表示
         const allLayers = getAllLayers()
@@ -3066,9 +3032,52 @@ function App() {
     }
   }
 
+  // ============================================
+  // Bulk Toggle Logic
+  // ============================================
+
+  const FACILITY_DATA_IDS = FACILITY_LAYERS.map((f) => f.id)
+
+  const NO_FLY_LAW_IDS = [ZONE_IDS.NO_FLY_RED, ZONE_IDS.NO_FLY_YELLOW]
+
+  const getGroupCheckState = (ids: string[]) => {
+    const visibleCount = ids.filter((id) => restrictionStates.get(id)).length
+    if (visibleCount === 0) return false
+    if (visibleCount === ids.length) return true
+    return 'mixed' // Indeterminate
+  }
+
+  const toggleRestrictionGroup = async (ids: string[]) => {
+    const currentState = getGroupCheckState(ids)
+    // If mixed or false -> turn all ON. If true -> turn all OFF.
+    const shouldShow = currentState !== true
+
+    if (shouldShow) {
+      for (const id of ids) {
+        if (!restrictionStatesRef.current.get(id)) {
+          // Use syncState: false to prevent individual state updates
+          await showRestriction(id, { syncState: false })
+        }
+      }
+    } else {
+      for (const id of ids) {
+        if (restrictionStatesRef.current.get(id)) {
+          hideRestriction(id, { syncState: false })
+        }
+      }
+    }
+
+    // Batch update state
+    setRestrictionStates((prev) => {
+      const next = new Map(prev)
+      ids.forEach((id) => next.set(id, shouldShow))
+      return next
+    })
+  }
+
   const isRestrictionVisible = (id: string) => restrictionStates.get(id) ?? false
 
-  type InfoModalKey = 'restrictions' | 'temporary' | 'facilities' | 'noFlyLaw' | 'did'
+  type InfoModalKey = 'restrictions' | 'facilities' | 'noFlyLaw' | 'did'
 
   const INFO_MODAL_CONTENT: Record<
     InfoModalKey,
@@ -3084,14 +3093,7 @@ function App() {
         'レッド/イエローは現状サンプルで、最終判断は必ずDIPS/NOTAMで確認してください。'
       ]
     },
-    temporary: {
-      title: '仮設置データについて',
-      lead: '緊急用務空域・有人機発着エリアなどの参考/試験的なレイヤーです。',
-      bullets: [
-        '公式の連携前の暫定データのため、正確性・網羅性は保証されません。',
-        '飛行の可否は必ずDIPS・NOTAM・自治体の最新情報で確認してください。'
-      ]
-    },
+
     facilities: {
       title: '施設データについて',
       lead: 'OSMや自治体オープンデータを加工した参考情報です。',
@@ -3689,7 +3691,7 @@ function App() {
             color: theme.colors.text
           }}
         >
-          DID & Airspace in Japan
+          DID-J26
         </h1>
 
         {/* Search */}
@@ -4116,196 +4118,6 @@ function App() {
             <span>人口集中地区（全国） [D]</span>
           </label>
 
-          {/*仮設置データセクション */}
-          <div
-            style={{
-              marginTop: '8px',
-              paddingTop: '8px',
-              borderTop: `1px solid ${darkMode ? '#444' : '#ddd'}`,
-              marginBottom: '8px'
-            }}
-          >
-            <div
-              style={{
-                fontSize: '11px',
-                color: darkMode ? '#888' : '#999',
-                marginBottom: '6px',
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              仮設置データ *
-              <InfoBadge
-                ariaLabel="仮設置データの説明"
-                onClick={() => setInfoModalKey('temporary')}
-              />
-            </div>
-
-            {/* Emergency airspace */}
-            <label
-              title="緊急用務空域 * [E]：警察・消防などの緊急活動が必要な区域（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('ZONE_IDS.EMERGENCY_AIRSPACE')}
-                onChange={() => toggleRestriction('ZONE_IDS.EMERGENCY_AIRSPACE')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: RESTRICTION_COLORS.emergency,
-                  borderRadius: '2px'
-                }}
-              />
-              <span>緊急用務空域 * [E]</span>
-            </label>
-
-            {/* Manned aircraft */}
-            <label
-              title="有人機発着エリア * [V]：有人航空機の離着陸場所（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-                onChange={() => toggleRestriction('ZONE_IDS.MANNED_AIRCRAFT_LANDING')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: RESTRICTION_COLORS.manned,
-                  borderRadius: '2px'
-                }}
-              />
-              <span>有人機発着エリア * [V]</span>
-            </label>
-
-            {/* Remote ID */}
-            <label
-              title="リモートID特定区域 * [I]：リモートID機能搭載が必要（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('ZONE_IDS.REMOTE_ID_ZONE')}
-                onChange={() => toggleRestriction('ZONE_IDS.REMOTE_ID_ZONE')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: RESTRICTION_COLORS.remote_id,
-                  borderRadius: '2px'
-                }}
-              />
-              <span>リモートID特定区域 * [I]</span>
-            </label>
-
-            {/* Heliports */}
-            <label
-              title="ヘリポート * [H]：ビル屋上・病院等（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('heliports')}
-                onChange={() => toggleRestriction('heliports')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: '#FF6B6B',
-                  borderRadius: '2px'
-                }}
-              />
-              <span>ヘリポート * [H]</span>
-            </label>
-
-            {/* Radio Interference */}
-            <label
-              title="電波干渉区域 * [F]：電波塔・放送局周辺（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('radio-interference')}
-                onChange={() => toggleRestriction('radio-interference')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: '#9B59B6',
-                  borderRadius: '2px'
-                }}
-              />
-              <span>電波干渉区域 * [F]</span>
-            </label>
-
-            {/* Manned Aircraft Zones */}
-            <label
-              title="有人機発着区域 * [U]：農薬散布ヘリなど（参考データ）"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '6px',
-                cursor: 'pointer'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isRestrictionVisible('manned-aircraft-zones')}
-                onChange={() => toggleRestriction('manned-aircraft-zones')}
-              />
-              <span
-                style={{
-                  width: '14px',
-                  height: '14px',
-                  backgroundColor: '#3498DB',
-                  borderRadius: '2px'
-                }}
-              />
-              <span>有人機発着区域 * [U]</span>
-            </label>
-          </div>
-
           {/* Facility data section */}
           <div
             style={{
@@ -4326,7 +4138,26 @@ function App() {
                 gap: '6px'
               }}
             >
-              施設データ *
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={getGroupCheckState(FACILITY_DATA_IDS) === true}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = getGroupCheckState(FACILITY_DATA_IDS) === 'mixed'
+                    }
+                  }}
+                  onChange={() => toggleRestrictionGroup(FACILITY_DATA_IDS)}
+                />
+                施設データ *
+              </label>
               <InfoBadge
                 ariaLabel="施設データの説明"
                 onClick={() => setInfoModalKey('facilities')}
@@ -4357,7 +4188,19 @@ function App() {
                     borderRadius: '2px'
                   }}
                 />
-                <span>{facility.name}</span>
+                <span>
+                  {facility.name} [
+                  {facility.id === 'facility-landing'
+                    ? 'H'
+                    : facility.id === 'facility-military'
+                      ? 'M'
+                      : facility.id === 'facility-fire'
+                        ? 'F'
+                        : facility.id === 'facility-medical'
+                          ? 'P'
+                          : ''}
+                  ]
+                </span>
               </label>
             ))}
             <div
@@ -4390,7 +4233,26 @@ function App() {
                 gap: '6px'
               }}
             >
-              小型無人機等飛行禁止法
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={getGroupCheckState(NO_FLY_LAW_IDS) === true}
+                  ref={(el) => {
+                    if (el) {
+                      el.indeterminate = getGroupCheckState(NO_FLY_LAW_IDS) === 'mixed'
+                    }
+                  }}
+                  onChange={() => toggleRestrictionGroup(NO_FLY_LAW_IDS)}
+                />
+                小型無人機等飛行禁止法
+              </label>
               <InfoBadge
                 ariaLabel="小型無人機等飛行禁止法の説明"
                 onClick={() => setInfoModalKey('noFlyLaw')}

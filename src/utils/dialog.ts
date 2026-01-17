@@ -70,7 +70,7 @@ export function cancelDialog(id: string) {
  * Remove a dialog
  */
 function removeDialog(id: string) {
-  const index = dialogs.findIndex(d => d.id === id)
+  const index = dialogs.findIndex((d) => d.id === id)
   if (index > -1) {
     dialogs.splice(index, 1)
     notifyListeners()
@@ -91,5 +91,5 @@ export function subscribeToDialogs(listener: (dialogs: ConfirmDialog[]) => void)
  * Notify all listeners of dialog changes
  */
 function notifyListeners() {
-  listeners.forEach(listener => listener([...dialogs]))
+  listeners.forEach((listener) => listener([...dialogs]))
 }

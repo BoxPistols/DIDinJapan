@@ -359,41 +359,49 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>DrawingTools - デフォルト状態</h3>
         <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
           DrawingTools コンポーネントは MapLibre GL インスタンスを必須とします。
         </p>
-        <div style={{
-          backgroundColor: '#fff3cd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          color: '#856404',
-          border: '1px solid #ffc107',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff3cd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#856404',
+            border: '1px solid #ffc107',
+            marginBottom: '12px'
+          }}
+        >
           <strong>⚠️ 警告:</strong> map prop が null の場合、DrawingTools は表示されません。
         </div>
-        <div style={{
-          backgroundColor: '#f0f0f0',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f0f0f0',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+        >
           <strong>実装例:</strong>
-          <pre style={{
-            margin: '8px 0 0 0',
-            overflow: 'auto',
-            fontSize: '11px'
-          }}>
-{`<DrawingTools
+          <pre
+            style={{
+              margin: '8px 0 0 0',
+              overflow: 'auto',
+              fontSize: '11px'
+            }}
+          >
+            {`<DrawingTools
   map={mapInstance}
   onFeaturesChange={(features) => {
     console.log('Features updated:', features)
@@ -417,20 +425,18 @@ export const WithMap: Story = {
 
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-        <DrawingTools
-          map={mockMap as unknown as maplibregl.Map}
-          mapLoaded={true}
-          {...args}
-        />
-        <div style={{
-          backgroundColor: '#e3f2fd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          marginTop: '20px'
-        }}>
-          <strong>📌 情報:</strong> モック Map を使用しています。
-          実際のアプリケーションでは、本物の MapLibre GL インスタンスが使用されます。
+        <DrawingTools map={mockMap as unknown as maplibregl.Map} mapLoaded={true} {...args} />
+        <div
+          style={{
+            backgroundColor: '#e3f2fd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            marginTop: '20px'
+          }}
+        >
+          <strong>📌 情報:</strong> モック Map を使用しています。 実際のアプリケーションでは、本物の
+          MapLibre GL インスタンスが使用されます。
         </div>
       </div>
     )
@@ -444,23 +450,27 @@ export const WithMap: Story = {
 export const PolygonMode: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>ポリゴン描画モード</h3>
         <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
           複数のポイントをクリックして多角形を描画します。
         </p>
-        <div style={{
-          backgroundColor: '#f5f5f5',
-          padding: '12px',
-          borderRadius: '4px',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '12px'
+          }}
+        >
           <strong>操作手順:</strong>
           <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '12px' }}>
             <li>「ポリゴン描画」ボタンをクリック</li>
@@ -469,12 +479,14 @@ export const PolygonMode: Story = {
             <li>ポリゴンが作成されます</li>
           </ol>
         </div>
-        <div style={{
-          backgroundColor: '#fff3cd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff3cd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+        >
           <strong>用途:</strong> 飛行範囲、立入禁止区域、観測エリアなど
         </div>
       </div>
@@ -489,23 +501,27 @@ export const PolygonMode: Story = {
 export const CircleMode: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>円描画モード</h3>
         <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
           クリック位置を中心とした円を作成します。半径は自由に設定可能です。
         </p>
-        <div style={{
-          backgroundColor: '#f5f5f5',
-          padding: '12px',
-          borderRadius: '4px',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '12px'
+          }}
+        >
           <strong>操作手順:</strong>
           <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '12px' }}>
             <li>「円を配置」ボタンをクリック</li>
@@ -514,12 +530,14 @@ export const CircleMode: Story = {
             <li>指定した半径の円が作成されます</li>
           </ol>
         </div>
-        <div style={{
-          backgroundColor: '#fff3cd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff3cd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+        >
           <strong>用途:</strong> バッファゾーン、観測半径、警戒範囲など
         </div>
       </div>
@@ -534,23 +552,27 @@ export const CircleMode: Story = {
 export const PointMode: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>ウェイポイント配置モード</h3>
         <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
           離散的なポイント（ウェイポイント）を地図上に配置します。
         </p>
-        <div style={{
-          backgroundColor: '#f5f5f5',
-          padding: '12px',
-          borderRadius: '4px',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '12px'
+          }}
+        >
           <strong>操作手順:</strong>
           <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '12px' }}>
             <li>「ウェイポイント配置」ボタンをクリック</li>
@@ -559,12 +581,14 @@ export const PointMode: Story = {
             <li>各ポイントに名前を付けることができます</li>
           </ol>
         </div>
-        <div style={{
-          backgroundColor: '#fff3cd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff3cd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+        >
           <strong>用途:</strong> 複数の着陸地点、検査ポイント、関心地点など
         </div>
       </div>
@@ -579,23 +603,27 @@ export const PointMode: Story = {
 export const LineMode: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 12px 0' }}>飛行経路描画モード</h3>
         <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
           複数のポイントを線でつなぐ経路を作成します。
         </p>
-        <div style={{
-          backgroundColor: '#f5f5f5',
-          padding: '12px',
-          borderRadius: '4px',
-          marginBottom: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#f5f5f5',
+            padding: '12px',
+            borderRadius: '4px',
+            marginBottom: '12px'
+          }}
+        >
           <strong>操作手順:</strong>
           <ol style={{ margin: '8px 0 0 0', paddingLeft: '20px', fontSize: '12px' }}>
             <li>「経路描画」ボタンをクリック</li>
@@ -604,12 +632,14 @@ export const LineMode: Story = {
             <li>「完了」を押して経路を確定</li>
           </ol>
         </div>
-        <div style={{
-          backgroundColor: '#fff3cd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff3cd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}
+        >
           <strong>用途:</strong> 自動巡回ルート、検査経路、連続監視エリア
         </div>
       </div>
@@ -626,12 +656,14 @@ export const DarkMode: Story = {
     const mockMap = createMockMapEnvironment()
 
     return (
-      <div style={{
-        padding: '20px',
-        backgroundColor: '#1e1e1e',
-        minHeight: '100vh',
-        color: '#e0e0e0'
-      }}>
+      <div
+        style={{
+          padding: '20px',
+          backgroundColor: '#1e1e1e',
+          minHeight: '100vh',
+          color: '#e0e0e0'
+        }}
+      >
         <DrawingTools
           map={mockMap as unknown as maplibregl.Map}
           mapLoaded={true}
@@ -653,13 +685,15 @@ export const DarkMode: Story = {
 export const ExportFormats: Story = {
   render: () => (
     <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-      <div style={{
-        backgroundColor: '#fff',
-        padding: '24px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '600px'
-      }}>
+      <div
+        style={{
+          backgroundColor: '#fff',
+          padding: '24px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          maxWidth: '600px'
+        }}
+      >
         <h3 style={{ margin: '0 0 16px 0' }}>エクスポート形式</h3>
 
         <div style={{ marginBottom: '16px' }}>
@@ -667,13 +701,15 @@ export const ExportFormats: Story = {
           <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666' }}>
             標準的な地理データ形式。Web GIS アプリケーションで広く使用されます。
           </p>
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '8px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '8px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace'
+            }}
+          >
             {`{ "type": "FeatureCollection", "features": [...] }`}
           </div>
         </div>
@@ -683,13 +719,15 @@ export const ExportFormats: Story = {
           <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666' }}>
             Google Earth 形式。Google Maps、Google Earth で表示できます。
           </p>
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '8px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '8px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace'
+            }}
+          >
             {`<?xml version="1.0"?>`}
           </div>
         </div>
@@ -699,13 +737,15 @@ export const ExportFormats: Story = {
           <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666' }}>
             スプレッドシート互換形式。Excel や Google Sheets で編集できます。
           </p>
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '8px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '8px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace'
+            }}
+          >
             {`id,name,type,lat,lng,...`}
           </div>
         </div>
@@ -715,13 +755,15 @@ export const ExportFormats: Story = {
           <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666' }}>
             度分秒形式。NOTAM 申請に対応した形式です。
           </p>
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '8px',
-            borderRadius: '3px',
-            fontSize: '11px',
-            fontFamily: 'monospace'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '8px',
+              borderRadius: '3px',
+              fontSize: '11px',
+              fontFamily: 'monospace'
+            }}
+          >
             {`35°40'52.00"N 139°46'04.40"E`}
           </div>
         </div>
@@ -746,13 +788,15 @@ export const Interactive: Story = {
           embedded={true}
           {...args}
         />
-        <div style={{
-          backgroundColor: '#e3f2fd',
-          padding: '12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          marginTop: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#e3f2fd',
+            padding: '12px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            marginTop: '20px'
+          }}
+        >
           <strong>💡 使い方:</strong>
           <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
             <li>上部のタブで「描画」「管理」「エクスポート」を切り替え</li>

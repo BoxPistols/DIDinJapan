@@ -1,10 +1,18 @@
 /**
  * Mock MapLibre GL for Storybook
- * 
+ *
  * DrawingTools のテストに必要な最小限の MapLibre GL インスタンスをモックします。
  */
 
-type EventType = 'click' | 'move' | 'zoom' | 'drag' | 'draw.create' | 'draw.update' | 'draw.delete' | string
+type EventType =
+  | 'click'
+  | 'move'
+  | 'zoom'
+  | 'drag'
+  | 'draw.create'
+  | 'draw.update'
+  | 'draw.delete'
+  | string
 
 interface MapEventHandler {
   (event: unknown): void
@@ -119,7 +127,7 @@ export class MockMap {
   private emit(event: EventType, data: unknown): void {
     const handlers = this._listeners.get(event)
     if (handlers) {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         handler(data)
       })
     }
@@ -155,9 +163,10 @@ export class MockMap {
   setLayoutProperty(layerId: string, key: string, value: unknown): this {
     const layer = this._layers.get(layerId)
     if (layer) {
-      const layout = (layer.layout && typeof layer.layout === 'object' && !Array.isArray(layer.layout))
-        ? (layer.layout as Record<string, unknown>)
-        : {}
+      const layout =
+        layer.layout && typeof layer.layout === 'object' && !Array.isArray(layer.layout)
+          ? (layer.layout as Record<string, unknown>)
+          : {}
       layout[key] = value
       layer.layout = layout
     }

@@ -14,7 +14,7 @@ export interface CustomLayer {
   id: string
   name: string
   type: 'restriction' | 'poi' | 'custom'
-  category: string  // 'airport' | 'emergency' | 'manned' | 'remote_id' | 'lte' | 'wind' | 'custom'
+  category: string // 'airport' | 'emergency' | 'manned' | 'remote_id' | 'lte' | 'wind' | 'custom'
   color: string
   opacity: number
   data: GeoJSON.FeatureCollection
@@ -96,7 +96,9 @@ export function getCustomLayers(): CustomLayer[] {
         const name = typeof raw.name === 'string' ? raw.name : 'Untitled'
         const typeRaw = raw.type
         const type: CustomLayer['type'] =
-          typeRaw === 'custom' || typeRaw === 'restriction' || typeRaw === 'poi' ? typeRaw : 'custom'
+          typeRaw === 'custom' || typeRaw === 'restriction' || typeRaw === 'poi'
+            ? typeRaw
+            : 'custom'
         const category = typeof raw.category === 'string' ? raw.category : 'custom'
         const color = typeof raw.color === 'string' ? raw.color : '#888888'
         const opacity = typeof raw.opacity === 'number' ? raw.opacity : 0.5
@@ -193,7 +195,7 @@ export function updateCustomLayer(
   updates: Partial<Omit<CustomLayer, 'id' | 'createdAt'>>
 ): CustomLayer | null {
   const layers = getCustomLayers()
-  const index = layers.findIndex(l => l.id === id)
+  const index = layers.findIndex((l) => l.id === id)
 
   if (index === -1) return null
 
@@ -212,7 +214,7 @@ export function updateCustomLayer(
  */
 export function removeCustomLayer(id: string): boolean {
   const layers = getCustomLayers()
-  const filtered = layers.filter(l => l.id !== id)
+  const filtered = layers.filter((l) => l.id !== id)
 
   if (filtered.length === layers.length) return false
 
@@ -225,7 +227,7 @@ export function removeCustomLayer(id: string): boolean {
  */
 export function getCustomLayerById(id: string): CustomLayer | null {
   const layers = getCustomLayers()
-  return layers.find(l => l.id === id) || null
+  return layers.find((l) => l.id === id) || null
 }
 
 /**
@@ -233,7 +235,7 @@ export function getCustomLayerById(id: string): CustomLayer | null {
  */
 export function getCustomLayersByCategory(category: string): CustomLayer[] {
   const layers = getCustomLayers()
-  return layers.filter(l => l.category === category)
+  return layers.filter((l) => l.category === category)
 }
 
 // ============================================
@@ -274,7 +276,11 @@ export function exportLayerAsGeoJSON(id: string): string | null {
 /**
  * Import custom layers from JSON
  */
-export function importCustomLayers(jsonString: string): { success: boolean; count: number; error?: string } {
+export function importCustomLayers(jsonString: string): {
+  success: boolean
+  count: number
+  error?: string
+} {
   try {
     const imported = JSON.parse(jsonString) as unknown
 
@@ -304,8 +310,7 @@ export function importCustomLayers(jsonString: string): { success: boolean; coun
           return
         }
 
-        const requestedId =
-          typeof item.id === 'string' ? item.id : `imported-${now}-${index}`
+        const requestedId = typeof item.id === 'string' ? item.id : `imported-${now}-${index}`
         const id = ensureUniqueId(requestedId, used)
 
         const newLayer: CustomLayer = {
@@ -336,7 +341,11 @@ export function importCustomLayers(jsonString: string): { success: boolean; coun
       // Validate FeatureCollection structure
       const features = imported.features
       if (!Array.isArray(features)) {
-        return { success: false, count: 0, error: 'Invalid FeatureCollection: features must be an array' }
+        return {
+          success: false,
+          count: 0,
+          error: 'Invalid FeatureCollection: features must be an array'
+        }
       }
 
       // Import single GeoJSON file
@@ -367,7 +376,11 @@ export function importCustomLayers(jsonString: string): { success: boolean; coun
       return { success: true, count: 1 }
     }
 
-    return { success: false, count: 0, error: 'Invalid format: must be FeatureCollection or array of layers' }
+    return {
+      success: false,
+      count: 0,
+      error: 'Invalid format: must be FeatureCollection or array of layers'
+    }
   } catch (error) {
     return { success: false, count: 0, error: String(error) }
   }
@@ -453,7 +466,11 @@ export async function readGeoJSONFile(file: File): Promise<GeoJSON.FeatureCollec
 /**
  * Download data as file
  */
-export function downloadAsFile(content: string, filename: string, mimeType: string = 'application/json') {
+export function downloadAsFile(
+  content: string,
+  filename: string,
+  mimeType: string = 'application/json'
+) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -482,15 +499,17 @@ export function createRestrictionZoneTemplate(
 ): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {
-        name,
-        type: 'custom_restriction',
-        radiusKm
-      },
-      geometry: createCirclePolygon(coordinates, radiusKm)
-    }]
+    features: [
+      {
+        type: 'Feature',
+        properties: {
+          name,
+          type: 'custom_restriction',
+          radiusKm
+        },
+        geometry: createCirclePolygon(coordinates, radiusKm)
+      }
+    ]
   }
 }
 
@@ -498,7 +517,11 @@ export function createRestrictionZoneTemplate(
  * Create a point-based layer template
  */
 export function createPointLayerTemplate(
-  points: Array<{ name: string; coordinates: [number, number]; properties?: Record<string, unknown> }>
+  points: Array<{
+    name: string
+    coordinates: [number, number]
+    properties?: Record<string, unknown>
+  }>
 ): GeoJSON.FeatureCollection<GeoJSON.Geometry, Record<string, unknown>> {
   return {
     type: 'FeatureCollection',

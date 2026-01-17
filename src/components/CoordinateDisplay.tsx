@@ -123,7 +123,9 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       ref={panelRef}
       style={{
         position: 'fixed',
-        ...(pos ? { left: `${pos.left}px`, top: `${pos.top}px` } : { bottom: '20px', right: '20px' }),
+        ...(pos
+          ? { left: `${pos.left}px`, top: `${pos.top}px` }
+          : { bottom: '20px', right: '20px' }),
         backgroundColor: darkMode ? 'rgba(45,45,45,0.85)' : 'rgba(255,255,255,0.88)',
         border: `2px solid ${darkMode ? '#444' : '#ccc'}`,
         borderRadius: '8px',

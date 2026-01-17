@@ -42,19 +42,13 @@ export function calculateBBox(geometry: GeoJSON.Geometry): [number, number, numb
  * Calculate distance between two points (Haversine formula)
  * @returns distance in kilometers
  */
-export function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
+export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371 // Earth's radius in km
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
@@ -105,14 +99,15 @@ function destinationPoint(
   const lng1 = toRad(lng)
 
   const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(d) +
-    Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
   )
 
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
-    Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
-  )
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    )
 
   return [toDeg(lat2), toDeg(lng2)]
 }
@@ -124,10 +119,7 @@ function toDeg(rad: number): number {
 /**
  * Check if a point is inside a polygon
  */
-export function pointInPolygon(
-  point: [number, number],
-  polygon: [number, number][]
-): boolean {
+export function pointInPolygon(point: [number, number], polygon: [number, number][]): boolean {
   const [x, y] = point
   let inside = false
 
@@ -135,7 +127,7 @@ export function pointInPolygon(
     const [xi, yi] = polygon[i]
     const [xj, yj] = polygon[j]
 
-    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
       inside = !inside
     }
   }
@@ -188,7 +180,7 @@ export function formatCoordinatesDMS(lng: number, lat: number): string {
     let degrees = Math.floor(abs)
     let minutes = Math.floor((abs - degrees) * 60)
     let seconds = ((abs - degrees) * 60 - minutes) * 60
-    
+
     // 丸め処理による繰り上がり対応
     if (parseFloat(seconds.toFixed(2)) >= 60) {
       seconds = 0
@@ -198,14 +190,14 @@ export function formatCoordinatesDMS(lng: number, lat: number): string {
         degrees++
       }
     }
-    
-    const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W')
+
+    const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : decimal >= 0 ? 'E' : 'W'
     return `${degrees}°${minutes}'${seconds.toFixed(2)}"${dir}`
   }
-  
+
   const latDMS = decimalToDMS(lat, true)
   const lngDMS = decimalToDMS(lng, false)
-  
+
   return `${latDMS}, ${lngDMS}`
 }
 
@@ -213,7 +205,24 @@ export function formatCoordinatesDMS(lng: number, lat: number): string {
  * Convert wind direction in degrees to compass direction
  */
 export function degreesToCompass(degrees: number): string {
-  const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+  const directions = [
+    'N',
+    'NNE',
+    'NE',
+    'ENE',
+    'E',
+    'ESE',
+    'SE',
+    'SSE',
+    'S',
+    'SSW',
+    'SW',
+    'WSW',
+    'W',
+    'WNW',
+    'NW',
+    'NNW'
+  ]
   const index = Math.round(degrees / 22.5) % 16
   return directions[index]
 }
@@ -222,7 +231,24 @@ export function degreesToCompass(degrees: number): string {
  * Convert wind direction to Japanese
  */
 export function degreesToJapanese(degrees: number): string {
-  const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西']
+  const directions = [
+    '北',
+    '北北東',
+    '北東',
+    '東北東',
+    '東',
+    '東南東',
+    '南東',
+    '南南東',
+    '南',
+    '南南西',
+    '南西',
+    '西南西',
+    '西',
+    '西北西',
+    '北西',
+    '北北西'
+  ]
   const index = Math.round(degrees / 22.5) % 16
   return directions[index]
 }
@@ -238,7 +264,16 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
     nameEn?: string
     coordinates: [number, number]
     radiusKm: number
-    buildingType: 'station' | 'commercial' | 'office' | 'public' | 'tower' | 'bridge' | 'powerline' | 'antenna' | 'other'
+    buildingType:
+      | 'station'
+      | 'commercial'
+      | 'office'
+      | 'public'
+      | 'tower'
+      | 'bridge'
+      | 'powerline'
+      | 'antenna'
+      | 'other'
     height: { ground: number; asl: number; rooftop?: number }
     obstacleLight?: { type: 'low' | 'medium' | 'high'; color: 'red' | 'white' | 'dual' }
     owner?: { name: string; contact?: string }
@@ -310,7 +345,7 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
       id: 'building-5',
       name: '渋谷スクランブルスクエア（見本）',
       nameEn: 'Shibuya Scramble Square (Sample)',
-      coordinates: [139.7016, 35.6580],
+      coordinates: [139.7016, 35.658],
       radiusKm: 0.07,
       buildingType: 'commercial',
       height: { ground: 230, asl: 255, rooftop: 235 },
@@ -340,7 +375,7 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
       id: 'building-7',
       name: '送電線鉄塔群（見本）',
       nameEn: 'Power Line Tower Array (Sample)',
-      coordinates: [139.6200, 35.7500],
+      coordinates: [139.62, 35.75],
       radiusKm: 0.3,
       buildingType: 'powerline',
       height: { ground: 80, asl: 120, rooftop: 85 },
@@ -354,7 +389,7 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
       id: 'building-8',
       name: '携帯基地局アンテナ（見本）',
       nameEn: 'Cell Tower Antenna (Sample)',
-      coordinates: [139.7300, 35.7100],
+      coordinates: [139.73, 35.71],
       radiusKm: 0.05,
       buildingType: 'antenna',
       height: { ground: 45, asl: 65, rooftop: 50 },
@@ -368,7 +403,7 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
       id: 'building-9',
       name: '国会議事堂（見本）',
       nameEn: 'National Diet Building (Sample)',
-      coordinates: [139.7450, 35.6759],
+      coordinates: [139.745, 35.6759],
       radiusKm: 0.15,
       buildingType: 'public',
       height: { ground: 65, asl: 85 },
@@ -395,7 +430,7 @@ export function generateBuildingsGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockBuildings.map(item => ({
+  const features: GeoJSON.Feature[] = mockBuildings.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -456,7 +491,7 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
       id: 'wind-1',
       name: '東京（見本）',
       nameEn: 'Tokyo (Sample)',
-      coordinates: [139.7500, 35.6800],
+      coordinates: [139.75, 35.68],
       observation: {
         direction: 315,
         speed: 5.2,
@@ -501,17 +536,19 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
         speed: 9.0,
         validUntil: '2024-01-15T18:00:00+09:00'
       },
-      warnings: [{
-        type: 'gusty',
-        severity: 'advisory',
-        message: '突風に注意（最大瞬間風速15m/s予想）'
-      }]
+      warnings: [
+        {
+          type: 'gusty',
+          severity: 'advisory',
+          message: '突風に注意（最大瞬間風速15m/s予想）'
+        }
+      ]
     },
     {
       id: 'wind-3',
       name: '成田空港（見本）',
       nameEn: 'Narita Airport (Sample)',
-      coordinates: [140.3929, 35.7720],
+      coordinates: [140.3929, 35.772],
       observation: {
         direction: 225,
         speed: 6.8,
@@ -536,7 +573,7 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
       id: 'wind-4',
       name: '練馬（見本）',
       nameEn: 'Nerima (Sample)',
-      coordinates: [139.6500, 35.7400],
+      coordinates: [139.65, 35.74],
       observation: {
         direction: 0,
         speed: 3.2,
@@ -555,7 +592,7 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
       id: 'wind-5',
       name: '東京湾観測ブイ（見本）',
       nameEn: 'Tokyo Bay Buoy (Sample)',
-      coordinates: [139.8200, 35.5800],
+      coordinates: [139.82, 35.58],
       observation: {
         direction: 180,
         speed: 7.5,
@@ -570,11 +607,13 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
         type: 'buoy',
         elevation: 0
       },
-      warnings: [{
-        type: 'gale',
-        severity: 'warning',
-        message: '海上強風注意報発令中'
-      }]
+      warnings: [
+        {
+          type: 'gale',
+          severity: 'warning',
+          message: '海上強風注意報発令中'
+        }
+      ]
     },
     {
       id: 'wind-6',
@@ -595,11 +634,13 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
         type: 'private',
         elevation: 10
       },
-      warnings: [{
-        type: 'turbulence',
-        severity: 'advisory',
-        message: 'ビル風による乱流注意'
-      }]
+      warnings: [
+        {
+          type: 'turbulence',
+          severity: 'advisory',
+          message: 'ビル風による乱流注意'
+        }
+      ]
     },
     {
       id: 'wind-7',
@@ -624,7 +665,7 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
       id: 'wind-8',
       name: '横浜（見本）',
       nameEn: 'Yokohama (Sample)',
-      coordinates: [139.6380, 35.4437],
+      coordinates: [139.638, 35.4437],
       observation: {
         direction: 200,
         speed: 5.5,
@@ -647,7 +688,7 @@ export function generateWindFieldGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockWinds.map(item => ({
+  const features: GeoJSON.Feature[] = mockWinds.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -736,7 +777,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-2',
       name: '新宿エリア（見本）',
       nameEn: 'Shinjuku Area (Sample)',
-      coordinates: [139.7000, 35.6900],
+      coordinates: [139.7, 35.69],
       radiusKm: 2.0,
       coverage: {
         strength: 92,
@@ -763,7 +804,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-3',
       name: '渋谷エリア（見本）',
       nameEn: 'Shibuya Area (Sample)',
-      coordinates: [139.7016, 35.6580],
+      coordinates: [139.7016, 35.658],
       radiusKm: 1.8,
       coverage: {
         strength: 88,
@@ -790,7 +831,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-4',
       name: '多摩ニュータウンエリア（見本）',
       nameEn: 'Tama New Town Area (Sample)',
-      coordinates: [139.4200, 35.6200],
+      coordinates: [139.42, 35.62],
       radiusKm: 3.0,
       coverage: {
         strength: 75,
@@ -817,7 +858,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-5',
       name: '山間部エリア（見本）',
       nameEn: 'Mountain Area (Sample)',
-      coordinates: [139.2500, 35.7500],
+      coordinates: [139.25, 35.75],
       radiusKm: 2.5,
       coverage: {
         strength: 45,
@@ -844,7 +885,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-6',
       name: '海上エリア（見本）',
       nameEn: 'Offshore Area (Sample)',
-      coordinates: [139.8500, 35.5200],
+      coordinates: [139.85, 35.52],
       radiusKm: 4.0,
       coverage: {
         strength: 30,
@@ -871,7 +912,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
       id: 'lte-7',
       name: '圏外エリア（見本）',
       nameEn: 'No Service Area (Sample)',
-      coordinates: [139.1500, 35.8500],
+      coordinates: [139.15, 35.85],
       radiusKm: 1.5,
       coverage: {
         strength: 5,
@@ -922,7 +963,7 @@ export function generateLTECoverageGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = mockLTE.map(item => ({
+  const features: GeoJSON.Feature[] = mockLTE.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -1016,7 +1057,7 @@ export function generateRadioInterferenceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'radio-fukuoka',
       name: '福岡タワー',
       nameEn: 'Fukuoka Tower',
-      coordinates: [130.3515, 33.5930],
+      coordinates: [130.3515, 33.593],
       radiusKm: 1.0,
       frequency: 'LTE',
       interferenceLevel: 'medium',
@@ -1026,7 +1067,7 @@ export function generateRadioInterferenceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'radio-sapporo',
       name: '札幌テレビ塔',
       nameEn: 'Sapporo TV Tower',
-      coordinates: [141.3566, 43.0610],
+      coordinates: [141.3566, 43.061],
       radiusKm: 0.8,
       frequency: 'LTE',
       interferenceLevel: 'medium',
@@ -1046,7 +1087,7 @@ export function generateRadioInterferenceGeoJSON(): GeoJSON.FeatureCollection {
       id: 'radio-landmark',
       name: '横浜ランドマークタワー',
       nameEn: 'Yokohama Landmark Tower',
-      coordinates: [139.6325, 35.4550],
+      coordinates: [139.6325, 35.455],
       radiusKm: 1.0,
       frequency: 'LTE',
       interferenceLevel: 'medium',
@@ -1064,7 +1105,7 @@ export function generateRadioInterferenceGeoJSON(): GeoJSON.FeatureCollection {
     }
   ]
 
-  const features: GeoJSON.Feature[] = radioZones.map(item => ({
+  const features: GeoJSON.Feature[] = radioZones.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,
@@ -1117,7 +1158,7 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-niigata-agri',
       name: '新潟農業航空基地',
       nameEn: 'Niigata Agricultural Aviation Base',
-      coordinates: [139.0500, 37.9167],
+      coordinates: [139.05, 37.9167],
       radiusKm: 1.0,
       zoneType: 'agricultural',
       operator: 'JA農協',
@@ -1127,7 +1168,7 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-tokachi',
       name: '北海道農業航空施設（十勝）',
       nameEn: 'Hokkaido Agricultural Aviation (Tokachi)',
-      coordinates: [143.1500, 43.0000],
+      coordinates: [143.15, 43.0],
       radiusKm: 1.5,
       zoneType: 'agricultural',
       operator: 'JA農協',
@@ -1137,7 +1178,7 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-saga-agri',
       name: '佐賀農業航空施設',
       nameEn: 'Saga Agricultural Aviation Facility',
-      coordinates: [130.3000, 33.2667],
+      coordinates: [130.3, 33.2667],
       radiusKm: 1.0,
       zoneType: 'agricultural',
       operator: 'JA農協',
@@ -1148,7 +1189,7 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-sekiyado',
       name: '関宿滑空場',
       nameEn: 'Sekiyado Glider Field',
-      coordinates: [139.8333, 36.0000],
+      coordinates: [139.8333, 36.0],
       radiusKm: 2.0,
       zoneType: 'glider',
       operator: '関宿滑空場管理組合',
@@ -1177,7 +1218,7 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-ono',
       name: '大野滑空場',
       nameEn: 'Ono Glider Field',
-      coordinates: [136.5000, 35.9833],
+      coordinates: [136.5, 35.9833],
       radiusKm: 2.0,
       zoneType: 'glider',
       description: '福井県内グライダー施設'
@@ -1196,14 +1237,14 @@ export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection 
       id: 'manned-ashinoko',
       name: '芦ノ湖水上機離着水場',
       nameEn: 'Lake Ashi Seaplane Landing',
-      coordinates: [139.0333, 35.2000],
+      coordinates: [139.0333, 35.2],
       radiusKm: 1.0,
       zoneType: 'seaplane',
       description: '観光水上飛行機用'
     }
   ]
 
-  const features: GeoJSON.Feature[] = zones.map(item => ({
+  const features: GeoJSON.Feature[] = zones.map((item) => ({
     type: 'Feature',
     properties: {
       id: item.id,

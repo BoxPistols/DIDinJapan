@@ -1,19 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { 
-  calculateDistance, 
-  createCirclePolygon, 
+import {
+  calculateDistance,
+  createCirclePolygon,
   formatCoordinates,
   formatCoordinatesDMS
 } from './geo'
 
 describe('Geo Utilities', () => {
-  
   describe('calculateDistance', () => {
     it('should calculate distance between Tokyo and Osaka correctly', () => {
       // 東京駅 (35.681236, 139.767125)
       // 新大阪駅 (34.732490, 135.500616)
       // 直線距離は約 396km
-      const dist = calculateDistance(35.681236, 139.767125, 34.732490, 135.500616)
+      const dist = calculateDistance(35.681236, 139.767125, 34.73249, 135.500616)
       expect(dist).toBeGreaterThan(390)
       expect(dist).toBeLessThan(405)
     })
@@ -33,8 +32,8 @@ describe('Geo Utilities', () => {
       expect(polygon.type).toBe('Polygon')
       expect(polygon.coordinates).toHaveLength(1) // Outer ring
       // デフォルト32分割 + 閉じるための1点 = 33点
-      expect(polygon.coordinates[0].length).toBeGreaterThan(30) 
-      
+      expect(polygon.coordinates[0].length).toBeGreaterThan(30)
+
       // 最初の点と最後の点が同じか（閉じているか）
       const first = polygon.coordinates[0][0]
       const last = polygon.coordinates[0][polygon.coordinates[0].length - 1]

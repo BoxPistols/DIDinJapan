@@ -122,7 +122,10 @@ export function Modal({
             alignItems: 'center'
           }}
         >
-          <h3 id={modalTitleId} style={{ margin: 0, fontSize: '16px', color: darkMode ? '#fff' : '#333' }}>
+          <h3
+            id={modalTitleId}
+            style={{ margin: 0, fontSize: '16px', color: darkMode ? '#fff' : '#333' }}
+          >
             {title}
           </h3>
           <button

@@ -16,11 +16,11 @@ export interface GeocodingResult {
   type: string
   importance: number
   address?: {
-    state?: string      // 都道府県
-    city?: string       // 市区町村
-    town?: string       // 町名
-    suburb?: string     // 地区
-    road?: string       // 道路名
+    state?: string // 都道府県
+    city?: string // 市区町村
+    town?: string // 町名
+    suburb?: string // 地区
+    road?: string // 道路名
     house_number?: string
     postcode?: string
   }
@@ -80,21 +80,27 @@ export async function searchAddress(
     if (!Array.isArray(results)) return []
 
     type NominatimSearchItem = Record<string, unknown>
-    const parseNum = (v: unknown): number => (typeof v === 'string' ? Number.parseFloat(v) : typeof v === 'number' ? v : NaN)
+    const parseNum = (v: unknown): number =>
+      typeof v === 'string' ? Number.parseFloat(v) : typeof v === 'number' ? v : NaN
     const parseStr = (v: unknown): string => (typeof v === 'string' ? v : '')
     const parseBBox = (v: unknown): [number, number, number, number] | undefined => {
       if (!Array.isArray(v) || v.length !== 4) return undefined
-      const nums = v.map(x => (typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN))
-      return nums.every(n => Number.isFinite(n)) ? (nums as [number, number, number, number]) : undefined
+      const nums = v.map((x) => (typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN))
+      return nums.every((n) => Number.isFinite(n))
+        ? (nums as [number, number, number, number])
+        : undefined
     }
 
-    return (results as NominatimSearchItem[]).map(r => ({
+    return (results as NominatimSearchItem[]).map((r) => ({
       displayName: parseStr(r.display_name),
       lat: parseNum(r.lat),
       lng: parseNum(r.lon),
       type: parseStr(r.type),
       importance: typeof r.importance === 'number' ? r.importance : 0,
-      address: (r.address && typeof r.address === 'object' && !Array.isArray(r.address)) ? (r.address as GeocodingResult['address']) : undefined,
+      address:
+        r.address && typeof r.address === 'object' && !Array.isArray(r.address)
+          ? (r.address as GeocodingResult['address'])
+          : undefined,
       boundingBox: parseBBox(r.boundingbox)
     }))
   } catch (error) {
@@ -109,10 +115,7 @@ export async function searchAddress(
  * @param lng 経度
  * @returns ジオコーディング結果
  */
-export async function reverseGeocode(
-  lat: number,
-  lng: number
-): Promise<GeocodingResult | null> {
+export async function reverseGeocode(lat: number, lng: number): Promise<GeocodingResult | null> {
   const params = new URLSearchParams({
     lat: lat.toString(),
     lon: lng.toString(),
@@ -142,14 +145,30 @@ export async function reverseGeocode(
 
     return {
       displayName: typeof r.display_name === 'string' ? r.display_name : '',
-      lat: typeof r.lat === 'string' ? Number.parseFloat(r.lat) : typeof r.lat === 'number' ? r.lat : NaN,
-      lng: typeof r.lon === 'string' ? Number.parseFloat(r.lon) : typeof r.lon === 'number' ? r.lon : NaN,
+      lat:
+        typeof r.lat === 'string'
+          ? Number.parseFloat(r.lat)
+          : typeof r.lat === 'number'
+            ? r.lat
+            : NaN,
+      lng:
+        typeof r.lon === 'string'
+          ? Number.parseFloat(r.lon)
+          : typeof r.lon === 'number'
+            ? r.lon
+            : NaN,
       type: typeof r.type === 'string' ? r.type : '',
       importance: typeof r.importance === 'number' ? r.importance : 0,
-      address: (r.address && typeof r.address === 'object' && !Array.isArray(r.address)) ? (r.address as GeocodingResult['address']) : undefined,
-      boundingBox: Array.isArray(r.boundingbox) && r.boundingbox.length === 4
-        ? (r.boundingbox.map(x => (typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN)) as [number, number, number, number])
-        : undefined
+      address:
+        r.address && typeof r.address === 'object' && !Array.isArray(r.address)
+          ? (r.address as GeocodingResult['address'])
+          : undefined,
+      boundingBox:
+        Array.isArray(r.boundingbox) && r.boundingbox.length === 4
+          ? (r.boundingbox.map((x) =>
+              typeof x === 'string' || typeof x === 'number' ? Number(x) : NaN
+            ) as [number, number, number, number])
+          : undefined
     }
   } catch (error) {
     console.error('Reverse geocoding error:', error)
@@ -207,7 +226,10 @@ export function getZoomBounds(result: GeocodingResult): {
     return {
       center,
       zoom: 15, // フォールバック
-      bounds: [[minLng, minLat], [maxLng, maxLat]]
+      bounds: [
+        [minLng, minLat],
+        [maxLng, maxLat]
+      ]
     }
   }
 
@@ -250,18 +272,18 @@ export function getZoomBounds(result: GeocodingResult): {
  * 日本国内の主要都市の座標（ショートカット検索用）
  */
 export const MAJOR_CITIES: Record<string, { lat: number; lng: number; zoom: number }> = {
-  '東京': { lat: 35.6812, lng: 139.7671, zoom: 11 },
-  '大阪': { lat: 34.6937, lng: 135.5023, zoom: 11 },
-  '名古屋': { lat: 35.1815, lng: 136.9066, zoom: 11 },
-  '福岡': { lat: 33.5904, lng: 130.4017, zoom: 11 },
-  '札幌': { lat: 43.0618, lng: 141.3545, zoom: 11 },
-  '横浜': { lat: 35.4437, lng: 139.6380, zoom: 11 },
-  '神戸': { lat: 34.6901, lng: 135.1956, zoom: 11 },
-  '京都': { lat: 35.0116, lng: 135.7681, zoom: 11 },
-  '広島': { lat: 34.3853, lng: 132.4553, zoom: 11 },
-  '仙台': { lat: 38.2682, lng: 140.8694, zoom: 11 },
-  '沖縄': { lat: 26.2124, lng: 127.6809, zoom: 10 },
-  '那覇': { lat: 26.2124, lng: 127.6809, zoom: 12 }
+  東京: { lat: 35.6812, lng: 139.7671, zoom: 11 },
+  大阪: { lat: 34.6937, lng: 135.5023, zoom: 11 },
+  名古屋: { lat: 35.1815, lng: 136.9066, zoom: 11 },
+  福岡: { lat: 33.5904, lng: 130.4017, zoom: 11 },
+  札幌: { lat: 43.0618, lng: 141.3545, zoom: 11 },
+  横浜: { lat: 35.4437, lng: 139.638, zoom: 11 },
+  神戸: { lat: 34.6901, lng: 135.1956, zoom: 11 },
+  京都: { lat: 35.0116, lng: 135.7681, zoom: 11 },
+  広島: { lat: 34.3853, lng: 132.4553, zoom: 11 },
+  仙台: { lat: 38.2682, lng: 140.8694, zoom: 11 },
+  沖縄: { lat: 26.2124, lng: 127.6809, zoom: 10 },
+  那覇: { lat: 26.2124, lng: 127.6809, zoom: 12 }
 }
 
 /**

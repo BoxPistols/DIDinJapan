@@ -1,10 +1,9 @@
 /**
  * Elevation Service - 海抜高度取得サービス
- * 
+ *
  * GSI DEM（標高データ）およびその他の高度情報源から
  * 指定座標の海抜高度を取得します。
  */
-
 
 // ============================================
 // タイプ定義
@@ -47,7 +46,7 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
 
 /**
  * GSI標高タイルから標高を取得（非同期）
- * 
+ *
  * @param lng - 経度
  * @param lat - 緯度
  * @returns 標高データ
@@ -69,7 +68,7 @@ export async function fetchElevationFromGSI(
     // https://cyberjapandata.gsi.go.jp/xyz/dem5b/{z}/{x}/{y}.txt
 
     const elevation = await queryGSIDEMTile(lng, lat)
-    
+
     if (elevation !== null) {
       const data: ElevationData = {
         longitude: lng,
@@ -79,12 +78,12 @@ export async function fetchElevationFromGSI(
         timestamp: new Date().toISOString(),
         region: getRegionFromCoordinates(lng, lat)
       }
-      
+
       // キャッシュに保存
       elevationCache.set(cacheKey, data)
       return data
     }
-    
+
     return null
   } catch (error) {
     console.error('Error fetching elevation from GSI:', error)
@@ -96,27 +95,28 @@ export async function fetchElevationFromGSI(
  * GSI DEM タイルクエリ（実装スタブ）
  * 実際のタイル取得ロジックはここに実装
  */
-async function queryGSIDEMTile(
-  lng: number,
-  lat: number
-): Promise<number | null> {
+async function queryGSIDEMTile(lng: number, lat: number): Promise<number | null> {
   try {
     // 国土地理院の標高APIを使用
     // https://maps.gsi.go.jp/development/siyou.html
     const response = await fetch(
       `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`
     )
-    
+
     if (!response.ok) {
       throw new Error(`GSI API error: ${response.status}`)
     }
 
     const data = await response.json()
-    
-    if (data.elevation !== null && data.elevation !== undefined && typeof data.elevation === 'number') {
+
+    if (
+      data.elevation !== null &&
+      data.elevation !== undefined &&
+      typeof data.elevation === 'number'
+    ) {
       return data.elevation
     }
-    
+
     return null
   } catch (error) {
     console.error('Error querying DEM API:', error)
@@ -142,24 +142,23 @@ function getRegionFromCoordinates(lng: number, lat: number): string {
 
 /**
  * マップのクリック位置から座標・高度情報を取得
- * 
+ *
  * @param lngLat - MapLibreGLから取得した {lng, lat}
  * @returns 座標・高度情報
  */
-export async function getCoordinateInfo(
-  lngLat: { lng: number; lat: number }
-): Promise<CoordinateInfo> {
+export async function getCoordinateInfo(lngLat: {
+  lng: number
+  lat: number
+}): Promise<CoordinateInfo> {
   const elevation = await fetchElevationFromGSI(lngLat.lng, lngLat.lat)
-  
+
   return {
     lng: lngLat.lng,
     lat: lngLat.lat,
     elevation: elevation?.elevation,
     formatted: {
       coordinates: `${lngLat.lat.toFixed(6)}°, ${lngLat.lng.toFixed(6)}°`,
-      elevation: elevation
-        ? `${elevation.elevation.toFixed(1)} m`
-        : '取得中...'
+      elevation: elevation ? `${elevation.elevation.toFixed(1)} m` : '取得中...'
     }
   }
 }
@@ -172,14 +171,14 @@ export async function fetchElevationBatch(
   coordinates: Array<{ lng: number; lat: number }>
 ): Promise<ElevationData[]> {
   const results = await Promise.all(
-    coordinates.map(coord => fetchElevationFromGSI(coord.lng, coord.lat))
+    coordinates.map((coord) => fetchElevationFromGSI(coord.lng, coord.lat))
   )
   return results.filter((r): r is ElevationData => r !== null)
 }
 
 /**
  * ドローン飛行パラメータ計算用：地形回避高度を推定
- * 
+ *
  * @param lng - 経度
  * @param lat - 緯度
  * @param safetyMarginMeters - 安全マージン (デフォルト30m)
@@ -192,7 +191,7 @@ export async function getRecommendedFlightAltitude(
 ): Promise<number | null> {
   const elevation = await fetchElevationFromGSI(lng, lat)
   if (!elevation) return null
-  
+
   // 地形標高 + 安全マージン = 推奨飛行高度
   return elevation.elevation + safetyMarginMeters
 }

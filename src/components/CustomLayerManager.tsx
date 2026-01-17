@@ -289,10 +289,12 @@ export function CustomLayerManager({
       return false
     }
 
-    return fc.features.filter((f): f is GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>> => {
-      const t = f.geometry?.type
-      return !!t && isMatch(t)
-    })
+    return fc.features.filter(
+      (f): f is GeoJSON.Feature<GeoJSON.Geometry, Record<string, unknown>> => {
+        const t = f.geometry?.type
+        return !!t && isMatch(t)
+      }
+    )
   }
 
   const handleImportFromDrawing = () => {
@@ -458,82 +460,316 @@ export function CustomLayerManager({
 
   return (
     <>
-    <div style={{
-      position: 'fixed',
-      bottom: 20,
-      right: 64, // 右端の固定UI（2D/ヘルプ等）と被らないように余白を確保
-      width: '360px',
-      maxHeight: '80vh',
-      backgroundColor: theme.colors.panelBg,
-      borderRadius: '8px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-      zIndex: 1000,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '12px 16px',
-        backgroundColor: theme.colors.buttonBgActive,
-        color: '#fff',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <h3 style={{ margin: 0, fontSize: '14px' }}>カスタムレイヤー管理</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={() => setShowHelp((v) => !v)}
-            title={showHelp ? 'ヘルプを閉じる' : 'ヘルプ'}
-            style={{
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(255,255,255,0.18)',
-              border: '1px solid rgba(255,255,255,0.35)',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: 1
-            }}
-          >
-            ?
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '18px'
-            }}
-            title="閉じる"
-          >
-            ×
-          </button>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 20,
+          right: 64, // 右端の固定UI（2D/ヘルプ等）と被らないように余白を確保
+          width: '360px',
+          maxHeight: '80vh',
+          backgroundColor: theme.colors.panelBg,
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          zIndex: 1000,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: theme.colors.buttonBgActive,
+            color: '#fff',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '14px' }}>カスタムレイヤー管理</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setShowHelp((v) => !v)}
+              title={showHelp ? 'ヘルプを閉じる' : 'ヘルプ'}
+              style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                backgroundColor: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.35)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1
+              }}
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '18px'
+              }}
+              title="閉じる"
+            >
+              ×
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-        {/* Add Layer (unified) */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
-              レイヤーを追加
-            </h4>
-            {importSource === 'drawing' && (
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          {/* Add Layer (unified) */}
+          <div style={{ marginBottom: '16px' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
+            >
+              <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
+                レイヤーを追加
+              </h4>
+              {importSource === 'drawing' && (
+                <button
+                  type="button"
+                  onClick={refreshDrawing}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: theme.colors.textSubtle,
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    padding: 0
+                  }}
+                  title="描画データを再読み込み"
+                >
+                  更新
+                </button>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '8px' }}>
+              <input
+                type="text"
+                placeholder="レイヤー名（任意）"
+                value={newLayerConfig.name || ''}
+                onChange={(e) => setNewLayerConfig({ ...newLayerConfig, name: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  border: `1px solid ${theme.colors.borderStrong}`,
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  marginBottom: '4px',
+                  backgroundColor: theme.colors.buttonBg,
+                  color: theme.colors.text
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+              <select
+                value={newLayerConfig.category}
+                onChange={(e) => {
+                  const cat = CATEGORIES.find((c) => c.id === e.target.value)
+                  setNewLayerConfig({
+                    ...newLayerConfig,
+                    category: e.target.value,
+                    color: cat?.color || '#888888'
+                  })
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  border: `1px solid ${theme.colors.borderStrong}`,
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  backgroundColor: theme.colors.buttonBg,
+                  color: theme.colors.text
+                }}
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="color"
+                value={newLayerConfig.color}
+                onChange={(e) => setNewLayerConfig({ ...newLayerConfig, color: e.target.value })}
+                style={{ width: '40px', height: '32px', border: 'none', cursor: 'pointer' }}
+              />
+            </div>
+
+            {/* Data source selector */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <button
                 type="button"
-                onClick={refreshDrawing}
+                onClick={() => setImportSource('file')}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  backgroundColor:
+                    importSource === 'file' ? theme.colors.buttonBgActive : theme.colors.buttonBg,
+                  color: importSource === 'file' ? '#fff' : theme.colors.text,
+                  border:
+                    importSource === 'file' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+                title="GeoJSONファイルから追加"
+              >
+                ファイル
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportSource('drawing')}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  backgroundColor:
+                    importSource === 'drawing'
+                      ? theme.colors.buttonBgActive
+                      : theme.colors.buttonBg,
+                  color: importSource === 'drawing' ? '#fff' : theme.colors.text,
+                  border:
+                    importSource === 'drawing' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 700
+                }}
+                title="描画ツールの保存データから追加"
+              >
+                描画
+              </button>
+            </div>
+
+            {importSource === 'file' ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,.geojson"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    backgroundColor: importing
+                      ? theme.colors.borderStrong
+                      : theme.colors.buttonBgActive,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: importing ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 800
+                  }}
+                >
+                  {importing ? 'インポート中...' : 'GeoJSONファイルを選択'}
+                </button>
+                <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
+                  GeoJSONを取り込んでカスタムレイヤーとして保存します
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    value={drawingKind}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (v === 'polygon' || v === 'line' || v === 'point' || v === 'all') {
+                        setDrawingKind(v)
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      border: `1px solid ${theme.colors.borderStrong}`,
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      backgroundColor: theme.colors.buttonBg,
+                      color: theme.colors.text
+                    }}
+                  >
+                    <option value="polygon">ポリゴンのみ</option>
+                    <option value="line">経路のみ</option>
+                    <option value="point">WPのみ</option>
+                    <option value="all">すべて</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleImportFromDrawing}
+                    disabled={!drawingFC || drawingFC.features.length === 0}
+                    style={{
+                      padding: '6px 10px',
+                      backgroundColor:
+                        !drawingFC || drawingFC.features.length === 0
+                          ? darkMode
+                            ? 'rgba(255,255,255,0.08)'
+                            : '#eee'
+                          : theme.colors.buttonBgActive,
+                      color:
+                        !drawingFC || drawingFC.features.length === 0
+                          ? theme.colors.textSubtle
+                          : '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor:
+                        !drawingFC || drawingFC.features.length === 0 ? 'not-allowed' : 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      whiteSpace: 'nowrap'
+                    }}
+                    title={
+                      !drawingFC || drawingFC.features.length === 0
+                        ? '描画データがありません'
+                        : `描画データを登録（${drawingFC.features.length} features）`
+                    }
+                  >
+                    登録
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
+                  {drawingFC
+                    ? `${drawingFC.features.length} features（描画ツールの保存データ）`
+                    : '描画データなし'}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Existing Layers */}
+          <div style={{ marginBottom: '16px' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}
+            >
+              <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
+                登録済みレイヤー ({customLayers.length})
+              </h4>
+              <button
+                type="button"
+                onClick={refreshLayers}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -542,480 +778,318 @@ export function CustomLayerManager({
                   fontSize: '11px',
                   padding: 0
                 }}
-                title="描画データを再読み込み"
+                title="一覧を再読み込み（ID重複も自動修復されます）"
               >
                 更新
               </button>
+            </div>
+
+            {duplicateGroupsCount > 0 && (
+              <div
+                style={{ fontSize: '10px', color: theme.colors.textSubtle, marginBottom: '6px' }}
+              >
+                同内容の重複が {duplicateGroupsCount}{' '}
+                グループあります（必要なら「重複整理」で解消できます）
+              </div>
+            )}
+
+            {customLayers.length === 0 ? (
+              <p
+                style={{
+                  fontSize: '11px',
+                  color: theme.colors.textSubtle,
+                  textAlign: 'center',
+                  padding: '16px'
+                }}
+              >
+                カスタムレイヤーがありません
+              </p>
+            ) : (
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {customLayers.map((layer) => (
+                  <div
+                    key={layer.id}
+                    style={{
+                      padding: '8px',
+                      marginBottom: '4px',
+                      backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : '#f8f8f8',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      border: `1px solid ${theme.colors.border}`
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '4px'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleLayers.has(layer.id)}
+                        onChange={(e) => onLayerToggle(layer.id, e.target.checked)}
+                      />
+                      <span
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          backgroundColor: layer.color,
+                          borderRadius: '2px'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => focusLayer(layer.id)}
+                        style={{
+                          flex: 1,
+                          textAlign: 'left',
+                          padding: 0,
+                          background: 'none',
+                          border: 'none',
+                          fontWeight: 600,
+                          color: theme.colors.text,
+                          cursor: 'pointer'
+                        }}
+                        title="クリックでズーム"
+                      >
+                        {layer.name}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '24px' }}>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
+                        {CATEGORIES.find((c) => c.id === layer.category)?.name || layer.category}
+                      </span>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
+                        {layer.data.features.length} features
+                      </span>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
+                        {(() => {
+                          const c = countGeometryTypes(layer.data)
+                          return `ポリゴン:${c.polygon} 経路:${c.line} WP:${c.point}`
+                        })()}
+                      </span>
+                      <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
+                      <span
+                        style={{ color: theme.colors.textSubtle, fontSize: '10px' }}
+                        title={layer.id}
+                      >
+                        id:{layer.id.slice(-6)}
+                      </span>
+                      {duplicateCountByLayerId.has(layer.id) && (
+                        <>
+                          <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
+                            |
+                          </span>
+                          <span
+                            style={{
+                              color: darkMode ? '#ffca28' : '#8d6e63',
+                              fontSize: '10px',
+                              fontWeight: 700
+                            }}
+                            title="同内容（データ・色・透明度が同一）のレイヤーが複数あります"
+                          >
+                            同内容×{duplicateCountByLayerId.get(layer.id)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div
+                      style={{ display: 'flex', gap: '4px', marginTop: '4px', marginLeft: '24px' }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => focusLayer(layer.id)}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          backgroundColor: darkMode
+                            ? 'rgba(51,136,255,0.18)'
+                            : 'rgba(51,136,255,0.12)',
+                          border: `1px solid ${
+                            darkMode ? 'rgba(160, 199, 255, 0.55)' : 'rgba(21, 101, 192, 0.35)'
+                          }`,
+                          borderRadius: '2px',
+                          cursor: 'pointer',
+                          color: darkMode ? '#a0c7ff' : '#1565c0',
+                          fontWeight: 700
+                        }}
+                        title="ズーム"
+                      >
+                        ZOOM
+                      </button>
+                      <button
+                        onClick={() => handleExportLayer(layer.id)}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          backgroundColor: darkMode ? 'rgba(255,255,255,0.10)' : '#e8e8e8',
+                          border: 'none',
+                          borderRadius: '2px',
+                          cursor: 'pointer',
+                          color: theme.colors.text
+                        }}
+                      >
+                        エクスポート
+                      </button>
+                      <button
+                        onClick={() => handleRemoveLayer(layer.id)}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          backgroundColor: darkMode ? 'rgba(239, 83, 80, 0.18)' : '#ffebee',
+                          color: darkMode ? '#ff8a80' : '#c62828',
+                          border: 'none',
+                          borderRadius: '2px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
-          <div style={{ marginBottom: '8px' }}>
-            <input
-              type="text"
-              placeholder="レイヤー名（任意）"
-              value={newLayerConfig.name || ''}
-              onChange={(e) => setNewLayerConfig({ ...newLayerConfig, name: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: `1px solid ${theme.colors.borderStrong}`,
-                borderRadius: '4px',
-                fontSize: '12px',
-                marginBottom: '4px',
-                backgroundColor: theme.colors.buttonBg,
-                color: theme.colors.text
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <select
-              value={newLayerConfig.category}
-              onChange={(e) => {
-                const cat = CATEGORIES.find((c) => c.id === e.target.value)
-                setNewLayerConfig({
-                  ...newLayerConfig,
-                  category: e.target.value,
-                  color: cat?.color || '#888888'
-                })
-              }}
-              style={{
-                flex: 1,
-                padding: '6px 8px',
-                border: `1px solid ${theme.colors.borderStrong}`,
-                borderRadius: '4px',
-                fontSize: '12px',
-                backgroundColor: theme.colors.buttonBg,
-                color: theme.colors.text
-              }}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="color"
-              value={newLayerConfig.color}
-              onChange={(e) => setNewLayerConfig({ ...newLayerConfig, color: e.target.value })}
-              style={{ width: '40px', height: '32px', border: 'none', cursor: 'pointer' }}
-            />
-          </div>
-
-          {/* Data source selector */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button
-              type="button"
-              onClick={() => setImportSource('file')}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                backgroundColor: importSource === 'file' ? theme.colors.buttonBgActive : theme.colors.buttonBg,
-                color: importSource === 'file' ? '#fff' : theme.colors.text,
-                border: importSource === 'file' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 700
-              }}
-              title="GeoJSONファイルから追加"
-            >
-              ファイル
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportSource('drawing')}
-              style={{
-                flex: 1,
-                padding: '6px 10px',
-                backgroundColor:
-                  importSource === 'drawing' ? theme.colors.buttonBgActive : theme.colors.buttonBg,
-                color: importSource === 'drawing' ? '#fff' : theme.colors.text,
-                border: importSource === 'drawing' ? 'none' : `1px solid ${theme.colors.borderStrong}`,
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 700
-              }}
-              title="描画ツールの保存データから追加"
-            >
-              描画
-            </button>
-          </div>
-
-          {importSource === 'file' ? (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json,.geojson"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
+          {/* Bulk Operations */}
+          <div style={{ borderTop: `1px solid ${theme.colors.border}`, paddingTop: '12px' }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
+              一括操作
+            </h4>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
+                onClick={handleExportAll}
+                disabled={customLayers.length === 0}
                 style={{
-                  width: '100%',
+                  flex: 1,
                   padding: '8px',
-                  backgroundColor: importing ? theme.colors.borderStrong : theme.colors.buttonBgActive,
-                  color: '#fff',
+                  fontSize: '11px',
+                  backgroundColor:
+                    customLayers.length === 0
+                      ? darkMode
+                        ? 'rgba(255,255,255,0.08)'
+                        : '#eee'
+                      : darkMode
+                        ? 'rgba(255,255,255,0.10)'
+                        : '#f0f0f0',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: importing ? 'not-allowed' : 'pointer',
-                  fontSize: '12px',
-                  fontWeight: 800
+                  cursor: customLayers.length === 0 ? 'not-allowed' : 'pointer',
+                  color: theme.colors.text
                 }}
               >
-                {importing ? 'インポート中...' : 'GeoJSONファイルを選択'}
+                全てエクスポート
               </button>
-              <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
-                GeoJSONを取り込んでカスタムレイヤーとして保存します
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <select
-                  value={drawingKind}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    if (v === 'polygon' || v === 'line' || v === 'point' || v === 'all') {
-                      setDrawingKind(v)
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    border: `1px solid ${theme.colors.borderStrong}`,
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    backgroundColor: theme.colors.buttonBg,
-                    color: theme.colors.text
-                  }}
-                >
-                  <option value="polygon">ポリゴンのみ</option>
-                  <option value="line">経路のみ</option>
-                  <option value="point">WPのみ</option>
-                  <option value="all">すべて</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleImportFromDrawing}
-                  disabled={!drawingFC || drawingFC.features.length === 0}
-                  style={{
-                    padding: '6px 10px',
-                    backgroundColor:
-                      !drawingFC || drawingFC.features.length === 0
-                        ? (darkMode ? 'rgba(255,255,255,0.08)' : '#eee')
-                        : theme.colors.buttonBgActive,
-                    color:
-                      !drawingFC || drawingFC.features.length === 0 ? theme.colors.textSubtle : '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: !drawingFC || drawingFC.features.length === 0 ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 800,
-                    whiteSpace: 'nowrap'
-                  }}
-                  title={
-                    !drawingFC || drawingFC.features.length === 0
-                      ? '描画データがありません'
-                      : `描画データを登録（${drawingFC.features.length} features）`
-                  }
-                >
-                  登録
-                </button>
-              </div>
-
-              <div style={{ marginTop: '6px', fontSize: '10px', color: theme.colors.textSubtle }}>
-                {drawingFC ? `${drawingFC.features.length} features（描画ツールの保存データ）` : '描画データなし'}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Existing Layers */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>
-              登録済みレイヤー ({customLayers.length})
-            </h4>
-            <button
-              type="button"
-              onClick={refreshLayers}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: theme.colors.textSubtle,
-                cursor: 'pointer',
-                fontSize: '11px',
-                padding: 0
-              }}
-              title="一覧を再読み込み（ID重複も自動修復されます）"
-            >
-              更新
-            </button>
-          </div>
-
-          {duplicateGroupsCount > 0 && (
-            <div style={{ fontSize: '10px', color: theme.colors.textSubtle, marginBottom: '6px' }}>
-              同内容の重複が {duplicateGroupsCount} グループあります（必要なら「重複整理」で解消できます）
-            </div>
-          )}
-
-          {customLayers.length === 0 ? (
-            <p style={{ fontSize: '11px', color: theme.colors.textSubtle, textAlign: 'center', padding: '16px' }}>
-              カスタムレイヤーがありません
-            </p>
-          ) : (
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {customLayers.map(layer => (
-                <div
-                  key={layer.id}
-                  style={{
-                    padding: '8px',
-                    marginBottom: '4px',
-                    backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : '#f8f8f8',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    border: `1px solid ${theme.colors.border}`
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <input
-                      type="checkbox"
-                      checked={visibleLayers.has(layer.id)}
-                      onChange={(e) => onLayerToggle(layer.id, e.target.checked)}
-                    />
-                    <span
-                      style={{
-                        width: '12px',
-                        height: '12px',
-                        backgroundColor: layer.color,
-                        borderRadius: '2px'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => focusLayer(layer.id)}
-                      style={{
-                        flex: 1,
-                        textAlign: 'left',
-                        padding: 0,
-                        background: 'none',
-                        border: 'none',
-                        fontWeight: 600,
-                        color: theme.colors.text,
-                        cursor: 'pointer'
-                      }}
-                      title="クリックでズーム"
-                    >
-                      {layer.name}
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px', marginLeft: '24px' }}>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
-                      {CATEGORIES.find(c => c.id === layer.category)?.name || layer.category}
-                    </span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
-                      {layer.data.features.length} features
-                    </span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>
-                      {(() => {
-                        const c = countGeometryTypes(layer.data)
-                        return `ポリゴン:${c.polygon} 経路:${c.line} WP:${c.point}`
-                      })()}
-                    </span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
-                    <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }} title={layer.id}>
-                      id:{layer.id.slice(-6)}
-                    </span>
-                    {duplicateCountByLayerId.has(layer.id) && (
-                      <>
-                        <span style={{ color: theme.colors.textSubtle, fontSize: '10px' }}>|</span>
-                        <span
-                          style={{
-                            color: darkMode ? '#ffca28' : '#8d6e63',
-                            fontSize: '10px',
-                            fontWeight: 700
-                          }}
-                          title="同内容（データ・色・透明度が同一）のレイヤーが複数あります"
-                        >
-                          同内容×{duplicateCountByLayerId.get(layer.id)}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px', marginLeft: '24px' }}>
-                    <button
-                      type="button"
-                      onClick={() => focusLayer(layer.id)}
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '10px',
-                        backgroundColor: darkMode ? 'rgba(51,136,255,0.18)' : 'rgba(51,136,255,0.12)',
-                        border: `1px solid ${
-                          darkMode ? 'rgba(160, 199, 255, 0.55)' : 'rgba(21, 101, 192, 0.35)'
-                        }`,
-                        borderRadius: '2px',
-                        cursor: 'pointer',
-                        color: darkMode ? '#a0c7ff' : '#1565c0',
-                        fontWeight: 700
-                      }}
-                      title="ズーム"
-                    >
-                      ZOOM
-                    </button>
-                    <button
-                      onClick={() => handleExportLayer(layer.id)}
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '10px',
-                        backgroundColor: darkMode ? 'rgba(255,255,255,0.10)' : '#e8e8e8',
-                        border: 'none',
-                        borderRadius: '2px',
-                        cursor: 'pointer',
-                        color: theme.colors.text
-                      }}
-                    >
-                      エクスポート
-                    </button>
-                    <button
-                      onClick={() => handleRemoveLayer(layer.id)}
-                      style={{
-                        padding: '2px 8px',
-                        fontSize: '10px',
-                        backgroundColor: darkMode ? 'rgba(239, 83, 80, 0.18)' : '#ffebee',
-                        color: darkMode ? '#ff8a80' : '#c62828',
-                        border: 'none',
-                        borderRadius: '2px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      削除
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Bulk Operations */}
-        <div style={{ borderTop: `1px solid ${theme.colors.border}`, paddingTop: '12px' }}>
-          <h4 style={{ margin: '0 0 8px', fontSize: '12px', color: theme.colors.textMuted }}>一括操作</h4>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={handleExportAll}
-              disabled={customLayers.length === 0}
-              style={{
-                flex: 1,
-                padding: '8px',
-                fontSize: '11px',
-                backgroundColor:
-                  customLayers.length === 0
-                    ? (darkMode ? 'rgba(255,255,255,0.08)' : '#eee')
-                    : (darkMode ? 'rgba(255,255,255,0.10)' : '#f0f0f0'),
-                border: 'none',
-                borderRadius: '4px',
-                cursor: customLayers.length === 0 ? 'not-allowed' : 'pointer',
-                color: theme.colors.text
-              }}
-            >
-              全てエクスポート
-            </button>
-            <label style={{
-              flex: 1,
-              padding: '8px',
-              fontSize: '11px',
-              backgroundColor: darkMode ? 'rgba(255,255,255,0.10)' : '#f0f0f0',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              textAlign: 'center',
-              color: theme.colors.text
-            }}>
-              一括インポート
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleBulkImport}
-                style={{ display: 'none' }}
-              />
-            </label>
-            <button
-              onClick={handleRemoveDuplicateLayers}
-              disabled={duplicateGroupsCount === 0}
-              style={{
-                flex: 1,
-                padding: '8px',
-                fontSize: '11px',
-                backgroundColor:
+              <label
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  fontSize: '11px',
+                  backgroundColor: darkMode ? 'rgba(255,255,255,0.10)' : '#f0f0f0',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  color: theme.colors.text
+                }}
+              >
+                一括インポート
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleBulkImport}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              <button
+                onClick={handleRemoveDuplicateLayers}
+                disabled={duplicateGroupsCount === 0}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  fontSize: '11px',
+                  backgroundColor:
+                    duplicateGroupsCount === 0
+                      ? darkMode
+                        ? 'rgba(255,255,255,0.08)'
+                        : '#eee'
+                      : darkMode
+                        ? 'rgba(255, 202, 40, 0.16)'
+                        : 'rgba(255, 202, 40, 0.22)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: duplicateGroupsCount === 0 ? 'not-allowed' : 'pointer',
+                  color:
+                    duplicateGroupsCount === 0
+                      ? theme.colors.textSubtle
+                      : darkMode
+                        ? '#ffca28'
+                        : '#7b5a00',
+                  fontWeight: 700
+                }}
+                title={
                   duplicateGroupsCount === 0
-                    ? (darkMode ? 'rgba(255,255,255,0.08)' : '#eee')
-                    : (darkMode ? 'rgba(255, 202, 40, 0.16)' : 'rgba(255, 202, 40, 0.22)'),
-                border: 'none',
-                borderRadius: '4px',
-                cursor: duplicateGroupsCount === 0 ? 'not-allowed' : 'pointer',
-                color: duplicateGroupsCount === 0 ? theme.colors.textSubtle : (darkMode ? '#ffca28' : '#7b5a00'),
-                fontWeight: 700
-              }}
-              title={
-                duplicateGroupsCount === 0 ? '同内容の重複はありません' : '同内容の重複を整理（最新のみ残す）'
-              }
-            >
-              重複整理
-            </button>
+                    ? '同内容の重複はありません'
+                    : '同内容の重複を整理（最新のみ残す）'
+                }
+              >
+                重複整理
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Help text */}
-      <div style={{
-        padding: '8px 16px',
-        backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : '#f8f8f8',
-        borderTop: `1px solid ${theme.colors.border}`,
-        fontSize: '10px',
-        color: theme.colors.textSubtle
-      }}>
-        GeoJSON形式のファイルをインポートできます。
-        データはブラウザのローカルストレージに保存されます。
-      </div>
-    </div>
-
-    <Modal
-      isOpen={showHelp}
-      onClose={() => setShowHelp(false)}
-      title="カスタムレイヤー管理について"
-      darkMode={darkMode}
-      width="560px"
-      maxHeight="70vh"
-      overlayOpacity={0.25}
-      zIndex={2001}
-    >
-      <div style={{ fontSize: '13px', lineHeight: 1.6, color: theme.colors.text }}>
-        <div style={{ fontWeight: 800, marginBottom: '6px' }}>これは何？</div>
-        <div style={{ color: theme.colors.textMuted }}>
-          公開データが無い/足りない場合に、あなたのGeoJSON（ファイル or 描画）を地図に追加して保存・管理する機能です。
+        {/* Help text */}
+        <div
+          style={{
+            padding: '8px 16px',
+            backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : '#f8f8f8',
+            borderTop: `1px solid ${theme.colors.border}`,
+            fontSize: '10px',
+            color: theme.colors.textSubtle
+          }}
+        >
+          GeoJSON形式のファイルをインポートできます。
+          データはブラウザのローカルストレージに保存されます。
         </div>
-        <div style={{ marginTop: '12px', fontWeight: 800 }}>できること</div>
-        <ul style={{ margin: '6px 0 0', paddingLeft: '20px', color: theme.colors.textMuted }}>
-          <li>ファイル（GeoJSON）や描画ツールの作成データからレイヤー追加</li>
-          <li>表示ON/OFF、ズーム、エクスポート、削除</li>
-          <li>一括エクスポート/一括インポート、同内容重複の整理</li>
-        </ul>
-        <div style={{ marginTop: '12px', fontWeight: 800 }}>注意</div>
-        <ul style={{ margin: '6px 0 0', paddingLeft: '20px', color: theme.colors.textMuted }}>
-          <li>データはブラウザのローカルストレージに保存されます（端末/ブラウザが変わると引き継がれません）</li>
-          <li>同じ内容を複数回登録すると重複します（必要なら「重複整理」）</li>
-        </ul>
       </div>
-    </Modal>
+
+      <Modal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        title="カスタムレイヤー管理について"
+        darkMode={darkMode}
+        width="560px"
+        maxHeight="70vh"
+        overlayOpacity={0.25}
+        zIndex={2001}
+      >
+        <div style={{ fontSize: '13px', lineHeight: 1.6, color: theme.colors.text }}>
+          <div style={{ fontWeight: 800, marginBottom: '6px' }}>これは何？</div>
+          <div style={{ color: theme.colors.textMuted }}>
+            公開データが無い/足りない場合に、あなたのGeoJSON（ファイル or
+            描画）を地図に追加して保存・管理する機能です。
+          </div>
+          <div style={{ marginTop: '12px', fontWeight: 800 }}>できること</div>
+          <ul style={{ margin: '6px 0 0', paddingLeft: '20px', color: theme.colors.textMuted }}>
+            <li>ファイル（GeoJSON）や描画ツールの作成データからレイヤー追加</li>
+            <li>表示ON/OFF、ズーム、エクスポート、削除</li>
+            <li>一括エクスポート/一括インポート、同内容重複の整理</li>
+          </ul>
+          <div style={{ marginTop: '12px', fontWeight: 800 }}>注意</div>
+          <ul style={{ margin: '6px 0 0', paddingLeft: '20px', color: theme.colors.textMuted }}>
+            <li>
+              データはブラウザのローカルストレージに保存されます（端末/ブラウザが変わると引き継がれません）
+            </li>
+            <li>同じ内容を複数回登録すると重複します（必要なら「重複整理」）</li>
+          </ul>
+        </div>
+      </Modal>
     </>
   )
 }

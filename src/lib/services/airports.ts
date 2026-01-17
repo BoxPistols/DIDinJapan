@@ -39,7 +39,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '成田国際空港',
     nameEn: 'Narita International Airport',
     type: 'international',
-    coordinates: [140.3929, 35.7720],
+    coordinates: [140.3929, 35.772],
     radiusKm: 24
   },
   {
@@ -55,7 +55,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '関西国際空港',
     nameEn: 'Kansai International Airport',
     type: 'international',
-    coordinates: [135.2440, 34.4347],
+    coordinates: [135.244, 34.4347],
     radiusKm: 24
   },
   {
@@ -63,7 +63,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '大阪国際空港（伊丹）',
     nameEn: 'Osaka International Airport (Itami)',
     type: 'international',
-    coordinates: [135.4380, 34.7855],
+    coordinates: [135.438, 34.7855],
     radiusKm: 24
   },
   {
@@ -112,7 +112,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '広島空港',
     nameEn: 'Hiroshima Airport',
     type: 'domestic',
-    coordinates: [132.9220, 34.4361],
+    coordinates: [132.922, 34.4361],
     radiusKm: 6
   },
   {
@@ -192,7 +192,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '岡山空港',
     nameEn: 'Okayama Airport',
     type: 'domestic',
-    coordinates: [133.8550, 34.7569],
+    coordinates: [133.855, 34.7569],
     radiusKm: 6
   },
   {
@@ -200,7 +200,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '山口宇部空港',
     nameEn: 'Yamaguchi Ube Airport',
     type: 'domestic',
-    coordinates: [131.2789, 33.9300],
+    coordinates: [131.2789, 33.93],
     radiusKm: 6
   },
   {
@@ -208,7 +208,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '出雲空港',
     nameEn: 'Izumo Airport',
     type: 'domestic',
-    coordinates: [132.8900, 35.4136],
+    coordinates: [132.89, 35.4136],
     radiusKm: 6
   },
   {
@@ -216,7 +216,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '鳥取空港',
     nameEn: 'Tottori Airport',
     type: 'domestic',
-    coordinates: [134.1669, 35.5300],
+    coordinates: [134.1669, 35.53],
     radiusKm: 6
   },
   {
@@ -240,7 +240,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '県営名古屋空港',
     nameEn: 'Nagoya Airfield',
     type: 'domestic',
-    coordinates: [136.9239, 35.2550],
+    coordinates: [136.9239, 35.255],
     radiusKm: 6
   },
   {
@@ -248,7 +248,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '静岡空港',
     nameEn: 'Shizuoka Airport',
     type: 'domestic',
-    coordinates: [138.1900, 34.7961],
+    coordinates: [138.19, 34.7961],
     radiusKm: 6
   },
   {
@@ -280,7 +280,7 @@ export const MAJOR_AIRPORTS: Airport[] = [
     name: '函館空港',
     nameEn: 'Hakodate Airport',
     type: 'domestic',
-    coordinates: [140.8219, 41.7700],
+    coordinates: [140.8219, 41.77],
     radiusKm: 6
   }
 ]
@@ -321,7 +321,7 @@ export const REGIONAL_AIRPORTS: Airport[] = [
     name: '中標津空港',
     nameEn: 'Nakashibetsu Airport',
     type: 'domestic',
-    coordinates: [144.9600, 43.5775],
+    coordinates: [144.96, 43.5775],
     radiusKm: 3
   },
   {
@@ -560,7 +560,7 @@ export const REGIONAL_AIRPORTS: Airport[] = [
     name: '対馬空港',
     nameEn: 'Tsushima Airport',
     type: 'domestic',
-    coordinates: [129.3306, 34.2850],
+    coordinates: [129.3306, 34.285],
     radiusKm: 3
   },
   {
@@ -633,7 +633,7 @@ export const REGIONAL_AIRPORTS: Airport[] = [
     name: '新石垣空港',
     nameEn: 'New Ishigaki Airport',
     type: 'domestic',
-    coordinates: [124.2450, 24.3964],
+    coordinates: [124.245, 24.3964],
     radiusKm: 6
   },
   {
@@ -641,7 +641,7 @@ export const REGIONAL_AIRPORTS: Airport[] = [
     name: '宮古空港',
     nameEn: 'Miyako Airport',
     type: 'domestic',
-    coordinates: [125.2950, 24.7828],
+    coordinates: [125.295, 24.7828],
     radiusKm: 6
   },
   {
@@ -690,7 +690,7 @@ export const MILITARY_BASES: Airport[] = [
     name: '築城基地',
     nameEn: 'Tsuiki Air Base',
     type: 'military',
-    coordinates: [131.0400, 33.6850],
+    coordinates: [131.04, 33.685],
     radiusKm: 4
   },
   {
@@ -698,7 +698,7 @@ export const MILITARY_BASES: Airport[] = [
     name: '新田原基地',
     nameEn: 'Nyutabaru Air Base',
     type: 'military',
-    coordinates: [131.4500, 32.0833],
+    coordinates: [131.45, 32.0833],
     radiusKm: 4
   },
   {
@@ -755,7 +755,7 @@ export const MILITARY_BASES: Airport[] = [
     name: '厚木基地',
     nameEn: 'Naval Air Facility Atsugi',
     type: 'military',
-    coordinates: [139.4500, 35.4547],
+    coordinates: [139.45, 35.4547],
     radiusKm: 6
   },
   {
@@ -828,7 +828,7 @@ export const HELIPORTS: Airport[] = [
     name: '名古屋ヘリポート',
     nameEn: 'Nagoya Heliport',
     type: 'heliport',
-    coordinates: [136.9000, 35.1833],
+    coordinates: [136.9, 35.1833],
     radiusKm: 0.5
   },
   // ========== ビル屋上ヘリポート ==========
@@ -837,7 +837,7 @@ export const HELIPORTS: Airport[] = [
     name: '虎ノ門ヒルズヘリポート',
     nameEn: 'Toranomon Hills Heliport',
     type: 'heliport',
-    coordinates: [139.7500, 35.6667],
+    coordinates: [139.75, 35.6667],
     radiusKm: 0.2
   },
   {
@@ -852,7 +852,7 @@ export const HELIPORTS: Airport[] = [
   {
     id: 'HLP-LUKE',
     name: '聖路加国際病院ヘリポート',
-    nameEn: 'St. Luke\'s Hospital Heliport',
+    nameEn: "St. Luke's Hospital Heliport",
     type: 'heliport',
     coordinates: [139.7731, 35.6714],
     radiusKm: 0.2
@@ -885,7 +885,7 @@ export function getAllAirportsWithHeliports(): Airport[] {
  * Get airports that require special restrictions (小型無人機等飛行禁止法)
  */
 export function getNoFlyLawAirports(): Airport[] {
-  return MAJOR_AIRPORTS.filter(a => a.radiusKm >= 24)
+  return MAJOR_AIRPORTS.filter((a) => a.radiusKm >= 24)
 }
 
 /**
@@ -923,8 +923,8 @@ export function generateAirportMarkersGeoJSON(): GeoJSON.FeatureCollection<
   GeoJSON.Point,
   AirportMarkerProperties
 > {
-  const features: Array<GeoJSON.Feature<GeoJSON.Point, AirportMarkerProperties>> = getAllAirports().map(
-    (airport) => ({
+  const features: Array<GeoJSON.Feature<GeoJSON.Point, AirportMarkerProperties>> =
+    getAllAirports().map((airport) => ({
       type: 'Feature',
       properties: {
         id: airport.id,
@@ -937,8 +937,7 @@ export function generateAirportMarkersGeoJSON(): GeoJSON.FeatureCollection<
         type: 'Point',
         coordinates: airport.coordinates
       }
-    })
-  )
+    }))
 
   return {
     type: 'FeatureCollection',
@@ -950,7 +949,7 @@ export function generateAirportMarkersGeoJSON(): GeoJSON.FeatureCollection<
  * Generate GeoJSON for heliports only
  */
 export function generateHeliportGeoJSON(): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = HELIPORTS.map(heliport => ({
+  const features: GeoJSON.Feature[] = HELIPORTS.map((heliport) => ({
     type: 'Feature',
     properties: {
       id: heliport.id,
@@ -971,17 +970,9 @@ export function generateHeliportGeoJSON(): GeoJSON.FeatureCollection {
 /**
  * Check if a point is within any airport restriction zone
  */
-export function isInAirportZone(
-  lat: number,
-  lng: number
-): { inZone: boolean; airport?: Airport } {
+export function isInAirportZone(lat: number, lng: number): { inZone: boolean; airport?: Airport } {
   for (const airport of getAllAirports()) {
-    const distance = calculateDistance(
-      lat,
-      lng,
-      airport.coordinates[1],
-      airport.coordinates[0]
-    )
+    const distance = calculateDistance(lat, lng, airport.coordinates[1], airport.coordinates[0])
 
     if (distance <= airport.radiusKm) {
       return { inZone: true, airport }

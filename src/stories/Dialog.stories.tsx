@@ -98,13 +98,15 @@ export const Default: Story = {
     return (
       <div style={{ padding: '20px' }}>
         <DialogContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>基本的な確認ダイアログ</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、確認ダイアログが表示されます。
@@ -141,13 +143,15 @@ export const CustomButtons: Story = {
     return (
       <div style={{ padding: '20px' }}>
         <DialogContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>カスタムボタンテキスト</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             ボタンテキストをカスタマイズすることで、
@@ -155,14 +159,11 @@ export const CustomButtons: Story = {
           </p>
           <button
             onClick={async () => {
-              const result = await showConfirm(
-                'この変更を保存しますか？',
-                {
-                  title: '確認',
-                  confirmText: '保存する',
-                  cancelText: '保存しない'
-                }
-              )
+              const result = await showConfirm('この変更を保存しますか？', {
+                title: '確認',
+                confirmText: '保存する',
+                cancelText: '保存しない'
+              })
               alert(`ユーザーの選択: ${result ? '保存する' : '保存しない'}`)
             }}
             style={{
@@ -192,28 +193,26 @@ export const Destructive: Story = {
     return (
       <div style={{ padding: '20px' }}>
         <DialogContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>破壊的アクション警告</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
-            削除など、元に戻せないアクションの場合は、
-            より明確なボタンテキストを使用します。
+            削除など、元に戻せないアクションの場合は、 より明確なボタンテキストを使用します。
           </p>
           <button
             onClick={async () => {
-              const result = await showConfirm(
-                'この操作は取り消せません。本当に削除しますか？',
-                {
-                  title: '警告',
-                  confirmText: '削除する',
-                  cancelText: 'キャンセル'
-                }
-              )
+              const result = await showConfirm('この操作は取り消せません。本当に削除しますか？', {
+                title: '警告',
+                confirmText: '削除する',
+                cancelText: 'キャンセル'
+              })
               alert(`ユーザーの選択: ${result ? '削除する' : 'キャンセル'}`)
             }}
             style={{
@@ -243,13 +242,15 @@ export const LongMessage: Story = {
     return (
       <div style={{ padding: '20px' }}>
         <DialogContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>長いメッセージ</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             ダイアログは長めのメッセージにも対応しています。

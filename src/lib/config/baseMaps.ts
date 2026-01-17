@@ -5,9 +5,13 @@
 import { BaseMapKey } from '../types'
 import maplibregl from 'maplibre-gl'
 
-const GSI_ATTRIBUTION = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
+const GSI_ATTRIBUTION =
+  '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>'
 
-export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | maplibregl.StyleSpecification }> = {
+export const BASE_MAPS: Record<
+  BaseMapKey,
+  { name: string; style: string | maplibregl.StyleSpecification }
+> = {
   osm: {
     name: '標準',
     style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json'
@@ -59,7 +63,7 @@ export const BASE_MAPS: Record<BaseMapKey, { name: string; style: string | mapli
       },
       layers: [{ id: 'photo-layer', type: 'raster' as const, source: 'photo' }]
     }
-  },
+  }
 }
 
 // 初期表示座標：日本全体

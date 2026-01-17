@@ -1,0 +1,151 @@
+{/* IntegrationGuide.mdx */}
+import { Meta } from '@storybook/blocks'
+
+<Meta title="Learning/11_統合アーキテクチャガイド" />
+
+# DID-J26 統合アーキテクチャガイド
+
+本ドキュメントでは、`DID-J26` のシステム（地図機能、飛行可否判定ロジック等）を、既存のWebアプリケーションやサードパーティシステムに組み込むためのアーキテクチャパターンと実装ガイドラインを解説します。
+
+## 1. 統合パターン概要
+
+利用シナリオに応じて、3つの統合レベルを提供します。
+
+### **A. IFrame Embedding** (View)
+- **ユースケース**: 簡易的な地図表示、LPへの埋め込み
+- **難易度**: 低
+
+### **B. NPM Package (UI)** (Component) 
+- **ユースケース**: Reactアプリへの地図機能統合
+- **難易度**: 中
+
+### **C. Core Logic SDK** (Logic)
+- **ユースケース**: 独自のUIを持つシステムでの判定ロジック利用
+- **難易度**: 高
+
+## 2. A. IFrame Embedding (View Integration)
+
+最も単純な統合方法です。ホストされた `DID-J26` アプリケーションを `iframe` として埋め込みます。
+
+### 通信プロトコル: `postMessage` API
+
+親ウィンドウ（ホストアプリ）と `iframe` 間で、`window.postMessage` を用いて双方向通信を行います。
+
+```typescript
+// Host Application (Parent)
+const iframe = document.getElementById('did-map');
+
+// 1. 地図の移動命令
+iframe.contentWindow.postMessage({
+  type: 'SET_VIEW',
+  payload: { lat: 35.681, lng: 139.767, zoom: 14 }
+}, 'https://did-j26.example.com');
+
+// 2. 判定結果の受信
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://did-j26.example.com') return;
+  
+  if (event.data.type === 'FLIGHT_STATUS_UPDATE') {
+    console.log('飛行可否:', event.data.payload.isFlyable); // true/false
+  }
+});
+```
+
+このパターンは、**疎結合 (Loose Coupling)** であり、ホスト側の技術スタック（Vue, Angular, PHP等）を問いません。
+
+## 3. B. NPM Package Integration (Component Integration) - **[ROADMAP]**
+
+※ 本機能は現在 **設計段階** です。将来的なMonorepo化またはパッケージ化を見据えた設計案です。
+
+`DID-J26` を React コンポーネントライブラリとして提供し、ホストアプリの一部としてレンダリングする構想です。
+
+### アーキテクチャ設計案
+
+将来的に `npm publish` 可能な構成へとリファクタリングする場合、以下のパッケージ構成を目指します。
+
+```bash
+# 将来的なインストールコマンドのイメージ
+npm install @did-j26/react-map
+```
+
+### 実装イメージ
+
+ホストアプリ側で `DIDMap` コンポーネントを使用する設計です（**Controlled Component** パターン）。
+
+```tsx
+// ※ 架空のコードです。現在は実装されていません。
+import { DIDMap, useFlightCheck } from '@did-j26/react-map';
+
+function HostApp() {
+  const [targetPoint, setTargetPoint] = useState(null);
+
+  const handleMapClick = (point) => {
+    setTargetPoint(point);
+    saveToHostDB(point);
+  };
+
+  return (
+    <div className="layout">
+      <DIDMap 
+        apiKey="YOUR_API_KEY"
+        onMapClick={handleMapClick}
+      />
+    </div>
+  );
+}
+```
+
+## 4. C. Core Logic SDK (Logic Integration) - **[ROADMAP]**
+
+※ 本機能は現在 **設計段階** です。
+
+UI（地図）は不要で、「ある座標がDID地区に含まれるか？」「空港から何メートルか？」といった**判定ロジックのみ**を利用する場合の Headless アプローチです。
+
+### 構成要素（計画）
+
+- **Geometry Engine**: Point-in-Polygon 判定機
+- **Data Fetcher**: GSIタイル/GeoJSONの取得とキャッシング
+- **Regulation Rules**: 法令ロジックセット
+
+### インターフェース定義案
+
+```typescript
+// ※ 架空のコードです。現在は実装されていません。
+import { DIDEngine, RegulationRules } from '@did-j26/core';
+
+// インスタンス化
+const engine = new DIDEngine({ rules: [RegulationRules.DID] });
+
+async function checkFlight(lat: number, lng: number) {
+  const result = await engine.checkPoint({ lat, lng });
+  console.log(result);
+}
+```
+
+このパターンは、バックエンド (Node.js) でのバッチ処理等での利用を想定しています。
+
+## 5. 認証とセキュリティ
+
+外部システム統合時には、無制限なAPIアクセスを防ぐためのセキュリティ設計が必要です。
+
+- **API Key / Client ID**: リクエスト元の識別。
+- **CORS Policy**: 許可されたドメインからのリクエストのみを受け付ける。
+- **Rate Limiting**: タイルサーバーへの過剰な負荷を防ぐ。
+
+## 6. データ更新ライフサイクル
+
+法令データ（DID, 空港データ）の更新をホストアプリにどう反映させるかの戦略です。
+
+- **Pull型**: ライブラリのバージョンアップ（`npm update`）時に静的データを更新。
+- **Push型**: アプリ起動時にCDNから最新の「データマニフェストファイル」を取得し、動的に最新データをロードする（推奨）。
+
+```json
+/* manifest.json (CDN) */
+{
+  "version": "2025-01-01",
+  "did_source": "https://cdn.example.com/did_2025.pbf",
+  "airport_source": "https://cdn.example.com/airports_v2.geojson"
+}
+```
+
+このアーキテクチャにより、ライブラリ自体の更新なしに規制データの鮮度を保つことが可能です。

@@ -267,17 +267,19 @@ export const Success: Story = {
   render: () => {
     // Clear any existing toasts when story mounts
     clearToasts()
-    
+
     return (
       <div style={{ padding: '20px' }}>
         <ToastContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>Success トースト</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、成功メッセージのトースト通知が表示されます。
@@ -309,17 +311,19 @@ export const Success: Story = {
 export const Error: Story = {
   render: () => {
     clearToasts()
-    
+
     return (
       <div style={{ padding: '20px' }}>
         <ToastContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>Error トースト</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、エラーメッセージのトースト通知が表示されます。
@@ -351,17 +355,19 @@ export const Error: Story = {
 export const Warning: Story = {
   render: () => {
     clearToasts()
-    
+
     return (
       <div style={{ padding: '20px' }}>
         <ToastContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>Warning トースト</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、警告メッセージのトースト通知が表示されます。
@@ -393,17 +399,19 @@ export const Warning: Story = {
 export const Info: Story = {
   render: () => {
     clearToasts()
-    
+
     return (
       <div style={{ padding: '20px' }}>
         <ToastContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>Info トースト</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、情報メッセージのトースト通知が表示されます。
@@ -435,17 +443,19 @@ export const Info: Story = {
 export const Multiple: Story = {
   render: () => {
     clearToasts()
-    
+
     return (
       <div style={{ padding: '20px' }}>
         <ToastContainer />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '600px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '600px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>複数通知</h3>
           <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
             以下のボタンをクリックすると、複数のトースト通知が順に表示されます。

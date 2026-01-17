@@ -93,13 +93,13 @@ export const SIGNAL_OVERLAYS: GeoOverlay[] = [
 
 // 禁止エリアの色定義
 export const RESTRICTION_COLORS = {
-  airport: '#90EE90',          // 薄緑 - 空港など周辺空域
-  did: '#FFB6C1',              // ピンク - 人口集中地区
-  emergency: '#FFA500',        // オレンジ - 緊急用務空域
-  manned: '#87CEEB',           // 水色 - 有人機発着エリア
-  remote_id: '#DDA0DD',        // 薄紫 - リモートID特定区域
-  no_fly_red: '#FF0000',       // 赤 - レッドゾーン
-  no_fly_yellow: '#FFFF00'     // 黄 - イエローゾーン
+  airport: '#90EE90', // 薄緑 - 空港など周辺空域
+  did: '#FFB6C1', // ピンク - 人口集中地区
+  emergency: '#FFA500', // オレンジ - 緊急用務空域
+  manned: '#87CEEB', // 水色 - 有人機発着エリア
+  remote_id: '#DDA0DD', // 薄紫 - リモートID特定区域
+  no_fly_red: '#FF0000', // 赤 - レッドゾーン
+  no_fly_yellow: '#FFFF00' // 黄 - イエローゾーン
 }
 
 // 禁止エリア設定
@@ -123,34 +123,34 @@ export const RESTRICTION_ZONES: RestrictionZone[] = [
     opacity: 0.5,
     tiles: ['https://cyberjapandata.gsi.go.jp/xyz/did2015/{z}/{x}/{y}.png'],
     description: '人口集中地区（DID）- 国勢調査に基づく'
-  },
-  {
-    id: 'emergency-airspace',
-    name: '緊急用務空域',
-    type: 'emergency',
-    color: RESTRICTION_COLORS.emergency,
-    opacity: 0.5,
-    path: '/data/emergency.geojson',
-    description: '災害等による緊急用務空域'
-  },
-  {
-    id: 'manned-aircraft',
-    name: '有人機発着エリア',
-    type: 'manned',
-    color: RESTRICTION_COLORS.manned,
-    opacity: 0.4,
-    path: '/data/manned.geojson',
-    description: '有人機の離着陸エリア'
-  },
-  {
-    id: 'remote-id-zone',
-    name: 'リモートID特定区域',
-    type: 'remote_id',
-    color: RESTRICTION_COLORS.remote_id,
-    opacity: 0.4,
-    path: '/data/remote_id.geojson',
-    description: 'リモートID特定区域'
   }
+  // {
+  //   id: 'emergency-airspace',
+  //   name: '緊急用務空域',
+  //   type: 'emergency',
+  //   color: RESTRICTION_COLORS.emergency,
+  //   opacity: 0.5,
+  //   path: '/data/emergency.geojson',
+  //   description: '災害等による緊急用務空域'
+  // },
+  // {
+  //   id: 'manned-aircraft',
+  //   name: '有人機発着エリア',
+  //   type: 'manned',
+  //   color: RESTRICTION_COLORS.manned,
+  //   opacity: 0.4,
+  //   path: '/data/manned.geojson',
+  //   description: '有人機の離着陸エリア'
+  // },
+  // {
+  //   id: 'remote-id-zone',
+  //   name: 'リモートID特定区域',
+  //   type: 'remote_id',
+  //   color: RESTRICTION_COLORS.remote_id,
+  //   opacity: 0.4,
+  //   path: '/data/remote_id.geojson',
+  //   description: 'リモートID特定区域'
+  // }
 ]
 
 // 小型無人機等飛行禁止法エリア

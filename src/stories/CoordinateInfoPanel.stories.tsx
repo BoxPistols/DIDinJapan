@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { useState, useEffect } from 'react'
 import { CoordinateInfoPanel } from '../components/CoordinateInfoPanel'
-import { mockGetCoordinateInfo, mockGetRecommendedFlightAltitude } from './helpers/mockElevationService'
+import {
+  mockGetCoordinateInfo,
+  mockGetRecommendedFlightAltitude
+} from './helpers/mockElevationService'
 import type { CoordinateInfo } from '../lib/services/elevationService'
 
 /**
@@ -248,27 +251,32 @@ export const Loading: Story = {
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
         <CoordinateInfoPanel {...args} isVisible={true} lngLat={{ lng: 139.767, lat: 35.681 }} />
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '24px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '500px',
-          marginTop: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '500px',
+            marginTop: '20px'
+          }}
+        >
           <h3 style={{ margin: '0 0 12px 0' }}>Loading 状態</h3>
           <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#666' }}>
             座標情報を取得した直後の状態です。
             パネルが表示され、「高度データを取得中...」というメッセージが表示されます。
           </p>
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '12px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: '#333'
-          }}>
-            実際のアプリケーションでは、GSI DEM APIから高度データを取得するまでこの状態が続きます（約300-500ms）。
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '12px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#333'
+            }}
+          >
+            実際のアプリケーションでは、GSI DEM
+            APIから高度データを取得するまでこの状態が続きます（約300-500ms）。
           </div>
         </div>
       </div>
@@ -298,13 +306,15 @@ export const WithElevation: Story = {
     // Render component styled container
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '500px',
-          padding: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '500px',
+            padding: '20px'
+          }}
+        >
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>📍 座標・高度情報</h3>
           </div>
@@ -313,12 +323,14 @@ export const WithElevation: Story = {
             <>
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>座標（WGS84）</h4>
-                <div style={{
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '12px',
+                    borderRadius: '4px',
+                    fontSize: '12px'
+                  }}
+                >
                   <div style={{ marginBottom: '6px' }}>
                     <span style={{ color: '#666' }}>緯度: </span>
                     <code style={{ fontFamily: 'monospace' }}>{coordInfo.lat?.toFixed(6)}°N</code>
@@ -332,35 +344,41 @@ export const WithElevation: Story = {
 
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>海抜高度</h4>
-                <div style={{
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  fontSize: '14px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '12px',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                >
                   <strong>{coordInfo.elevation?.toFixed(1)}</strong>
                   <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>m ASL</span>
                 </div>
               </div>
 
-              <div style={{
-                backgroundColor: '#f0f0f0',
-                padding: '12px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                color: '#333'
-              }}>
+              <div
+                style={{
+                  backgroundColor: '#f0f0f0',
+                  padding: '12px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  color: '#333'
+                }}
+              >
                 * ASL = Above Sea Level（海上レベル）
               </div>
             </>
           ) : (
-            <div style={{
-              backgroundColor: '#f0f0f0',
-              padding: '12px',
-              borderRadius: '4px',
-              textAlign: 'center',
-              color: '#666'
-            }}>
+            <div
+              style={{
+                backgroundColor: '#f0f0f0',
+                padding: '12px',
+                borderRadius: '4px',
+                textAlign: 'center',
+                color: '#666'
+              }}
+            >
               高度データを取得中...
             </div>
           )}
@@ -378,25 +396,29 @@ export const NoElevation: Story = {
   render: () => {
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '500px',
-          padding: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '500px',
+            padding: '20px'
+          }}
+        >
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>📍 座標・高度情報</h3>
           </div>
 
           <div style={{ marginBottom: '20px' }}>
             <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>座標（WGS84）</h4>
-            <div style={{
-              backgroundColor: '#f5f5f5',
-              padding: '12px',
-              borderRadius: '4px',
-              fontSize: '12px'
-            }}>
+            <div
+              style={{
+                backgroundColor: '#f5f5f5',
+                padding: '12px',
+                borderRadius: '4px',
+                fontSize: '12px'
+              }}
+            >
               <div style={{ marginBottom: '6px' }}>
                 <span style={{ color: '#666' }}>緯度: </span>
                 <code style={{ fontFamily: 'monospace' }}>130.500000°N</code>
@@ -408,25 +430,29 @@ export const NoElevation: Story = {
             </div>
           </div>
 
-          <div style={{
-            backgroundColor: '#fff9e6',
-            padding: '12px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: '#856404',
-            border: '1px solid #ffc107'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#fff9e6',
+              padding: '12px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#856404',
+              border: '1px solid #ffc107'
+            }}
+          >
             高度データは取得できません
           </div>
 
-          <div style={{
-            backgroundColor: '#f0f0f0',
-            padding: '12px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            color: '#666',
-            marginTop: '12px'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#f0f0f0',
+              padding: '12px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              color: '#666',
+              marginTop: '12px'
+            }}
+          >
             外海や、GSI DEM カバー外の地域では高度データが利用できない場合があります。
           </div>
         </div>
@@ -466,13 +492,15 @@ export const WithRecommendedAltitude: Story = {
 
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '500px',
-          padding: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '500px',
+            padding: '20px'
+          }}
+        >
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>📍 座標・高度情報</h3>
           </div>
@@ -481,12 +509,14 @@ export const WithRecommendedAltitude: Story = {
             <>
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>座標（WGS84）</h4>
-                <div style={{
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '12px',
+                    borderRadius: '4px',
+                    fontSize: '12px'
+                  }}
+                >
                   <div style={{ marginBottom: '6px' }}>
                     <span style={{ color: '#666' }}>緯度: </span>
                     <code>{coordInfo.lat?.toFixed(6)}°N</code>
@@ -500,11 +530,13 @@ export const WithRecommendedAltitude: Story = {
 
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>海抜高度</h4>
-                <div style={{
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '12px',
+                    borderRadius: '4px'
+                  }}
+                >
                   <strong>{coordInfo.elevation?.toFixed(1)}</strong>
                   <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>m ASL</span>
                 </div>
@@ -513,28 +545,34 @@ export const WithRecommendedAltitude: Story = {
               {recommendedAltitude !== null && (
                 <div style={{ marginBottom: '20px' }}>
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>🚁 推奨飛行高度</h4>
-                  <div style={{
-                    backgroundColor: '#e3f2fd',
-                    padding: '12px',
-                    borderRadius: '4px',
-                    border: '1px solid #2196F3'
-                  }}>
+                  <div
+                    style={{
+                      backgroundColor: '#e3f2fd',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      border: '1px solid #2196F3'
+                    }}
+                  >
                     <strong style={{ fontSize: '14px' }}>{recommendedAltitude.toFixed(1)}</strong>
-                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>m AGL</span>
+                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>
+                      m AGL
+                    </span>
                     <div style={{ fontSize: '11px', color: '#666', marginTop: '6px' }}>
-                      * AGL = Above Ground Level<br/>
-                      * 安全マージン: 30m
+                      * AGL = Above Ground Level
+                      <br />* 安全マージン: 30m
                     </div>
                   </div>
                 </div>
               )}
 
-              <div style={{
-                backgroundColor: '#f0f0f0',
-                padding: '12px',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}>
+              <div
+                style={{
+                  backgroundColor: '#f0f0f0',
+                  padding: '12px',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+              >
                 <strong>💡 ドローン操作ガイド</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                   <li>座標をメモして飛行計画に使用</li>
@@ -544,12 +582,14 @@ export const WithRecommendedAltitude: Story = {
               </div>
             </>
           ) : (
-            <div style={{
-              backgroundColor: '#f0f0f0',
-              padding: '12px',
-              textAlign: 'center',
-              color: '#666'
-            }}>
+            <div
+              style={{
+                backgroundColor: '#f0f0f0',
+                padding: '12px',
+                textAlign: 'center',
+                color: '#666'
+              }}
+            >
               読み込み中...
             </div>
           )}
@@ -590,40 +630,47 @@ export const NotoUpliftArea: Story = {
 
     return (
       <div style={{ padding: '20px', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          maxWidth: '500px',
-          padding: '20px'
-        }}>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            maxWidth: '500px',
+            padding: '20px'
+          }}
+        >
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>📍 能登半島隆起エリア</h3>
           </div>
 
           {coordInfo ? (
             <>
-              <div style={{
-                backgroundColor: '#fff3cd',
-                padding: '12px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                marginBottom: '20px',
-                border: '1px solid #ffc107',
-                color: '#856404'
-              }}>
-                <strong>⚠️ 注意:</strong> 2024年能登半島地震による隆起エリアです。<br/>
+              <div
+                style={{
+                  backgroundColor: '#fff3cd',
+                  padding: '12px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  marginBottom: '20px',
+                  border: '1px solid #ffc107',
+                  color: '#856404'
+                }}
+              >
+                <strong>⚠️ 注意:</strong> 2024年能登半島地震による隆起エリアです。
+                <br />
                 実際の地形が大きく変化している可能性があります。
               </div>
 
               <div style={{ marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>座標（WGS84）</h4>
-                <div style={{
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#f5f5f5',
+                    padding: '12px',
+                    borderRadius: '4px',
+                    fontSize: '12px'
+                  }}
+                >
                   <div style={{ marginBottom: '6px' }}>
                     <span style={{ color: '#666' }}>緯度: </span>
                     <code>{coordInfo.lat?.toFixed(6)}°N</code>
@@ -637,11 +684,13 @@ export const NotoUpliftArea: Story = {
 
               <div>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>隆起後の高度</h4>
-                <div style={{
-                  backgroundColor: '#fff3cd',
-                  padding: '12px',
-                  borderRadius: '4px'
-                }}>
+                <div
+                  style={{
+                    backgroundColor: '#fff3cd',
+                    padding: '12px',
+                    borderRadius: '4px'
+                  }}
+                >
                   <strong>{coordInfo.elevation?.toFixed(1)}</strong>
                   <span style={{ fontSize: '12px', color: '#666', marginLeft: '4px' }}>m ASL</span>
                 </div>

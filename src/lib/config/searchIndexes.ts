@@ -12,8 +12,8 @@ export type { _SearchIndexItem as SearchIndexItem }
 // Build mapping of layerId to prefecture information
 const layerIdToPrefecture = new Map<string, { name: string; groupName: string }>()
 
-LAYER_GROUPS.forEach(group => {
-  group.layers.forEach(layer => {
+LAYER_GROUPS.forEach((group) => {
+  group.layers.forEach((layer) => {
     layerIdToPrefecture.set(layer.id, { name: layer.name, groupName: group.name })
   })
 })

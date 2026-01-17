@@ -88,4 +88,3 @@ export const getAppTheme = (darkMode: boolean): AppTheme => {
 }
 
 export const css = (style: React.CSSProperties): React.CSSProperties => style
-

@@ -88,8 +88,8 @@ const asGeoJsonGeometry = (value: unknown): GeoJSON.Geometry | null => {
   if (!Array.isArray(value.coordinates)) return null
   return {
     type: typeValue,
-    coordinates: value.coordinates as GeoJSON.Geometry['coordinates']
-  }
+    coordinates: value.coordinates as any
+  } as GeoJSON.Geometry
 }
 
 const asGeoJsonFeature = (value: unknown): GeoJSON.Feature | null => {
@@ -1582,7 +1582,7 @@ export function DrawingTools({
         id,
         type,
         name,
-        coordinates: f.geometry.type !== 'GeometryCollection' ? f.geometry.coordinates : [],
+        coordinates: f.geometry.type === 'GeometryCollection' ? [] : (f.geometry as Exclude<GeoJSON.Geometry, GeoJSON.GeometryCollection>).coordinates,
         radius: f.properties?.radiusKm ? (f.properties.radiusKm as number) * 1000 : undefined,
         center: f.properties?.center as [number, number] | undefined,
         properties: f.properties || {},
@@ -1839,15 +1839,18 @@ export function DrawingTools({
   }, [checkedFeatureIds])
 
   // チェックボックスのトグル
-  const toggleFeatureCheck = useCallback((featureId: string) => {
-    const next = new Set(checkedFeatureIds)
-    if (next.has(featureId)) {
-      next.delete(featureId)
-    } else {
-      next.add(featureId)
-    }
-    updateSelectionState(Array.from(next), featureId)
-  }, [checkedFeatureIds, updateSelectionState])
+  const toggleFeatureCheck = useCallback(
+    (featureId: string) => {
+      const next = new Set(checkedFeatureIds)
+      if (next.has(featureId)) {
+        next.delete(featureId)
+      } else {
+        next.add(featureId)
+      }
+      updateSelectionState(Array.from(next), featureId)
+    },
+    [checkedFeatureIds, updateSelectionState]
+  )
 
   // 削除後にチェック状態をクリア
   const handleConfirmDeleteWithClear = useCallback(() => {
@@ -3314,130 +3317,130 @@ ${kmlFeatures}
                             gap: '6px'
                           }}
                         >
-                        {/* チェックボックス */}
-                        <input
-                          type="checkbox"
-                          checked={checkedFeatureIds.has(f.id)}
-                          onChange={() => toggleFeatureCheck(f.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer', flexShrink: 0 }}
-                        />
-                        {/* タイプアイコン */}
-                        <span
-                          style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius:
-                              f.type === 'point' ? '50%' : f.type === 'circle' ? '50%' : '2px',
-                            backgroundColor:
-                              f.type === 'point'
-                                ? '#ff9800'
-                                : f.type === 'circle'
-                                  ? '#9c27b0'
-                                  : f.type === 'line'
-                                    ? '#4caf50'
-                                    : '#3388ff',
-                            flexShrink: 0
-                          }}
-                        />
-                        {/* 名前（ダブルクリックで編集） */}
-                        <div
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '2px'
-                          }}
-                        >
-                          {editingNameId === f.id ? (
-                            <input
-                              ref={editingNameInputRef}
-                              value={editingNameValue}
-                              onChange={(e) => {
-                                const nextValue = e.target.value
-                                setEditingNameValue(nextValue)
-                                if (editingNameError && nextValue.trim().length > 0) {
-                                  setEditingNameError(null)
-                                }
-                              }}
-                              onBlur={() => handleNameEditCommit('blur')}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault()
-                                  handleNameEditCommit('enter')
-                                } else if (e.key === 'Escape') {
-                                  e.preventDefault()
-                                  handleNameEditCancel()
-                                }
-                              }}
-                              autoFocus
-                              style={{
-                                width: '100%',
-                                padding: '3px 6px',
-                                border: editingNameError
-                                  ? '2px solid #f44336'
-                                  : `1px solid ${darkMode ? '#555' : '#ccc'}`,
-                                borderRadius: '4px',
-                                backgroundColor: editingNameError
-                                  ? darkMode
-                                    ? '#3d2020'
-                                    : '#fff5f5'
-                                  : darkMode
-                                    ? '#333'
-                                    : '#fff',
-                                color: darkMode ? '#fff' : '#333',
-                                fontSize: '12px'
-                              }}
-                            />
-                          ) : (
-                            <span
-                              style={{
-                                cursor: 'pointer',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                              onClick={() => handleNameClick(f)}
-                              onDoubleClick={() => handleNameDoubleClick(f)}
-                              title={`${f.name}（ダブルクリックで編集）`}
-                            >
-                              {f.name}
-                            </span>
-                          )}
-                          {editingNameId === f.id && editingNameError && (
-                            <div
-                              style={{
-                                fontSize: '10px',
-                                color: '#f44336',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {editingNameError}
-                            </div>
-                          )}
-                        </div>
-                        {/* ZOOMボタン */}
-                        <button
-                          onClick={() => {
-                            updateSelectionState([f.id], f.id)
-                            zoomToFeature(f)
-                          }}
-                          style={{
-                            padding: '2px 6px',
-                            fontSize: '9px',
-                            border: 'none',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            backgroundColor: darkMode
-                              ? 'rgba(66, 165, 245, 0.2)'
-                              : 'rgba(21, 101, 192, 0.1)',
-                            color: darkMode ? '#90caf9' : '#1565c0',
-                            flexShrink: 0
-                          }}
-                        >
-                          ZOOM
-                        </button>
+                          {/* チェックボックス */}
+                          <input
+                            type="checkbox"
+                            checked={checkedFeatureIds.has(f.id)}
+                            onChange={() => toggleFeatureCheck(f.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ cursor: 'pointer', flexShrink: 0 }}
+                          />
+                          {/* タイプアイコン */}
+                          <span
+                            style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius:
+                                f.type === 'point' ? '50%' : f.type === 'circle' ? '50%' : '2px',
+                              backgroundColor:
+                                f.type === 'point'
+                                  ? '#ff9800'
+                                  : f.type === 'circle'
+                                    ? '#9c27b0'
+                                    : f.type === 'line'
+                                      ? '#4caf50'
+                                      : '#3388ff',
+                              flexShrink: 0
+                            }}
+                          />
+                          {/* 名前（ダブルクリックで編集） */}
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px'
+                            }}
+                          >
+                            {editingNameId === f.id ? (
+                              <input
+                                ref={editingNameInputRef}
+                                value={editingNameValue}
+                                onChange={(e) => {
+                                  const nextValue = e.target.value
+                                  setEditingNameValue(nextValue)
+                                  if (editingNameError && nextValue.trim().length > 0) {
+                                    setEditingNameError(null)
+                                  }
+                                }}
+                                onBlur={() => handleNameEditCommit('blur')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    handleNameEditCommit('enter')
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault()
+                                    handleNameEditCancel()
+                                  }
+                                }}
+                                autoFocus
+                                style={{
+                                  width: '100%',
+                                  padding: '3px 6px',
+                                  border: editingNameError
+                                    ? '2px solid #f44336'
+                                    : `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                                  borderRadius: '4px',
+                                  backgroundColor: editingNameError
+                                    ? darkMode
+                                      ? '#3d2020'
+                                      : '#fff5f5'
+                                    : darkMode
+                                      ? '#333'
+                                      : '#fff',
+                                  color: darkMode ? '#fff' : '#333',
+                                  fontSize: '12px'
+                                }}
+                              />
+                            ) : (
+                              <span
+                                style={{
+                                  cursor: 'pointer',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                onClick={() => handleNameClick(f)}
+                                onDoubleClick={() => handleNameDoubleClick(f)}
+                                title={`${f.name}（ダブルクリックで編集）`}
+                              >
+                                {f.name}
+                              </span>
+                            )}
+                            {editingNameId === f.id && editingNameError && (
+                              <div
+                                style={{
+                                  fontSize: '10px',
+                                  color: '#f44336',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {editingNameError}
+                              </div>
+                            )}
+                          </div>
+                          {/* ZOOMボタン */}
+                          <button
+                            onClick={() => {
+                              updateSelectionState([f.id], f.id)
+                              zoomToFeature(f)
+                            }}
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '9px',
+                              border: 'none',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              backgroundColor: darkMode
+                                ? 'rgba(66, 165, 245, 0.2)'
+                                : 'rgba(21, 101, 192, 0.1)',
+                              color: darkMode ? '#90caf9' : '#1565c0',
+                              flexShrink: 0
+                            }}
+                          >
+                            ZOOM
+                          </button>
                         </div>
                       )
                     })

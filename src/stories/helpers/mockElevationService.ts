@@ -1,6 +1,6 @@
 /**
  * Mock Elevation Service for Storybook
- * 
+ *
  * elevationService の外部API呼び出しをモックし、
  * Storybook上でも座標・高度情報の取得をシミュレートできます。
  */
@@ -14,23 +14,23 @@ import type { CoordinateInfo, ElevationData } from '../../lib/services/elevation
  */
 const MOCK_ELEVATION_DATA: Record<string, number> = {
   // 東京エリア
-  '139.767,35.681': 12.5,  // 東京駅
+  '139.767,35.681': 12.5, // 東京駅
   '139.7,35.7': 18.3,
-  
+
   // 大阪エリア
-  '135.500,34.732': 8.2,   // 大阪駅
+  '135.500,34.732': 8.2, // 大阪駅
   '135.5,34.73': 15.6,
-  
+
   // 那覇エリア
-  '127.648,26.197': 5.1,   // 那覇空港
+  '127.648,26.197': 5.1, // 那覇空港
   '127.65,26.2': 3.8,
-  
+
   // 能登半島（地震隆起エリア）
-  '137.35,37.55': 125.4,   // 能登半島
+  '137.35,37.55': 125.4, // 能登半島
   '137.3,37.5': 118.2,
-  
+
   // デフォルト値（高度データなし地域）
-  '130.5,30.5': 0,
+  '130.5,30.5': 0
 }
 
 /**
@@ -45,7 +45,7 @@ function getElevationKey(lng: number, lat: number): string {
  */
 export function getMockElevation(lng: number, lat: number): ElevationData {
   const key = getElevationKey(lng, lat)
-  
+
   // 完全一致するデータがあればそれを返す
   if (MOCK_ELEVATION_DATA[key] !== undefined) {
     return {
@@ -57,14 +57,12 @@ export function getMockElevation(lng: number, lat: number): ElevationData {
       accuracy: 'mock'
     }
   }
-  
+
   // キー内の周辺データを探す
   for (const [mockKey, elevation] of Object.entries(MOCK_ELEVATION_DATA)) {
     const [mockLng, mockLat] = mockKey.split(',').map(Number)
-    const distance = Math.sqrt(
-      Math.pow(lng - mockLng, 2) + Math.pow(lat - mockLat, 2)
-    )
-    
+    const distance = Math.sqrt(Math.pow(lng - mockLng, 2) + Math.pow(lat - mockLat, 2))
+
     // 0.1度以内なら返す（約11km以内）
     if (distance < 0.1) {
       return {
@@ -77,7 +75,7 @@ export function getMockElevation(lng: number, lat: number): ElevationData {
       }
     }
   }
-  
+
   // マッチするデータがない場合、ランダムな高度を返す
   const randomElevation = Math.random() * 500 + 10 // 10-510m
   return {
@@ -93,14 +91,15 @@ export function getMockElevation(lng: number, lat: number): ElevationData {
 /**
  * モック版：座標・高度情報を取得
  */
-export async function mockGetCoordinateInfo(
-  lngLat: { lng: number; lat: number }
-): Promise<CoordinateInfo> {
+export async function mockGetCoordinateInfo(lngLat: {
+  lng: number
+  lat: number
+}): Promise<CoordinateInfo> {
   // ネットワーク遅延をシミュレート
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
+  await new Promise((resolve) => setTimeout(resolve, 300))
+
   const elevation = getMockElevation(lngLat.lng, lngLat.lat)
-  
+
   return {
     lng: lngLat.lng,
     lat: lngLat.lat,
@@ -121,10 +120,10 @@ export async function mockGetRecommendedFlightAltitude(
   safetyMarginMeters: number = 30
 ): Promise<number | null> {
   // ネットワーク遅延をシミュレート
-  await new Promise(resolve => setTimeout(resolve, 300))
-  
+  await new Promise((resolve) => setTimeout(resolve, 300))
+
   const elevation = getMockElevation(lng, lat)
   if (!elevation) return null
-  
+
   return elevation.elevation + safetyMarginMeters
 }

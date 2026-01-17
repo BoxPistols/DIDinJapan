@@ -21,7 +21,9 @@ const isCacheAvailable = (): boolean => {
 /**
  * GeoJSONデータをキャッシュから取得
  */
-export const getCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(url: string): Promise<T | null> => {
+export const getCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(
+  url: string
+): Promise<T | null> => {
   if (!isCacheAvailable()) return null
 
   try {
@@ -50,7 +52,10 @@ export const getCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(url: strin
 /**
  * GeoJSONデータをキャッシュに保存
  */
-export const setCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(url: string, data: T): Promise<void> => {
+export const setCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(
+  url: string,
+  data: T
+): Promise<void> => {
   if (!isCacheAvailable()) return
 
   try {
@@ -73,7 +78,9 @@ export const setCachedGeoJSON = async <T = GeoJSON.FeatureCollection>(url: strin
 /**
  * GeoJSONデータをfetchし、キャッシュを活用
  */
-export const fetchGeoJSONWithCache = async <T = GeoJSON.FeatureCollection>(url: string): Promise<T> => {
+export const fetchGeoJSONWithCache = async <T = GeoJSON.FeatureCollection>(
+  url: string
+): Promise<T> => {
   // まずキャッシュを確認
   const cached = await getCachedGeoJSON<T>(url)
   if (cached) {
@@ -87,7 +94,7 @@ export const fetchGeoJSONWithCache = async <T = GeoJSON.FeatureCollection>(url: 
     throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
   }
 
-  const data = await response.json() as T
+  const data = (await response.json()) as T
 
   // 取得したデータをキャッシュに保存
   await setCachedGeoJSON(url, data)
@@ -104,8 +111,8 @@ export const clearOldCaches = async (): Promise<void> => {
   try {
     const cacheNames = await caches.keys()
     const deletePromises = cacheNames
-      .filter(name => name !== CACHE_NAME && name.startsWith('didj-geojson'))
-      .map(name => caches.delete(name))
+      .filter((name) => name !== CACHE_NAME && name.startsWith('didj-geojson'))
+      .map((name) => caches.delete(name))
 
     await Promise.all(deletePromises)
   } catch (error) {

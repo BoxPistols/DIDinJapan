@@ -1,4 +1,4 @@
-# DID in Japan - 技術リファレンス
+# DID-J26 - 技術リファレンス
 
 エンジニア向けの包括的な技術ドキュメント。地理データ、座標系、API 仕様、計算式、フォーマット変換を網羅。
 
@@ -26,6 +26,7 @@
 **定義**: World Geodetic System 1984
 
 **座標軸の定義:**
+
 ```
 経度（Longitude）: -180° ～ +180°
   負の値 = 西経（West）
@@ -37,6 +38,7 @@
 ```
 
 **日本の座標範囲:**
+
 ```
 最西端: 130.0°E (与那国島)
 最東端: 145.8°E (南鳥島)
@@ -47,20 +49,22 @@
 ```
 
 **精度レベル:**
-| 小数位数 | 精度 | 用途 |
-|---------|------|------|
-| 2 | 1.1 km | 国・地域 |
-| 3 | 111 m | 市区町村 |
-| 4 | 11 m | 街区 |
-| 5 | 1.1 m | **本アプリ推奨** |
-| 6 | 0.11 m | 正確な計測 |
-| 7 | 1.1 cm | GPS RTK |
+
+| 小数位数 | 精度   | 用途             |
+| -------- | ------ | ---------------- |
+| 2        | 1.1 km | 国・地域         |
+| 3        | 111 m  | 市区町村         |
+| 4        | 11 m   | 街区             |
+| 5        | 1.1 m  | **本アプリ推奨** |
+| 6        | 0.11 m | 正確な計測       |
+| 7        | 1.1 cm | GPS RTK          |
 
 ### 距離計算（Haversine 公式）
 
 **目的**: 地球上の2点間の大圏距離を計算
 
 **公式:**
+
 ```
 a = sin²(Δlat/2) + cos(lat1) * cos(lat2) * sin²(Δlon/2)
 c = 2 * atan2(√a, √(1−a))
@@ -68,19 +72,15 @@ d = R * c  (R = 地球半径)
 ```
 
 **実装:**
+
 ```typescript
-export function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371  // 地球半径（km）
+export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371 // 地球半径（km）
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
@@ -93,6 +93,7 @@ export function calculateDistance(
 **目的**: 中心点と半径から等距離の円を GeoJSON Polygon に変換
 
 **アルゴリズム: Haversine 方式**
+
 ```typescript
 export function createCirclePolygon(
   center: [lng, lat],
@@ -100,28 +101,30 @@ export function createCirclePolygon(
   pointCount: number = 32
 ): GeoJSON.Polygon {
   const points: [number, number][] = []
-  const R = 6371  // 地球半径（km）
+  const R = 6371 // 地球半径（km）
   const latRad = toRad(lat)
   const lngRad = toRad(lng)
 
   for (let i = 0; i <= pointCount; i++) {
     const angle = (i / pointCount) * (Math.PI * 2)
-    
+
     // 新しい緯度
     const latRad2 = Math.asin(
       Math.sin(latRad) * Math.cos(radiusKm / R) +
-      Math.cos(latRad) * Math.sin(radiusKm / R) * Math.cos(angle)
+        Math.cos(latRad) * Math.sin(radiusKm / R) * Math.cos(angle)
     )
-    
+
     // 新しい経度
-    const lngRad2 = lngRad + Math.atan2(
-      Math.sin(angle) * Math.sin(radiusKm / R) * Math.cos(latRad),
-      Math.cos(radiusKm / R) - Math.sin(latRad) * Math.sin(latRad2)
-    )
-    
+    const lngRad2 =
+      lngRad +
+      Math.atan2(
+        Math.sin(angle) * Math.sin(radiusKm / R) * Math.cos(latRad),
+        Math.cos(radiusKm / R) - Math.sin(latRad) * Math.sin(latRad2)
+      )
+
     points.push([toDeg(lngRad2), toDeg(latRad2)])
   }
-  
+
   return {
     type: 'Polygon',
     coordinates: [points]
@@ -130,11 +133,13 @@ export function createCirclePolygon(
 ```
 
 **パラメータ:**
+
 - `center`: [経度, 緯度]
 - `radiusKm`: 半径（キロメートル）
 - `pointCount`: ポリゴンの頂点数（デフォルト: 32）
 
 **誤差分析:**
+
 - 32 ポイント: 最大誤差 < 100m
 - 64 ポイント: 最大誤差 < 25m
 - 128 ポイント: 最大誤差 < 5m
@@ -146,40 +151,46 @@ export function createCirclePolygon(
 ### GSI DEM（国土地理院 標高タイルAPI）
 
 **エンドポイント:**
+
 ```
 GET https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php
 ```
 
 **リクエスト パラメータ:**
-| パラメータ | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `lon` | float | ✅ | 経度 (-180～180) |
-| `lat` | float | ✅ | 緯度 (-90～90) |
-| `outtype` | string | ✅ | JSON のみ |
+
+| パラメータ | 型     | 必須 | 説明             |
+| ---------- | ------ | ---- | ---------------- |
+| `lon`      | float  | ✅   | 経度 (-180～180) |
+| `lat`      | float  | ✅   | 緯度 (-90～90)   |
+| `outtype`  | string | ✅   | JSON のみ        |
 
 **リクエスト例:**
+
 ```bash
 curl "https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=139.767&lat=35.681&outtype=JSON"
 ```
 
 **レスポンス:**
+
 ```json
 {
-  "elevation": 12.5,        // メートル（ASL - 海面基準）
-  "hsrc": "DEM5B"           // データソース
+  "elevation": 12.5, // メートル（ASL - 海面基準）
+  "hsrc": "DEM5B" // データソース
 }
 ```
 
 **レスポンスコード:**
-| ステータス | 説明 |
-|-----------|------|
-| 200 OK | 正常 |
-| 400 Bad Request | パラメータエラー |
-| 404 Not Found | 対象地域外（海上など） |
-| 429 Too Many Requests | レート制限（理論上無制限） |
-| 503 Service Unavailable | サーバーエラー |
+
+| ステータス              | 説明                       |
+| ----------------------- | -------------------------- |
+| 200 OK                  | 正常                       |
+| 400 Bad Request         | パラメータエラー           |
+| 404 Not Found           | 対象地域外（海上など）     |
+| 429 Too Many Requests   | レート制限（理論上無制限） |
+| 503 Service Unavailable | サーバーエラー             |
 
 **仕様:**
+
 - **カバレッジ**: 日本全国 (北緯 20°～45°, 東経 130°～145°)
 - **精度**: ±2.5m (DEM5B)
 - **解像度**: 5m グリッド
@@ -189,6 +200,7 @@ curl "https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon
 - **TLS バージョン**: 1.2 以上
 
 **実装上の注意:**
+
 ```typescript
 // タイムアウト 5秒
 const controller = new AbortController()
@@ -197,7 +209,7 @@ const timeoutId = setTimeout(() => controller.abort(), 5000)
 fetch(`...getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`, {
   signal: controller.signal
 })
-  .catch(e => {
+  .catch((e) => {
     if (e.name === 'AbortError') {
       console.warn('GSI API タイムアウト')
     }
@@ -210,6 +222,7 @@ fetch(`...getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`, {
 **目的**: 同じ座標への重複リクエストを削減
 
 **実装:**
+
 ```typescript
 const elevationCache = new Map<string, ElevationData>()
 
@@ -224,6 +237,7 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
 ```
 
 **キャッシュヒット率の推定:**
+
 - ユーザーが同じエリアで複数ポイント選択: 50-70%
 - ウェイポイント密集エリア: 60-80%
 - 全国規模の移動: 5-10%
@@ -235,6 +249,7 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
 ### RFC 7946 仕様
 
 **ルート FeatureCollection:**
+
 ```json
 {
   "type": "FeatureCollection",
@@ -247,15 +262,18 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
 ### Geometry タイプと座標形式
 
 #### Point（ウェイポイント）
+
 ```json
 {
   "type": "Point",
   "coordinates": [139.767, 35.681]
 }
 ```
+
 **座標形式:** `[経度, 緯度]` (左・右の順序！)
 
 #### LineString（飛行経路）
+
 ```json
 {
   "type": "LineString",
@@ -266,42 +284,48 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
   ]
 }
 ```
+
 **座標形式:** `[点1, 点2, ...]`（2 点以上必須）
 
 #### Polygon（飛行禁止区域・飛行範囲）
-```json
-{
-  "type": "Polygon",
-  "coordinates": [
-    [  // 外輪（Exterior Ring）
-      [139.767, 35.681],
-      [139.768, 35.681],
-      [139.768, 35.682],
-      [139.767, 35.682],
-      [139.767, 35.681]  // 閉じた環！
-    ],
-    [  // ホール（Hole） - オプション
-      [139.7675, 35.6815],
-      [139.7675, 35.6820],
-      [139.7680, 35.6820],
-      [139.7680, 35.6815],
-      [139.7675, 35.6815]
-    ]
-  ]
-}
-```
-**重要:** 最初と最後の座標は同じ（閉じた環）
 
-#### Circle（円 - Polygon として表現）
 ```json
 {
   "type": "Polygon",
   "coordinates": [
     [
-      [139.767, 35.681],  // 方位 0°
-      [139.7683, 35.6815],  // 方位 11.25°
+      // 外輪（Exterior Ring）
+      [139.767, 35.681],
+      [139.768, 35.681],
+      [139.768, 35.682],
+      [139.767, 35.682],
+      [139.767, 35.681] // 閉じた環！
+    ],
+    [
+      // ホール（Hole） - オプション
+      [139.7675, 35.6815],
+      [139.7675, 35.682],
+      [139.768, 35.682],
+      [139.768, 35.6815],
+      [139.7675, 35.6815]
+    ]
+  ]
+}
+```
+
+**重要:** 最初と最後の座標は同じ（閉じた環）
+
+#### Circle（円 - Polygon として表現）
+
+```json
+{
+  "type": "Polygon",
+  "coordinates": [
+    [
+      [139.767, 35.681], // 方位 0°
+      [139.7683, 35.6815], // 方位 11.25°
       // ... 32 ポイント
-      [139.767, 35.681]   // 最後は最初と同じ
+      [139.767, 35.681] // 最後は最初と同じ
     ]
   ]
 }
@@ -332,22 +356,23 @@ function getCacheKey(lng: number, lat: number, precision: number = 5): string {
 ### Properties スキーマ
 
 **必須フィールド:**
+
 ```typescript
 interface FeatureProperties {
-  name: string                    // ユーザー定義名
+  name: string // ユーザー定義名
   type: 'polygon' | 'circle' | 'point' | 'line'
 }
 
 interface ExtendedProperties extends FeatureProperties {
   // オプション
   description?: string
-  elevation?: number              // メートル（ASL）
-  flightHeight?: number           // メートル（AGL）
-  maxAltitude?: number            // elevation + flightHeight
-  radius?: number                 // 円の場合（メートル）
-  center?: [number, number]       // 円の場合
-  timestamp?: string              // ISO 8601 形式
-  [key: string]: unknown          // 拡張可能
+  elevation?: number // メートル（ASL）
+  flightHeight?: number // メートル（AGL）
+  maxAltitude?: number // elevation + flightHeight
+  radius?: number // 円の場合（メートル）
+  center?: [number, number] // 円の場合
+  timestamp?: string // ISO 8601 形式
+  [key: string]: unknown // 拡張可能
 }
 ```
 
@@ -360,10 +385,11 @@ interface ExtendedProperties extends FeatureProperties {
 #### 10進数 ↔ 度分秒（DMS）
 
 **10進数 → DMS:**
+
 ```typescript
 export function formatCoordinatesDMS(lng: number, lat: number): string {
   function toDMS(value: number, isLng: boolean): string {
-    const sign = value >= 0 ? (isLng ? 'E' : 'N') : (isLng ? 'W' : 'S')
+    const sign = value >= 0 ? (isLng ? 'E' : 'N') : isLng ? 'W' : 'S'
     const abs = Math.abs(value)
     const degree = Math.floor(abs)
     const minute = Math.floor((abs - degree) * 60)
@@ -379,21 +405,22 @@ export function formatCoordinatesDMS(lng: number, lat: number): string {
 ```
 
 **DMS → 10進数:**
+
 ```typescript
 export function parseDMS(dmsString: string): { lat: number; lng: number } {
   // "35°40'0.00"N 139°45'0.00"E" をパース
   const pattern = /(\d+)°(\d+)'([\d.]+)"([NSEW])/g
   const matches = [...dmsString.matchAll(pattern)]
-  
+
   if (matches.length !== 2) throw new Error('Invalid DMS format')
-  
-  const [lat, lng] = matches.map(m => {
+
+  const [lat, lng] = matches.map((m) => {
     const [, degree, minute, second, dir] = m
     let value = +degree + +minute / 60 + +second / 3600
     if (['S', 'W'].includes(dir)) value *= -1
     return value
   })
-  
+
   return { lat, lng }
 }
 ```
@@ -403,11 +430,13 @@ export function parseDMS(dmsString: string): { lat: number; lng: number } {
 #### 推奨飛行高度の計算
 
 **公式:**
+
 ```
 推奨飛行高度（AGL）= 地形高度（ASL） + 安全マージン
 ```
 
 **実装:**
+
 ```typescript
 export async function getRecommendedFlightAltitude(
   lng: number,
@@ -416,7 +445,7 @@ export async function getRecommendedFlightAltitude(
 ): Promise<number | null> {
   const elevation = await fetchElevationFromGSI(lng, lat)
   if (!elevation) return null
-  
+
   return elevation.elevation + safetyMarginMeters
 }
 
@@ -424,38 +453,38 @@ export async function getRecommendedFlightAltitude(
 ```
 
 **安全マージン推奨値:**
-| 環境 | マージン | 理由 |
-|------|---------|------|
-| 平坦地 | 20m | 最小限のマージン |
-| **通常環境** | **30m** | **推奨値** |
-| 山岳地 | 50m | 風による乱流対策 |
-| 市街地 | 50-100m | 障害物回避 |
+
+| 環境         | マージン | 理由             |
+| ------------ | -------- | ---------------- |
+| 平坦地       | 20m      | 最小限のマージン |
+| **通常環境** | **30m**  | **推奨値**       |
+| 山岳地       | 50m      | 風による乱流対策 |
+| 市街地       | 50-100m  | 障害物回避       |
 
 ### バッファゾーン計算
 
 **目的**: 指定フィーチャーから一定距離のバッファゾーンを作成
 
 **Polygon の場合:**
+
 ```typescript
-export function bufferPolygon(
-  polygon: GeoJSON.Polygon,
-  bufferKm: number
-): GeoJSON.Polygon {
+export function bufferPolygon(polygon: GeoJSON.Polygon, bufferKm: number): GeoJSON.Polygon {
   // 全ポイントを等距離オフセット
-  const buffered = polygon.coordinates.map(ring =>
-    ring.map(point => {
+  const buffered = polygon.coordinates.map((ring) =>
+    ring.map((point) => {
       // 簡易実装: 座標を度単位でオフセット
       // 正確には: Turf.js などのライブラリ使用推奨
-      const offsetDeg = bufferKm / 111  // 1° ≈ 111km
+      const offsetDeg = bufferKm / 111 // 1° ≈ 111km
       return [point[0] + offsetDeg, point[1] + offsetDeg]
     })
   )
-  
+
   return { type: 'Polygon', coordinates: buffered }
 }
 ```
 
 **推奨ライブラリ:**
+
 ```typescript
 import * as turf from '@turf/turf'
 
@@ -472,6 +501,7 @@ const buffered = turf.buffer(point, 1, { units: 'kilometers' })
 **MIME タイプ:** `application/geo+json`
 
 **ファイルヘッダ:**
+
 ```json
 {
   "type": "FeatureCollection",
@@ -482,6 +512,7 @@ const buffered = turf.buffer(point, 1, { units: 'kilometers' })
 **Character Encoding:** UTF-8（BOM なし）
 
 **用途:**
+
 - Web GIS アプリケーション
 - ArcGIS Desktop
 - QGIS
@@ -489,11 +520,12 @@ const buffered = turf.buffer(point, 1, { units: 'kilometers' })
 - Leaflet, MapBox, MapLibre GL
 
 **実装例:**
+
 ```typescript
 function exportAsGeoJSON(features: DrawnFeature[]): string {
   const geojson: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
-    features: features.map(f => ({
+    features: features.map((f) => ({
       type: 'Feature',
       id: f.id,
       geometry: { type: f.type as GeoJSON.Geometry['type'], coordinates: f.coordinates },
@@ -505,7 +537,7 @@ function exportAsGeoJSON(features: DrawnFeature[]): string {
       }
     }))
   }
-  
+
   return JSON.stringify(geojson, null, 2)
 }
 ```
@@ -515,6 +547,7 @@ function exportAsGeoJSON(features: DrawnFeature[]): string {
 **MIME タイプ:** `application/vnd.google-earth.kml+xml`
 
 **ファイル構造:**
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -551,6 +584,7 @@ function exportAsGeoJSON(features: DrawnFeature[]): string {
 **Character Encoding:** UTF-8（BOM あり推奨）
 
 **用途:**
+
 - Google Earth
 - Google Maps
 - ArcGIS
@@ -561,6 +595,7 @@ function exportAsGeoJSON(features: DrawnFeature[]): string {
 **MIME タイプ:** `text/csv; charset=utf-8`
 
 **フォーマット:**
+
 ```csv
 id,name,type,lat,lng,elevation,flightHeight,maxAltitude,description
 feature-1,ウェイポイント1,point,35.681,139.767,12.5,50,62.5,着陸地点
@@ -568,6 +603,7 @@ feature-2,飛行範囲1,polygon,35.681,139.767,12.5,50,62.5,
 ```
 
 **仕様:**
+
 - **区切り文字**: カンマ (,)
 - **クォート**: ダブルクォート (")
 - **改行**: CRLF (\r\n)
@@ -575,6 +611,7 @@ feature-2,飛行範囲1,polygon,35.681,139.767,12.5,50,62.5,
 - **ヘッダー**: 1 行目に列名
 
 **用途:**
+
 - Excel
 - Google Sheets
 - データベース
@@ -585,37 +622,41 @@ feature-2,飛行範囲1,polygon,35.681,139.767,12.5,50,62.5,
 **NOTAM:** Notice to Airmen / Notice to Air Missions
 
 **フォーマット例:**
+
 ```
 N35°40'52.08" E139°46'04.50"
 ```
 
 **仕様:**
-| 要素 | 形式 | 例 |
-|------|------|-----|
-| 緯度 | N##°##'##.##" | N35°40'52.08" |
-| 経度 | E###°##'##.##" | E139°46'04.50" |
-| 分離文字 | スペース | (スペース) |
+
+| 要素     | 形式           | 例             |
+| -------- | -------------- | -------------- |
+| 緯度     | N##°##'##.##"  | N35°40'52.08"  |
+| 経度     | E###°##'##.##" | E139°46'04.50" |
+| 分離文字 | スペース       | (スペース)     |
 
 **計算式:**
+
 ```typescript
 function toDMS(degrees: number, isLng: boolean): string {
-  const sign = degrees >= 0 ? (isLng ? 'E' : 'N') : (isLng ? 'W' : 'S')
+  const sign = degrees >= 0 ? (isLng ? 'E' : 'N') : isLng ? 'W' : 'S'
   const abs = Math.abs(degrees)
-  
+
   const degree = Math.floor(abs)
   const minuteDecimal = (abs - degree) * 60
   const minute = Math.floor(minuteDecimal)
   const second = (minuteDecimal - minute) * 60
-  
+
   const degStr = String(degree).padStart(isLng ? 3 : 2, '0')
   const minStr = String(minute).padStart(2, '0')
   const secStr = second.toFixed(2).padStart(5, '0')
-  
+
   return `${sign}${degStr}°${minStr}'${secStr}"`
 }
 ```
 
 **精度:**
+
 - 秒単位 = ±15.3m（赤道）
 - 用途: NOTAM 申請、航空機運用
 
@@ -626,6 +667,7 @@ function toDMS(degrees: number, isLng: boolean): string {
 ### MapLibre GL インターフェース
 
 **初期化:**
+
 ```typescript
 import maplibregl from 'maplibre-gl'
 
@@ -640,6 +682,7 @@ const map = new maplibregl.Map({
 ### Mapbox GL Draw 統合
 
 **初期化:**
+
 ```typescript
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 
@@ -657,6 +700,7 @@ map.addControl(draw)
 ```
 
 **イベントハンドリング:**
+
 ```typescript
 map.on('draw.create', updateFeatures)
 map.on('draw.update', updateFeatures)
@@ -669,6 +713,7 @@ function updateFeatures() {
 ```
 
 **返却される GeoJSON:**
+
 ```json
 {
   "type": "FeatureCollection",
@@ -693,18 +738,21 @@ function updateFeatures() {
 ### 高度表記
 
 **ASL (Above Sea Level) - 海面基準高度**
+
 - 海面からの絶対的な高さ
 - 地形が高い場所でも同じ ASL = 同じ高度
 - 気圧高度計で測定
 - **用途**: 航空業界標準、航空法、NOTAM
 
 **AGL (Above Ground Level) - 地上基準高度**
+
 - 現在の地上からの相対的な高さ
 - 地形が高い場所では AGL が低い
 - レーダー高度計で測定
 - **用途**: ドローン飛行、衝突回避
 
 **関係式:**
+
 ```
 AGL = ASL - 地形高度（elevation）
 
@@ -717,18 +765,20 @@ AGL = ASL - 地形高度（elevation）
 ### 高度制限
 
 **日本の法律：**
+
 - **地上高**: 150m 以下（航空法 132 条）
 - **対地高度**: 300m 以下（電波法）
 
 **実装:**
+
 ```typescript
 interface AltitudeConstraints {
   maxAglMeters: number = 150        // 地上高上限
   recommendedSafetyMargin: number = 30  // 安全マージン
-  
+
   // 推奨飛行高度の計算
   recommendedAgl = elevation + 30
-  
+
   // 法令遵守チェック
   if (recommendedAgl > 150) {
     console.warn('地上高 150m を超えています')
@@ -745,6 +795,7 @@ interface AltitudeConstraints {
 **キー:** `did-map-drawn-features`
 
 **値（GeoJSON FeatureCollection）:**
+
 ```json
 {
   "type": "FeatureCollection",
@@ -771,13 +822,15 @@ interface AltitudeConstraints {
 ### ストレージ制限
 
 **ブラウザ容量制限:**
-| ブラウザ | 容量 | 仕様 |
-|---------|------|------|
-| Chrome/Firefox/Safari | 5-10 MB | 同一オリジン |
-| Edge | 5-10 MB | Chromium ベース |
-| IE 11 | 10 MB | userData behavior |
+
+| ブラウザ              | 容量    | 仕様              |
+| --------------------- | ------- | ----------------- |
+| Chrome/Firefox/Safari | 5-10 MB | 同一オリジン      |
+| Edge                  | 5-10 MB | Chromium ベース   |
+| IE 11                 | 10 MB   | userData behavior |
 
 **計算例:**
+
 ```
 1 フィーチャー（複雑なポリゴン）= 約 3-5 KB
 → 1000 フィーチャー = 3-5 MB
@@ -788,10 +841,12 @@ interface AltitudeConstraints {
 ### 保存タイミング
 
 **トリガー:**
+
 - フィーチャー追加/変更/削除時
 - **Debounce**: 500ms（複数変更を 1 回の保存にまとめる）
 
 **読込:**
+
 - コンポーネントマウント時
 - オペレーション: localStorage.getItem + JSON.parse
 
@@ -802,9 +857,10 @@ interface AltitudeConstraints {
 ### 座標キャッシング
 
 **戦略:**
+
 ```typescript
 const cache = new Map<string, ElevationData>()
-const precision = 5  // 小数第5位
+const precision = 5 // 小数第5位
 
 function getCacheKey(lng: number, lat: number): string {
   return `${Math.round(lng * 100000) / 100000},${Math.round(lat * 100000) / 100000}`
@@ -812,28 +868,28 @@ function getCacheKey(lng: number, lat: number): string {
 ```
 
 **メリット:**
+
 - GSI API 呼び出し削減（50-80% 削減）
 - ネットワーク遅延削減（300-500ms → 0ms）
 
 **デメリット:**
+
 - 精度低下（1.1m）
 - メモリ使用量増加（100 座標 = 約 10 KB）
 
 ### API リクエスト最適化
 
 **並列リクエスト:**
+
 ```typescript
 async function batchFetchElevation(coordinates: Array<[number, number]>) {
   // Promise.all で並列化（推奨: 10-20 並列）
-  return Promise.all(
-    coordinates.slice(0, 20).map(([lng, lat]) =>
-      fetchElevationFromGSI(lng, lat)
-    )
-  )
+  return Promise.all(coordinates.slice(0, 20).map(([lng, lat]) => fetchElevationFromGSI(lng, lat)))
 }
 ```
 
 **タイムアウト設定:**
+
 ```typescript
 const controller = new AbortController()
 const timeout = setTimeout(() => controller.abort(), 5000)
@@ -848,16 +904,18 @@ try {
 ### LocalStorage パフォーマンス
 
 **遅延書き込み（Debounce）:**
+
 ```typescript
 const debouncedSave = debounce(
   (data: GeoJSON.FeatureCollection) => {
     localStorage.setItem('key', JSON.stringify(data))
   },
-  500  // 500ms 遅延
+  500 // 500ms 遅延
 )
 ```
 
 **効果:**
+
 - 連続した 10 回の変更 → 1 回の保存
 - ブロッキング I/O 削減
 
@@ -865,7 +923,7 @@ const debouncedSave = debounce(
 
 ```typescript
 const filteredFeatures = useMemo(() => {
-  return drawnFeatures.filter(f => {
+  return drawnFeatures.filter((f) => {
     const matchesSearch = f.name.includes(searchQuery)
     const matchesType = typeFilter === 'all' || f.type === typeFilter
     return matchesSearch && matchesType
@@ -885,12 +943,12 @@ const filteredFeatures = useMemo(() => {
 
 ### 航空法の規定
 
-| 項目 | 詳細 |
-|------|------|
-| **法的根拠** | 航空法 第131条（進入表面等）、第132条（小型無人機の飛行制限） |
-| **対象** | 25kg 以上の有人航空機、およびドローン等の小型無人機 |
-| **許可・承認** | 国土交通省空港事務所（または地方航空局）に申請 |
-| **データソース** | 国土数値情報 A32（GeoJSON 形式・更新頻度: 年1回） |
+| 項目             | 詳細                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| **法的根拠**     | 航空法 第131条（進入表面等）、第132条（小型無人機の飛行制限） |
+| **対象**         | 25kg 以上の有人航空機、およびドローン等の小型無人機           |
+| **許可・承認**   | 国土交通省空港事務所（または地方航空局）に申請                |
+| **データソース** | 国土数値情報 A32（GeoJSON 形式・更新頻度: 年1回）             |
 
 ---
 
@@ -928,44 +986,47 @@ const filteredFeatures = useMemo(() => {
 **実装例（TypeScript + Turf.js）:**
 
 ```typescript
-import * as turf from '@turf/turf';
+import * as turf from '@turf/turf'
 
 interface RunwayDefinition {
-  start: [number, number];       // [lng, lat]
-  end: [number, number];         // [lng, lat]
-  stripWidth: number;            // m
-  extensionBefore: number;       // m
-  extensionAfter: number;        // m
+  start: [number, number] // [lng, lat]
+  end: [number, number] // [lng, lat]
+  stripWidth: number // m
+  extensionBefore: number // m
+  extensionAfter: number // m
 }
 
 function generateRunwayStrip(runway: RunwayDefinition): GeoJSON.Polygon {
-  const bearing = turf.bearing(runway.start, runway.end);
-  const distBefore = runway.extensionBefore / 1000; // km
-  const distAfter = runway.extensionAfter / 1000;   // km
-  const halfWidth = runway.stripWidth / 2000;        // km
+  const bearing = turf.bearing(runway.start, runway.end)
+  const distBefore = runway.extensionBefore / 1000 // km
+  const distAfter = runway.extensionAfter / 1000 // km
+  const halfWidth = runway.stripWidth / 2000 // km
 
   // 滑走路北端の前方・後方を計算
-  const p1Before = turf.destination(runway.start, distBefore, bearing - 180);
-  const p1Left = turf.destination(p1Before, halfWidth, bearing - 90);
-  const p1Right = turf.destination(p1Before, halfWidth, bearing + 90);
+  const p1Before = turf.destination(runway.start, distBefore, bearing - 180)
+  const p1Left = turf.destination(p1Before, halfWidth, bearing - 90)
+  const p1Right = turf.destination(p1Before, halfWidth, bearing + 90)
 
   // 滑走路南端の後方を計算
-  const p2After = turf.destination(runway.end, distAfter, bearing);
-  const p2Left = turf.destination(p2After, halfWidth, bearing - 90);
-  const p2Right = turf.destination(p2After, halfWidth, bearing + 90);
+  const p2After = turf.destination(runway.end, distAfter, bearing)
+  const p2Left = turf.destination(p2After, halfWidth, bearing - 90)
+  const p2Right = turf.destination(p2After, halfWidth, bearing + 90)
 
   // ポリゴン作成（反時計回り）
-  return turf.polygon([[
-    p1Left.geometry.coordinates,
-    p1Right.geometry.coordinates,
-    p2Right.geometry.coordinates,
-    p2Left.geometry.coordinates,
-    p1Left.geometry.coordinates  // 閉じる
-  ]]);
+  return turf.polygon([
+    [
+      p1Left.geometry.coordinates,
+      p1Right.geometry.coordinates,
+      p2Right.geometry.coordinates,
+      p2Left.geometry.coordinates,
+      p1Left.geometry.coordinates // 閉じる
+    ]
+  ])
 }
 ```
 
 **典型的な値（日本の民間空港）:**
+
 - 幅: 300m ～ 450m
 - 前方延長: 60m
 - 後方延長: 60m
@@ -978,12 +1039,12 @@ function generateRunwayStrip(runway: RunwayDefinition): GeoJSON.Polygon {
 
 **幾何学的性質:**
 
-| 項目 | 詳細 |
-|------|------|
-| **始端** | 着陸帯の短辺（幅 = strip_width） |
-| **終端** | 始端から一定距離（例: 2,400m ～ 3,000m）進んだ地点 |
-| **幅の拡大** | 距離に応じて線形に拡大（勾配: 例 15%） |
-| **高さ勾配** | 1/50（下降勾配、実装では 3D 表示時に使用） |
+| 項目         | 詳細                                               |
+| ------------ | -------------------------------------------------- |
+| **始端**     | 着陸帯の短辺（幅 = strip_width）                   |
+| **終端**     | 始端から一定距離（例: 2,400m ～ 3,000m）進んだ地点 |
+| **幅の拡大** | 距離に応じて線形に拡大（勾配: 例 15%）             |
+| **高さ勾配** | 1/50（下降勾配、実装では 3D 表示時に使用）         |
 
 **計算アルゴリズム:**
 
@@ -1023,40 +1084,43 @@ function generateApproachSurface(
   approachLength: number,
   slopeRatio: number
 ): GeoJSON.Polygon {
-  const stripCoords = runwayStrip.coordinates[0];
+  const stripCoords = runwayStrip.coordinates[0]
 
   // 着陸帯の終端を取得（南端）
-  const endLeft = stripCoords[2];    // P2_left
-  const endRight = stripCoords[3];   // P2_right
-  const midpointEnd = turf.midpoint(endLeft, endRight);
+  const endLeft = stripCoords[2] // P2_left
+  const endRight = stripCoords[3] // P2_right
+  const midpointEnd = turf.midpoint(endLeft, endRight)
 
   // 遠点（進入表面の終端中心）
-  const approachLengthKm = approachLength / 1000;
-  const farCenter = turf.destination(midpointEnd, approachLengthKm, bearing);
+  const approachLengthKm = approachLength / 1000
+  const farCenter = turf.destination(midpointEnd, approachLengthKm, bearing)
 
   // 始端での幅（着陸帯の幅）
-  const halfWidthStart = turf.distance(endLeft, endRight) / 2;
+  const halfWidthStart = turf.distance(endLeft, endRight) / 2
 
   // 終端での幅（開き勾配を適用）
-  const halfWidthEnd = halfWidthStart + (approachLength * slopeRatio) / 2000; // km
+  const halfWidthEnd = halfWidthStart + (approachLength * slopeRatio) / 2000 // km
 
   // 4隅
-  const p1Left = turf.destination(midpointEnd, halfWidthStart / 1000, bearing - 90);
-  const p1Right = turf.destination(midpointEnd, halfWidthStart / 1000, bearing + 90);
-  const p2Left = turf.destination(farCenter, halfWidthEnd, bearing - 90);
-  const p2Right = turf.destination(farCenter, halfWidthEnd, bearing + 90);
+  const p1Left = turf.destination(midpointEnd, halfWidthStart / 1000, bearing - 90)
+  const p1Right = turf.destination(midpointEnd, halfWidthStart / 1000, bearing + 90)
+  const p2Left = turf.destination(farCenter, halfWidthEnd, bearing - 90)
+  const p2Right = turf.destination(farCenter, halfWidthEnd, bearing + 90)
 
-  return turf.polygon([[
-    p1Left.geometry.coordinates,
-    p1Right.geometry.coordinates,
-    p2Right.geometry.coordinates,
-    p2Left.geometry.coordinates,
-    p1Left.geometry.coordinates
-  ]]);
+  return turf.polygon([
+    [
+      p1Left.geometry.coordinates,
+      p1Right.geometry.coordinates,
+      p2Right.geometry.coordinates,
+      p2Left.geometry.coordinates,
+      p1Left.geometry.coordinates
+    ]
+  ])
 }
 ```
 
 **典型的な値（日本）:**
+
 - 長さ: 2,400m（ILS あり）～ 3,000m（ILS なし）
 - 開き勾配: 15%（1:6.67）
 - 高さ勾配: 1/50（実装では 3D 表示）
@@ -1069,12 +1133,12 @@ function generateApproachSurface(
 
 **幾何学的性質:**
 
-| 項目 | 詳細 |
-|------|------|
-| **源線** | 着陸帯の長辺 + 進入表面の斜辺 |
-| **終線** | 水平表面の外周 |
+| 項目     | 詳細                                 |
+| -------- | ------------------------------------ |
+| **源線** | 着陸帯の長辺 + 進入表面の斜辺        |
+| **終線** | 水平表面の外周                       |
 | **勾配** | 約 1/7（水平距離 7m あたり 1m 上昇） |
-| **高さ** | 始端: 0m → 終端: 45m（地上高） |
+| **高さ** | 始端: 0m → 終端: 45m（地上高）       |
 
 **計算アルゴリズム:**
 
@@ -1106,6 +1170,7 @@ function generateApproachSurface(
 ```
 
 **実装上の注記:**
+
 - 転移表面は複雑な幾何形状となるため、国土数値情報 A32 から直接ポリゴンを読み取ることを推奨
 - クライアント側での計算は誤差が生じやすいため避けるべき
 
@@ -1117,12 +1182,12 @@ function generateApproachSurface(
 
 **幾何学的性質:**
 
-| 項目 | 詳細 |
-|------|------|
-| **中心** | 空港の航点（ARP）- 通常は滑走路中央 |
+| 項目     | 詳細                                                           |
+| -------- | -------------------------------------------------------------- |
+| **中心** | 空港の航点（ARP）- 通常は滑走路中央                            |
 | **形状** | 単純な円（ILS がない場合）または小判型（複数滑走路がある場合） |
-| **半径** | 通常 4,000m（民間空港） ～ 7,000m（大型空港） |
-| **高さ** | 45m ASL（絶対高度） |
+| **半径** | 通常 4,000m（民間空港） ～ 7,000m（大型空港）                  |
+| **高さ** | 45m ASL（絶対高度）                                            |
 
 **計算アルゴリズム（単純な円の場合）:**
 
@@ -1148,17 +1213,17 @@ function generateHorizontalSurface(
   runway2: RunwayDefinition,
   radius: number
 ): GeoJSON.Polygon | GeoJSON.MultiPolygon {
-  const arp1 = turf.midpoint(runway1.start, runway1.end);
-  const arp2 = turf.midpoint(runway2.start, runway2.end);
+  const arp1 = turf.midpoint(runway1.start, runway1.end)
+  const arp2 = turf.midpoint(runway2.start, runway2.end)
 
   // 2つの円を生成
-  const circle1 = turf.circle(arp1, radius / 1000, { units: 'kilometers' });
-  const circle2 = turf.circle(arp2, radius / 1000, { units: 'kilometers' });
+  const circle1 = turf.circle(arp1, radius / 1000, { units: 'kilometers' })
+  const circle2 = turf.circle(arp2, radius / 1000, { units: 'kilometers' })
 
   // 結合（Union）
-  const union = turf.union(circle1, circle2);
+  const union = turf.union(circle1, circle2)
 
-  return union.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  return union.geometry as GeoJSON.Polygon | GeoJSON.MultiPolygon
 }
 ```
 
@@ -1201,6 +1266,7 @@ MapLibre GL JS の `fill-extrusion` レイヤーは、1つのポリゴンに対�
 ```
 
 **効果:**
+
 - 100m 刻みで分割 = ~24段 で進入表面を表現（ASL 0m～1,200m）
 - 視覚的にはスムーズな傾斜に見える
 
@@ -1244,33 +1310,32 @@ MapLibre GL JS の `fill-extrusion` レイヤーは、1つのポリゴンに対�
 ```typescript
 interface AirportSurface extends GeoJSON.Feature {
   properties: {
-    airport_code: string;
-    airport_name: string;
-    surface_type: 'runway_strip' | 'approach' | 'transitional' | 'horizontal';
-    runway_number: string;
-    height_asl: number;
-    height_start: number;
-    height_end: number;
-    slope_type: string;
-    classification: string;
-  };
+    airport_code: string
+    airport_name: string
+    surface_type: 'runway_strip' | 'approach' | 'transitional' | 'horizontal'
+    runway_number: string
+    height_asl: number
+    height_start: number
+    height_end: number
+    slope_type: string
+    classification: string
+  }
 }
 
-async function loadAirportSurfaces(
-  airport_code: string
-): Promise<AirportSurface[]> {
-  const response = await fetch(
-    `/data/kokuarea/${airport_code}_surfaces.geojson`
-  );
-  const fc = await response.json() as GeoJSON.FeatureCollection;
+async function loadAirportSurfaces(airport_code: string): Promise<AirportSurface[]> {
+  const response = await fetch(`/data/kokuarea/${airport_code}_surfaces.geojson`)
+  const fc = (await response.json()) as GeoJSON.FeatureCollection
 
-  return fc.features.map(f => ({
-    ...f,
-    properties: {
-      ...f.properties,
-      height_asl: Number(f.properties?.height_asl || 0)
-    }
-  } as AirportSurface));
+  return fc.features.map(
+    (f) =>
+      ({
+        ...f,
+        properties: {
+          ...f.properties,
+          height_asl: Number(f.properties?.height_asl || 0)
+        }
+      }) as AirportSurface
+  )
 }
 ```
 
@@ -1290,7 +1355,7 @@ const kokuareaLayers = [
     source: 'kokuarea-source',
     filter: ['==', ['get', 'surface_type'], 'runway_strip'],
     paint: {
-      'fill-extrusion-color': '#FF0000',    // 赤
+      'fill-extrusion-color': '#FF0000', // 赤
       'fill-extrusion-opacity': 0.4,
       'fill-extrusion-height': ['get', 'height_asl']
     }
@@ -1301,7 +1366,7 @@ const kokuareaLayers = [
     source: 'kokuarea-source',
     filter: ['==', ['get', 'surface_type'], 'approach'],
     paint: {
-      'fill-extrusion-color': '#FF6600',    // 橙
+      'fill-extrusion-color': '#FF6600', // 橙
       'fill-extrusion-opacity': 0.35,
       'fill-extrusion-height': ['feature-state', 'extrusion_height']
     }
@@ -1312,7 +1377,7 @@ const kokuareaLayers = [
     source: 'kokuarea-source',
     filter: ['==', ['get', 'surface_type'], 'transitional'],
     paint: {
-      'fill-extrusion-color': '#FFCC00',    // 黄
+      'fill-extrusion-color': '#FFCC00', // 黄
       'fill-extrusion-opacity': 0.3,
       'fill-extrusion-height': ['feature-state', 'extrusion_height']
     }
@@ -1323,22 +1388,22 @@ const kokuareaLayers = [
     source: 'kokuarea-source',
     filter: ['==', ['get', 'surface_type'], 'horizontal'],
     paint: {
-      'fill-extrusion-color': '#00AA00',    // 緑
+      'fill-extrusion-color': '#00AA00', // 緑
       'fill-extrusion-opacity': 0.25,
       'fill-extrusion-height': ['get', 'height_asl']
     }
   }
-];
+]
 ```
 
 **カラースキーム:**
 
-| 表面名 | 色 | RGB | 用途 | 高さ |
-|-------|-----|-----|------|------|
-| 着陸帯 | 赤 | (255, 0, 0) | 滑走路周辺、最も制限が厳しい | 0m |
-| 進入表面 | 橙 | (255, 102, 0) | 着陸経路、下降勾配 1/50 | 0~1,200m |
-| 転移表面 | 黄 | (255, 204, 0) | 側方接続面、勾配 1/7 | 0~45m |
-| 水平表面 | 緑 | (0, 170, 0) | 空港周辺、最も外側 | 45m |
+| 表面名   | 色  | RGB           | 用途                         | 高さ     |
+| -------- | --- | ------------- | ---------------------------- | -------- |
+| 着陸帯   | 赤  | (255, 0, 0)   | 滑走路周辺、最も制限が厳しい | 0m       |
+| 進入表面 | 橙  | (255, 102, 0) | 着陸経路、下降勾配 1/50      | 0~1,200m |
+| 転移表面 | 黄  | (255, 204, 0) | 側方接続面、勾配 1/7         | 0~45m    |
+| 水平表面 | 緑  | (0, 170, 0)   | 空港周辺、最も外側           | 45m      |
 
 ---
 
@@ -1346,29 +1411,28 @@ const kokuareaLayers = [
 
 **留意点:**
 
-| 項目 | 誤差 | 対策 |
-|------|------|------|
-| **座標精度** | ±1.1m（小数第5位） | 国土数値情報は小数第6位以上 |
-| **距離計算（Haversine）** | ±0.5% | 1,000m 付近で ±5m |
-| **方位角計算** | ±0.1° | 通常許容範囲内 |
-| **ステップ分割** | ±50m（分割距離に依存） | 十分な分割数を確保 |
+| 項目                      | 誤差                   | 対策                        |
+| ------------------------- | ---------------------- | --------------------------- |
+| **座標精度**              | ±1.1m（小数第5位）     | 国土数値情報は小数第6位以上 |
+| **距離計算（Haversine）** | ±0.5%                  | 1,000m 付近で ±5m           |
+| **方位角計算**            | ±0.1°                  | 通常許容範囲内              |
+| **ステップ分割**          | ±50m（分割距離に依存） | 十分な分割数を確保          |
 
 **信頼性向上策:**
+
 - 国土数値情報 A32 から得られるポリゴンを**可能な限り直接使用**する
 - 自動計算は、国土数値情報データが古い場合の補完的用途に限定する
 - 計算後、GeoJSon Validation ツール（GeoJsonLint など）でポリゴンの妥当性を検証
 
 ---
 
-
-
-- **WGS84**: https://en.wikipedia.org/wiki/World_Geodetic_System
-- **GeoJSON RFC 7946**: https://tools.ietf.org/html/rfc7946
-- **KML 2.2 OGC 標準**: https://www.ogc.org/standards/kml/
-- **GSI DEM API**: https://maps.gsi.go.jp/development/siyou.html
-- **MapLibre GL**: https://maplibre.org/maplibre-gl-js/
-- **Mapbox GL Draw**: https://github.com/mapbox/mapbox-gl-draw
-- **Turf.js**: https://turfjs.org/ (地理計算ライブラリ)
+- **WGS84**: <https://en.wikipedia.org/wiki/World_Geodetic_System>
+- **GeoJSON RFC 7946**: <https://tools.ietf.org/html/rfc7946>
+- **KML 2.2 OGC 標準**: <https://www.ogc.org/standards/kml/>
+- **GSI DEM API**: <https://maps.gsi.go.jp/development/siyou.html>
+- **MapLibre GL**: <https://maplibre.org/maplibre-gl-js/>
+- **Mapbox GL Draw**: <https://github.com/mapbox/mapbox-gl-draw>
+- **Turf.js**: <https://turfjs.org/> (地理計算ライブラリ)
 
 ---
 
