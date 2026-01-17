@@ -97,6 +97,7 @@ type MapViewState = {
 }
 
 const MAP_VIEW_STATE_KEY = 'map-view-state-once'
+const RESTRICTION_VIS_KEY = 'restriction-visible-ids'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -143,6 +144,33 @@ const saveMapViewStateToSessionStorage = (state: MapViewState): void => {
   if (typeof window === 'undefined') return
   try {
     sessionStorage.setItem(MAP_VIEW_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // ignore
+  }
+}
+
+const parseRestrictionVisibility = (value: unknown): string[] | null => {
+  if (!Array.isArray(value)) return null
+  const ids = value.filter((v): v is string => typeof v === 'string' && v.length > 0)
+  return ids.length > 0 ? ids : null
+}
+
+const readRestrictionVisibilityFromSessionStorage = (): string[] | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(RESTRICTION_VIS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as unknown
+    return parseRestrictionVisibility(parsed)
+  } catch {
+    return null
+  }
+}
+
+const saveRestrictionVisibilityToSessionStorage = (ids: string[]): void => {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(RESTRICTION_VIS_KEY, JSON.stringify(ids))
   } catch {
     // ignore
   }
@@ -220,7 +248,11 @@ function App() {
   })
   const [overlayStates, setOverlayStates] = useState<Map<string, boolean>>(new Map())
   const [weatherStates, setWeatherStates] = useState<Map<string, boolean>>(new Map())
-  const [restrictionStates, setRestrictionStates] = useState<Map<string, boolean>>(new Map())
+  const [restrictionStates, setRestrictionStates] = useState<Map<string, boolean>>(() => {
+    const stored = readRestrictionVisibilityFromSessionStorage()
+    if (!stored) return new Map()
+    return new Map(stored.map((id) => [id, true]))
+  })
   const [rainRadarPath, setRainRadarPath] = useState<string | null>(null)
   const [radarLastUpdate, setRadarLastUpdate] = useState<string>('')
 
@@ -591,6 +623,11 @@ function App() {
         })
       }
 
+      const restrictionVisibleIds = Array.from(restrictionStatesRef.current.entries())
+        .filter(([, isVisible]) => isVisible)
+        .map(([id]) => id)
+      saveRestrictionVisibilityToSessionStorage(restrictionVisibleIds)
+
       // URLパラメータに比較状態を載せてリロード
       window.location.assign(url.toString())
     },
@@ -663,6 +700,13 @@ function App() {
     restrictionStatesRef.current = restrictionStates
   }, [restrictionStates])
 
+  useEffect(() => {
+    const visibleIds = Array.from(restrictionStates.entries())
+      .filter(([, isVisible]) => isVisible)
+      .map(([id]) => id)
+    saveRestrictionVisibilityToSessionStorage(visibleIds)
+  }, [restrictionStates])
+
   // ============================================
   // Enable coordinate display ref sync
   // ============================================
@@ -721,7 +765,7 @@ function App() {
 
       switch (key) {
         case 'd':
-          toggleRestriction('ZONE_IDS.DID_ALL_JAPAN')
+          toggleRestriction(ZONE_IDS.DID_ALL_JAPAN)
           break
         case 'a':
           toggleRestriction('airport-airspace')
@@ -1295,7 +1339,7 @@ function App() {
     restrictionStates.forEach((isVisible, restrictionId) => {
       if (!isVisible) return
 
-      if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
+      if (restrictionId === ZONE_IDS.DID_ALL_JAPAN) {
         // 全国DIDの各レイヤー
         const allLayers = getAllLayers()
         allLayers.forEach((layer) => {
@@ -2683,14 +2727,17 @@ function App() {
     removeAirportOverviewLayers(map)
   }
 
-  const toggleRestriction = async (restrictionId: string) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+  type RestrictionSyncOptions = {
+    syncState?: boolean
+  }
 
-    // refから最新の状態を取得（キーボードショートカット対応）
-    const isVisible = restrictionStatesRef.current.get(restrictionId) ?? false
+  const showRestriction = useCallback(
+    async (restrictionId: string, options?: RestrictionSyncOptions) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    if (!isVisible) {
+      const { syncState = true } = options ?? {}
+
       let geojson: GeoJSON.FeatureCollection | null = null
       let color = ''
 
@@ -2699,7 +2746,9 @@ function App() {
         if (zone?.geojsonTileTemplate) {
           try {
             enableKokuarea(map, zone.geojsonTileTemplate)
-            setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+            if (syncState) {
+              setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+            }
             return
           } catch (e) {
             console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
@@ -2740,7 +2789,7 @@ function App() {
       } else if (restrictionId === 'manned-aircraft-zones') {
         geojson = generateMannedAircraftZonesGeoJSON()
         color = '#3498DB' // 有人機発着区域用カラー
-      } else if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
+      } else if (restrictionId === ZONE_IDS.DID_ALL_JAPAN) {
         // DID全国一括表示モード - 全47都道府県を赤色で表示
         const allLayers = getAllLayers()
         color = '#FF0000'
@@ -2781,7 +2830,9 @@ function App() {
             map.setLayoutProperty(`${restrictionId}-${layer.id}-outline`, 'visibility', 'visible')
           }
         }
-        setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+        if (syncState) {
+          setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+        }
         return
       }
 
@@ -2824,10 +2875,22 @@ function App() {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'visible')
         }
       }
-      setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
-    } else {
+      if (syncState) {
+        setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+      }
+    },
+    [mapLoaded, opacity]
+  )
+
+  const hideRestriction = useCallback(
+    (restrictionId: string, options?: RestrictionSyncOptions) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
+
+      const { syncState = true } = options ?? {}
+
       // Hide
-      if (restrictionId === 'ZONE_IDS.DID_ALL_JAPAN') {
+      if (restrictionId === ZONE_IDS.DID_ALL_JAPAN) {
         const allLayers = getAllLayers()
         for (const layer of allLayers) {
           const sourceId = `${restrictionId}-${layer.id}`
@@ -2848,11 +2911,34 @@ function App() {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'none')
         }
       }
-      setRestrictionStates((prev) => new Map(prev).set(restrictionId, false))
+      if (syncState) {
+        setRestrictionStates((prev) => new Map(prev).set(restrictionId, false))
+      }
+    },
+    [mapLoaded]
+  )
+
+  const toggleRestriction = async (restrictionId: string) => {
+    // refから最新の状態を取得（キーボードショートカット対応）
+    const isVisible = restrictionStatesRef.current.get(restrictionId) ?? false
+
+    if (!isVisible) {
+      await showRestriction(restrictionId)
+    } else {
+      hideRestriction(restrictionId)
     }
   }
 
   const isRestrictionVisible = (id: string) => restrictionStates.get(id) ?? false
+
+  useEffect(() => {
+    if (!mapLoaded) return
+    restrictionStates.forEach((isVisible, restrictionId) => {
+      if (isVisible) {
+        void showRestriction(restrictionId, { syncState: false })
+      }
+    })
+  }, [mapLoaded, restrictionStates, showRestriction])
 
   // ============================================
   // Custom layer management
@@ -3743,8 +3829,8 @@ function App() {
           >
             <input
               type="checkbox"
-              checked={isRestrictionVisible('ZONE_IDS.DID_ALL_JAPAN')}
-              onChange={() => toggleRestriction('ZONE_IDS.DID_ALL_JAPAN')}
+              checked={isRestrictionVisible(ZONE_IDS.DID_ALL_JAPAN)}
+              onChange={() => toggleRestriction(ZONE_IDS.DID_ALL_JAPAN)}
             />
             <span
               style={{
