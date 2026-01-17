@@ -61,6 +61,57 @@ const isGeometryType = (t: unknown): t is GeoJSON.Geometry['type'] =>
   t === 'MultiPolygon' ||
   t === 'GeometryCollection'
 
+const toGeoJsonProperties = (value: unknown): GeoJSON.GeoJsonProperties => {
+  if (value === null) return null
+  if (isRecord(value)) return value
+  return {}
+}
+
+const asGeoJsonGeometry = (value: unknown): GeoJSON.Geometry | null => {
+  if (!isRecord(value)) return null
+  const typeValue = value.type
+  if (!isGeometryType(typeValue)) return null
+
+  if (typeValue === 'GeometryCollection') {
+    const rawGeometries = Array.isArray(value.geometries) ? value.geometries : null
+    if (!rawGeometries) return null
+    const geometries = rawGeometries
+      .map((entry) => asGeoJsonGeometry(entry))
+      .filter((entry): entry is GeoJSON.Geometry => entry !== null)
+    if (geometries.length !== rawGeometries.length) return null
+    return {
+      type: 'GeometryCollection',
+      geometries
+    }
+  }
+
+  if (!Array.isArray(value.coordinates)) return null
+  return {
+    type: typeValue,
+    coordinates: value.coordinates as GeoJSON.Geometry['coordinates']
+  }
+}
+
+const asGeoJsonFeature = (value: unknown): GeoJSON.Feature | null => {
+  if (!isRecord(value) || value.type !== 'Feature') return null
+  const geometry = asGeoJsonGeometry(value.geometry)
+  if (!geometry) return null
+
+  const feature: GeoJSON.Feature = {
+    type: 'Feature',
+    geometry,
+    properties: toGeoJsonProperties(value.properties)
+  }
+
+  if (typeof value.id === 'string' || typeof value.id === 'number') {
+    feature.id = value.id
+  }
+  if (Array.isArray(value.bbox) && value.bbox.every((item) => typeof item === 'number')) {
+    feature.bbox = value.bbox as GeoJSON.BBox
+  }
+  return feature
+}
+
 const toNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
@@ -111,20 +162,27 @@ const normalizeGeoJSONInput = (parsed: unknown): GeoJSON.FeatureCollection => {
   }
   const typeValue = parsed.type
   if (typeValue === 'FeatureCollection') {
-    const features = Array.isArray(parsed.features) ? (parsed.features as GeoJSON.Feature[]) : []
+    const rawFeatures = Array.isArray(parsed.features) ? parsed.features : []
+    const features = rawFeatures
+      .map((feature) => asGeoJsonFeature(feature))
+      .filter((feature): feature is GeoJSON.Feature => feature !== null)
     return { type: 'FeatureCollection', features }
   }
   if (typeValue === 'Feature') {
-    return { type: 'FeatureCollection', features: [parsed as GeoJSON.Feature] }
+    const feature = asGeoJsonFeature(parsed)
+    if (!feature) throw new Error('GeoJSONの形式が不正です')
+    return { type: 'FeatureCollection', features: [feature] }
   }
   if (isGeometryType(typeValue)) {
+    const geometry = asGeoJsonGeometry(parsed)
+    if (!geometry) throw new Error('GeoJSONの形式が不正です')
     return {
       type: 'FeatureCollection',
       features: [
         {
           type: 'Feature',
           properties: {},
-          geometry: parsed as GeoJSON.Geometry
+          geometry
         }
       ]
     }
