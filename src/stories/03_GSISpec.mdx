@@ -3,62 +3,70 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/03_国土地理院の仕様" />
 
-# 国土地理院の仕様
+# 国土地理院 (GSI) の仕様と地理情報標準
 
-国土地理院が提供するデータ仕様。
+日本の国家座標系および国土地理院が提供する地理空間情報（GSI Tiles）の技術仕様について、測地学および情報工学の観点から記述します。
 
-## 1. 国土地理院について
+## 1. 測地系 (Geodetic Reference System)
 
-**国土地理院（GSI）** は日本政府の公式な地理情報機関です。
+本システムで扱う地理座標は、以下の測地系に基づいています。
 
-## 2. GSI タイルサービス一覧
+### JGD2011 (日本測地系2011)
+**JGD2011 (Japan Geodetic Datum 2011)** は、2011年の東北地方太平洋沖地震による地殻変動を反映した最新の国家座標系です。
+- **準拠楕円体**: GRS80 (Geodetic Reference System 1980)
+- **ITRF座標系**: ITRF94 (International Terrestrial Reference Frame 1994) に整合
 
-<table>
-  <thead>
-    <tr>
-      <th>サービス</th>
-      <th>URL</th>
-      <th>タイプ</th>
-      <th>用途</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>標準地図</td>
-      <td>std/zoom/x/y.png</td>
-      <td>ラスタ</td>
-      <td>汎用地図</td>
-    </tr>
-    <tr>
-      <td>淡色地図</td>
-      <td>pale/zoom/x/y.png</td>
-      <td>ラスタ</td>
-      <td>軽い背景</td>
-    </tr>
-    <tr>
-      <td>航空写真</td>
-      <td>seamlessphoto/zoom/x/y.jpg</td>
-      <td>ラスタ</td>
-      <td>詳細画像</td>
-    </tr>
-    <tr>
-      <td>Kokuarea</td>
-      <td>kokuarea/zoom/x/y.geojson</td>
-      <td>ベクタ</td>
-      <td>空港空域</td>
-    </tr>
-  </tbody>
-</table>
+※ 本アプリケーションで使用する Web Mercator (EPSG:3857) や WGS84 (EPSG:4326) との間で変換を行う場合、厳密には測地系変換が必要ですが、Webマッピングの文脈では実用上同一視されることが一般的です。
 
-※ zoom = ズームレベル（0-18）、x = 経度インデックス、y = 緯度インデックス
+## 2. GSI タイルアドレッシング仕様
 
-## 3. Kokuarea フィーチャータイプ
+国土地理院地図データは、RESTfulなURLスキームを通じて提供されるタイルリソースです。
 
-- **進入表面**: 着陸進入経路
-- **転移表面**: 遷移ゾーン
-- **水平表面**: 外側水平面
-- **円錐表面**: 外部境界
+### XYZ アドレッシングモデル
 
-## 4. 属性表記要件
+URLテンプレートは以下の形式に従います。
 
-**必須**: `<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>`
+`https://cyberjapandata.gsi.go.jp/xyz/{t}/{z}/{x}/{y}.{ext}`
+
+- **t (Layer ID)**: データセット識別子（例: `std`, `seamlessphoto`, `kokuarea`）
+- **z (Zoom Level)**: スケール階層 $Z \in [2, 18]$
+- **x (Column Index)**: 経度インデックス $X \in [0, 2^Z - 1]$
+- **y (Row Index)**: 緯度インデックス $Y \in [0, 2^Z - 1]$
+- **ext (Extension)**: フォーマット（`png`, `jpg`, `geojson`）
+
+### 座標原点
+
+- 原点 $(0, 0)$ は、**北西角 (North-West Corner)**、すなわち経度 -180度、緯度 約85.05度 に位置します。
+- 軸の向きは、X軸が東方向（右）、Y軸が南方向（下）となります。これはコンピュータグラフィックスのスクリーン座標系と一致します。
+
+## 3. データセット仕様詳細
+
+### 主なレイヤー定義
+
+| レイヤーID (`t`) | 形式 | MIMEタイプ | セマンティクス | 更新頻度 |
+|------------------|------|------------|----------------|----------|
+| `std`            | Raster | image/png | 標準地図。道路、建物、地形の統合表現。 | 月次 |
+| `pale`           | Raster | image/png | 淡色地図。データのオーバーレイに適した低コントラスト版。 | 月次 |
+| `seamlessphoto`  | Raster | image/jpeg | 全国ランドサットモザイク画像と航空写真の合成。 | 年次 |
+| `kokuarea`       | Vector | application/geo+json | 航空法に基づく制限空域データ。 | 不定期 |
+
+### Kokuarea (航空情報) のスキーマ定義
+
+`kokuarea` レイヤーは GeoJSON フォーマットで提供され、以下の `Feature` タイプを含みます。
+
+1.  **進入表面 (Approach Surface)**
+    - 着陸帯の短辺から外側上方へ斜めに伸びる表面。
+2.  **転移表面 (Transitional Surface)**
+    - 着陸帯の長辺および進入表面の斜辺から外側上方へ伸びる表面。
+3.  **水平表面 (Horizontal Surface)**
+    - 空港の標点から半径4,000mまでの水平な表面。
+4.  **円錐表面 (Conical Surface)**
+    - 水平表面の外縁から外側上方へ伸びる表面。
+
+## 4. データガバナンスと利用規約
+
+本データの利用にあたっては、測量法に基づく以下のガバナンスに従う必要があります。
+
+- **出典の明示**: コンテンツ利用者は、データの出所を明示する義務を負います。
+  - 準拠法: 国土地理院コンテンツ利用規約
+  - 実装要件: `<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>` をアプリケーション上に常時表示すること。

@@ -3,73 +3,112 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/04_TypeScript" />
 
-# TypeScript
+# TypeScript と型システムの理論
 
-型安全で表現力豊かなアプリケーションを構築するための TypeScript パターン。
+TypeScriptの型システムは、**構造的部分型 (Structural Subtyping)** および **段階的型付け (Gradual Typing)** に基づいています。本節では、これらの理論的背景と高度な型操作について解説します。
 
-## 1. 条件付き型（Conditional Types）
+## 1. 構造的部分型 (Structural Subtyping)
 
-条件に基づいて型を選択します。
+JavaやC#のような**公称的型システム (Nominal Typing)** と異なり、TypeScriptはオブジェクトの**構造（プロパティの集合）** に基づいて型の互換性を判定します。これは一般に **Duck Typing** と呼ばれる概念の静的な形式です。
+
+型 $A$ が型 $B$ の部分型 (`A <: B`) である条件は、すべての $p \in Properties(B)$ について、$p \in Properties(A)$ かつ `Type(A.p) <: Type(B.p)` が成立することです。
+
+```typescript
+interface Vector2D {
+  x: number;
+  y: number;
+}
+
+interface Vector3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// Vector3D は Vector2D の構造を包含しているため、
+// 明示的な継承関係がなくとも部分型として扱われる。
+const v3: Vector3D = { x: 1, y: 2, z: 3 };
+const v2: Vector2D = v3; // OK: Vector3D <: Vector2D
+```
+
+## 2. 変性 (Variance): 共変性と反変性
+
+ジェネリクスにおける型の互換性を理解するためには、**変性 (Variance)** の概念が重要です。
+
+- **共変性 (Covariance)**: `A &lt;: B` ならば `T&lt;A&gt; &lt;: T&lt;B&gt;`
+- **反変性 (Contravariance)**: `A &lt;: B` ならば `T&lt;B&gt; &lt;: T&lt;A&gt;`
+- **不変性 (Invariance)**: 互換性なし
+
+TypeScriptでは、オブジェクトのプロパティや関数の戻り値は共変的ですが、**関数の引数は反変的**に振る舞います（`--strictFunctionTypes` 有効時）。
+
+```typescript
+type Printer<T> = (value: T) => void;
+
+class Animal {}
+class Dog extends Animal {}
+
+// Dog <: Animal
+// Printer<Animal> <: Printer<Dog> (反変性)
+// Animalを受け取れる関数は、Dogしか受け取れない関数の代わりに使用できる
+let animalPrinter: Printer<Animal> = (a) => console.log(a);
+let dogPrinter: Printer<Dog> = animalPrinter; // OK
+```
+
+## 3. 代数的データ型 (Algebraic Data Types)
+
+TypeScriptのユニオン型とインターセクション型は、型理論における**和型 (Sum Type)** と **積型 (Product Type)** に対応します。
+
+### 直和型 (Union Types)
+
+$$ T = A \cup B $$
+
+```typescript
+type Result<T, E> = 
+  | { success: true; value: T }  // Success Case
+  | { success: false; error: E } // Failure Case
+
+// 判別可能なユニオン (Discriminated Union) パターン
+function handleResult(result: Result<string, Error>) {
+  if (result.success) {
+    // Narrowing により、ここでは value が利用可能
+    console.log(result.value);
+  } else {
+    // ここでは error が利用可能
+    console.error(result.error);
+  }
+}
+```
+
+## 4. 条件付き型 (Conditional Types)
+
+型レベルでの条件分岐を提供します。
+
+$$ T = C \ ? \ X : Y $$
 
 ```typescript
 type IsString<T> = T extends string ? true : false
 
 type A = IsString<'hello'>  // true
 type B = IsString<42>       // false
-
-type Awaited<T> = T extends Promise<infer U> ? U : T
 ```
 
-## 2. マップ型（Mapped Types）
+### 応用：ユーティリティ型の構築
 
-既存の型を変換して新しい型を作成します。
+標準ライブラリの `Exclude` や `Extract` は条件付き型を用いて実装されています。
 
 ```typescript
-type Readonly<T> = {
-  readonly [K in keyof T]: T[K]
-}
-
-type Partial<T> = {
-  [K in keyof T]?: T[K]
-}
+// T のうち U に割り当て可能なものを除外
+type MyExclude<T, U> = T extends U ? never : T;
 ```
 
-## 3. 型ガード（Type Guards）
+## 5. 型消去 (Type Erasure) とランタイム検証
 
-型を絞り込みます。
-
-```typescript
-function isGeoOverlay(overlay: any): overlay is GeoOverlay {
-  return 'tiles' in overlay || 'geojson' in overlay
-}
-
-function processOverlay(overlay: Overlay) {
-  if (isGeoOverlay(overlay)) {
-    loadTiles(overlay.tiles)
-  }
-}
-```
-
-## 4. ジェネリック制約
+TypeScriptの型情報はコンパイル時に完全に消去され、ランタイムには残りません。したがって、APIレスポンス等の外部データの検証には、**User-Defined Type Guards** やランタイムバリデーションライブラリ（Zod等）が必要です。
 
 ```typescript
-interface GeoJsonFeature {
-  type: 'Feature'
-  properties: Record<string, unknown>
-  geometry: any
+// Type Guard
+function isGeoOverlay(overlay: unknown): overlay is GeoOverlay {
+  return typeof overlay === 'object' && overlay !== null && 'tiles' in overlay
 }
-
-function processFeature<T extends GeoJsonFeature>(feature: T): T {
-  return feature
-}
-```
-
-## 5. ユーティリティ型
-
-```typescript
-type BaseMapWithoutStyle = Omit<BaseMap, 'style'>
-type BaseMapNameOnly = Pick<BaseMap, 'name'>
-type BaseMapRecord = Record<string, BaseMap>
-type PartialBaseMap = Partial<BaseMap>
 ```
 

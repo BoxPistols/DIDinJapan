@@ -3,17 +3,31 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/01_React基礎" />
 
-# React基礎
+# React基礎理論とアーキテクチャ
 
-Reactの基本概念から本プロジェクトでの応用まで。
+Reactの基本概念を計算機科学およびソフトウェア工学の観点から再定義し、本プロジェクトでの応用を理論的に解説します。
 
-## 1. コンポーネントの基礎
+## 1. 宣言的UIとコンポーネント指向
 
-Reactは**コンポーネント**という再利用可能なUI部品を組み合わせてアプリケーションを構築します。
+Reactは**宣言的プログラミング (Declarative Programming)** パラダイムを採用しています。これは、UIの状態遷移を命令的（手続き的）に記述するのではなく、ある状態におけるUIの最終的な**表現**を定義することに焦点を当てます。
 
-### 関数コンポーネント
+数式的に表現すると、UIは状態 $S$ の純粋関数 $f$ として定義されます。
+
+$$ UI = f(S) $$
+
+### コンポーネントの概念的定義
+
+**コンポーネント**は、独立した責任を持つ論理的な単位であり、以下の特性を持ちます。
+- **カプセル化 (Encapsulation)**: 内部状態とロジックの隠蔽。
+- **再利用性 (Reusability)**: 異なるコンテキストでの利用可能性。
+- **合成可能性 (Composability)**: 高階コンポーネントへの構築。
+
+### 実装例：関数型コンポーネント
+
+TypeScriptにおける関数コンポーネントは、`props` を引数に取り `ReactElement` を返す純粋関数に近い振る舞いをします。
 
 ```typescript
+// 純粋関数としてのコンポーネント定義
 function Welcome() {
   return <h1>ようこそ</h1>
 }
@@ -23,27 +37,52 @@ interface AirportInfoProps {
   code: string
 }
 
+// 分割代入によるPropsの展開
 function AirportInfo({ name, code }: AirportInfoProps) {
   return <div><h2>{name}</h2><p>{code}</p></div>
 }
 ```
 
-## 2. フック（Hooks）
+## 2. 仮想DOMとReconciliation（再調整）
 
-フックはコンポーネントに状態を持たせます。
+Reactのパフォーマンスの中核は **仮想DOM (Virtual DOM)** と **Reconciliation** アルゴリズムにあります。
 
-### useState
+### 理論的背景
+
+従来のDOM操作（`document.createElement` 等）はコストが高いため、Reactはメモリ上に軽量なJSオブジェクトツリー（仮想DOM）を保持します。状態変更時、以下のステップで効率的な更新を行います。
+
+1.  **Render Phase**: 新しい状態に基づいて新しい仮想DOMツリーを構築。
+2.  **Diffing Algorithm**: 新旧のツリーを比較し、差分（Diff）を計算。計算量はヒューリスティックな手法により $O(n)$ に抑制されています（完全なツリー比較は $O(n^3)$）。
+3.  **Commit Phase**: 差分のみを実際のDOMに適用。
+
+### React Fiber アーキテクチャ
+
+React 16以降導入された **Fiber** は、レンダリング作業を「作業単位（Unit of Work）」に分割し、スケジューリング可能にするアーキテクチャです。これにより、メインスレッドを長時間ブロックせず、優先順位に基づいたレンダリングが可能になります（Time Slicing）。
+
+## 3. フック（Hooks）とクロージャ
+
+フックは、関数コンポーネント内で状態管理やライフサイクル機能を利用するための機構です。
+
+### useState: 状態の保持
+
+`useState` は、関数コンポーネントの実行コンテキストを超えて値を保持します。これはJavaScriptの **クロージャ (Closure)** の性質を利用して実装されており、Reactの内部ファイバーノードに状態がリンクされます。
 
 ```typescript
 import { useState } from 'react'
 
 function LayerToggle() {
+  // isVisible はこの実行スコープにおける定数だが、
+  // 再レンダリング時にReactが最新の値を注入する。
   const [isVisible, setIsVisible] = useState(true)
   return <input type="checkbox" checked={isVisible} onChange={(e) => setIsVisible(e.target.checked)} />
 }
 ```
 
-### useEffect
+### useEffect: 副作用の分離
+
+純粋関数的であるべきレンダリングプロセスから、**副作用 (Side Effects)** （DOM更新、データ取得、購読など）を分離・管理するために `useEffect` を使用します。
+
+$$ Effect(S) \rightarrow cleanup $$
 
 ```typescript
 import { useEffect, useState } from 'react'
@@ -51,25 +90,35 @@ import { useEffect, useState } from 'react'
 function MapInitializer() {
   const [isLoaded, setIsLoaded] = useState(false)
 
+  // 空の依存配列 [] は、マウント時のみ実行されることを保証する
+  // (ComponentDidMount と同等の挙動だが、概念は「副作用の同期」)
   useEffect(() => {
     initializeMapLibre()
     setIsLoaded(true)
-  }, [])
+    
+    // クリーンアップ関数
+    return () => {
+      // unmount時の処理
+    }
+  }, []) // 依存配列
 
   return isLoaded ? <div id="map" /> : <p>読み込み中</p>
 }
 ```
 
-## 3. JSXの基本
+## 4. JSX (JavaScript XML)
+
+JSXは、ECMAScriptの厳密なスーパーセットではありませんが、ビルド時に `React.createElement` 呼び出しにトランスパイルされる糖衣構文（Syntactic Sugar）です。
 
 ```typescript
-function MapControls() {
-  return (
-    <div className="controls">
-      <button onClick={() => zoomIn()}>ズームイン</button>
-      <input type="text" placeholder="検索..." />
-    </div>
-  )
-}
+// JSX
+const element = <h1 className="greeting">Hello</h1>;
+
+// Transpiled Result
+const element = React.createElement(
+  'h1',
+  { className: 'greeting' },
+  'Hello'
+);
 ```
 

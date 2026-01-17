@@ -3,72 +3,64 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/05_Reactパターン" />
 
-# Reactパターン
+# Reactデザインパターンとアーキテクチャ
 
-本プロジェクトで使用される高度な React パターン。
+本プロジェクトで採用している設計パターンを、一般的なソフトウェアデザインパターンの文脈で解説します。
 
-## 1. useCallback フック
+## 1. 制御の反転 (Inversion of Control)
 
-関数をメモ化してパフォーマンスを最適化します。
+コンポーネントの再利用性を高めるため、依存関係を外部から注入する **IoC** の原則を適用します。Reactにおいてこれは **Composition (合成)** と **Props** によって実現されます。
+
+### Render Props / Function as Child
+
+具体的なレンダリングロジックを親コンポーネントに委譲するパターンです。
 
 ```typescript
-import { useCallback } from 'react'
+type ListProps<T> = {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode; // Strategy Pattern
+}
 
-const MapController = ({ onAddLayer }) => {
-  const handleAddLayer = useCallback((layer) => {
-    setLayers(prev => [...prev, layer])
-  }, [])
-
-  return <LayerManager onAddLayer={handleAddLayer} />
+function List<T>({ items, renderItem }: ListProps<T>) {
+  return <ul>{items.map(renderItem)}</ul>;
 }
 ```
 
-## 2. useMemo フック
+## 2. メモ化戦略 (Memoization Strategy)
 
-計算コストの高い処理をメモ化します。
+メモ化は **計算量 (Time Complexity)** と **メモリ使用量 (Space Complexity)** のトレードオフです。
 
-```typescript
-import { useMemo } from 'react'
+- **useMemo**: 計算結果のキャッシュ。$O(N)$ の計算を $O(1)$ に短縮しますが、キャッシュのためのメモリを消費します。
+- **useCallback**: 関数インスタンスの同一性 (Referential Equality) を保持します。これは子コンポーネントの `React.memo` による不要な再レンダリングを防ぐために必須です。
 
-const AirportMap = ({ airports, selectedRegion }) => {
-  const filteredAirports = useMemo(() => {
-    return airports.filter(airport => airport.region === selectedRegion)
-  }, [airports, selectedRegion])
+$$ Cost(ReRender) > Cost(Memoization) $$
 
-  return <Map airports={filteredAirports} />
-}
-```
+この不等式が成立する場合にのみ、メモ化を適用すべきです。安易なメモ化はオーバーヘッドを招きます。
 
-## 3. useRef フック
+## 3. Flux アーキテクチャと Reducer
 
-DOM アクセスや値を保持します。
+`useReducer` フックは、Facebookが提唱した **Flux** アーキテクチャ（単方向データフロー）の思想を受け継いでいます。これは **Command Pattern** の一種と見なすことができます。
 
-```typescript
-import { useRef } from 'react'
-
-const MapContainer = () => {
-  const mapRef = useRef(null)
-  const tilesCacheRef = useRef(new Map())
-
-  return <div ref={mapRef} style={{ width: '100%', height: '100vh' }} />
-}
-```
-
-## 4. useReducer フック
-
-複雑な状態ロジックを管理します。
+- **State**: SSOT (Single Source of Truth)
+- **Action**: 意図を表すイベントオブジェクト
+- **Reducer**: 純粋関数 $f(State, Action) \rightarrow NewState$ (状態遷移関数)
 
 ```typescript
-import { useReducer } from 'react'
-
 type FlightPlanState = {
   waypoints: Array<[number, number]>
   isValid: boolean
 }
 
-function flightPlanReducer(state, action) {
+// Action = Command
+type Action = 
+  | { type: 'ADD_WAYPOINT'; coord: [number, number] }
+  | { type: 'RESET' }
+
+// Reducer = State Machine Transition Logic
+function flightPlanReducer(state: FlightPlanState, action: Action): FlightPlanState {
   switch (action.type) {
     case 'ADD_WAYPOINT':
+      // Immutability の保持（新しいオブジェクトを生成して返す）
       return { ...state, waypoints: [...state.waypoints, action.coord] }
     case 'RESET':
       return { waypoints: [], isValid: false }
@@ -78,65 +70,31 @@ function flightPlanReducer(state, action) {
 }
 ```
 
-## 5. React.memo
+## 4. Higher-Order Components (HOC) と Hooks
 
-不要な再レンダリングを防止します。
+かつては Mixin パターンやDecorator パターンとして HOC が使用されましたが、現在は **Custom Hooks** がロジックの再利用の主流です。これは **AOP (Aspect Oriented Programming)** のような「横断的関心事（Cross-Cutting Concerns）」の分離を可能にします。
 
-```typescript
-import { memo } from 'react'
+- 通信ロジック
+- エラーハンドリング
+- サブスクリプション管理
 
-const LayerItem = memo(({ layer, isSelected }) => {
-  return (
-    <div style={{ backgroundColor: isSelected ? '#e0e0e0' : 'transparent' }}>
-      {layer.name}
-    </div>
-  )
-})
-```
+これらをコンポーネントのビューロジックから分離し、フックとしてカプセル化します。
 
-## 6. Error Boundaries
+## 5. Context による依存性の注入 (Dependency Injection)
 
-エラーハンドリングします。
+`useContext` は、コンポーネントツリーの深層に値を配送するメカニズムですが、アーキテクチャ的には **Service Locator** や **Dependency Injection** コンテナの役割を果たします。グローバルな状態管理だけでなく、機能モジュールの提供にも利用されます。
 
 ```typescript
-import { Component } from 'react'
-
-class ErrorBoundary extends Component {
-  state = { hasError: false }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <div>エラーが発生しました</div>
-    }
-    return this.props.children
-  }
-}
-```
-
-## 7. Context API
-
-データを共有します。
-
-```typescript
-import { createContext, useContext, useState } from 'react'
-
-const MapContext = createContext(undefined)
+const MapContext = createContext<MapService | null>(null);
 
 export const MapProvider = ({ children }) => {
-  const [center, setCenter] = useState([137.0, 36.5])
+  // Service Instance の生成
+  const mapService = useMapService();
   return (
-    <MapContext.Provider value={{ center, setCenter }}>
+    <MapContext.Provider value={mapService}>
       {children}
     </MapContext.Provider>
   )
-}
-
-export const useMapContext = () => {
-  return useContext(MapContext)
 }
 ```
 

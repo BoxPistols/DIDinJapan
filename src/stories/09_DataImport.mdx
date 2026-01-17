@@ -3,203 +3,105 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/09_データインポートプロセス" />
 
-# データインポートプロセス
+# データパイプラインとETLアーキテクチャ
 
-国土地理院データと外部データの取り込み、処理、管理方法。
+外部データソース（GSI等）をアプリケーションに取り込むプロセスは、**ETL (Extract, Transform, Load)** パターンに従って設計されています。
 
-## 1. データソースの種類
+## 1. Extract (抽出): 非同期データ取得と並行制御
 
-### GSI ラスタタイル（画像）
+データの取得フェーズでは、JavaScriptの **Event Loop** と **Microtask Queue** の特性を理解した並行処理制御が不可欠です。
 
-用途: 背景地図
-形式: PNG / JPEG
-取得: HTTP リクエスト（自動）
-例: std/zoom/x/y.png
+### Promise Pool Pattern
 
-### GSI ベクタタイル（地理データ）
-
-用途: 制限空域
-形式: GeoJSON
-取得: HTTP リクエスト（手動）
-例: kokuarea/zoom/x/y.geojson
-
-## 2. GSI データの取得フロー
+大量のタイルリクエストを同時に発行するとネットワーク帯域やブラウザのコネクションプールを枯渇させます。**Semaphore (セマフォ)** を用いた並行数制御（Promise Pool）を実装します。
 
 ```typescript
-const map = new maplibregl.Map({
-  style: {
-    sources: {
-      gsi: {
-        type: 'raster',
-        tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
-        tileSize: 256
-      }
+async function fetchAllTiles(urls: string[], concurrency: number) {
+  const results = [];
+  const executing = new Set();
+  
+  for (const url of urls) {
+    const p = fetch(url).then(r => r.json());
+    results.push(p);
+    
+    // 実行中セットに追加し、完了時に削除
+    const e = p.then(() => executing.delete(e));
+    executing.add(e);
+    
+    // 並行数が上限に達したら、どれか1つが終わるのを待つ
+    if (executing.size >= concurrency) {
+      await Promise.race(executing);
     }
   }
-})
-```
-
-## 3. ベクタタイルの手動取得
-
-```typescript
-async function loadKokuareaTiles(bounds, zoom) {
-  const tiles = getVisibleTileXYZs(bounds, zoom)
-  const features = []
-
-  for (const tile of tiles) {
-    try {
-      const url = `https://cyberjapandata.gsi.go.jp/xyz/kokuarea/${tile.z}/${tile.x}/${tile.y}.geojson`
-      const response = await fetch(url)
-      const geojson = await response.json()
-      features.push(...(geojson.features || []))
-    } catch (error) {
-      console.warn('Failed to load tile:', error)
-    }
-  }
-
-  return { type: 'FeatureCollection', features }
+  return Promise.all(results);
 }
 ```
 
-## 4. キャッシング戦略
+## 2. Transform (変換): データ正規化とサニタイズ
+
+GeoJSONデータは外部入力であるため、信頼せずバリデーションと正規化（Normalization）を行います。これは **Adapter Pattern** の役割も果たします。
+
+### ジオメトリの正規化
+
+- **Winding Order**: ポリゴンの頂点順序（時計回り/反時計回り）を修正。
+- **Coordinates**: 文字列として渡された数値を `number` 型にキャスト。
+- **Properties**: 欠損値の補完（Default Values）。
 
 ```typescript
-class TileCache {
-  private cache = new Map()
+type RawFeature = { geometry: any; properties: any };
+type NormalizedFeature = Feature<Geometry, GeoJsonProperties>;
 
-  async getTile(url) {
-    if (this.cache.has(url)) {
-      return this.cache.get(url)
-    }
-
-    const stored = localStorage.getItem(`tile_${url}`)
-    if (stored) {
-      const data = JSON.parse(stored)
-      if (!this.isExpired(data)) {
-        return data.content
-      }
-    }
-    return null
+function normalizeFeature(raw: RawFeature): NormalizedFeature {
+  // Defensive Copying
+  const geometry = { ...raw.geometry };
+  
+  // Coordinate Sanitization
+  if (geometry.type === 'Point') {
+    geometry.coordinates = geometry.coordinates.map(Number);
   }
-
-  async setTile(url, data, ttl = 24 * 60 * 60 * 1000) {
-    this.cache.set(url, data)
-    localStorage.setItem(`tile_${url}`, JSON.stringify({
-      content: data,
-      timestamp: Date.now(),
-      ttl
-    }))
-  }
-
-  isExpired(data) {
-    return Date.now() - data.timestamp > data.ttl
-  }
-}
-```
-
-## 5. GeoJSON データの正規化
-
-```typescript
-function normalizeGeoJSON(geojson) {
-  if (!geojson || !geojson.features) {
-    return { type: 'FeatureCollection', features: [] }
-  }
-
+  
   return {
-    type: 'FeatureCollection',
-    features: geojson.features
-      .filter(f => f.geometry && f.geometry.coordinates)
-      .map(f => ({
-        ...f,
-        properties: f.properties || {},
-        id: f.id || Math.random().toString(36).substr(2, 9)
-      }))
-  }
+    type: 'Feature',
+    geometry,
+    properties: sanitizeProperties(raw.properties)
+  };
 }
 ```
 
-## 6. ユーザーアップロード処理
+## 3. Load (ロード): 状態管理と副作用
+
+変換されたデータは、Reactの `Status` や MapLibre GL の `Source` にロードされます。ここでは **Immutability (不変性)** の維持が重要です。
+
+`map.addSource()` や `map.setData()` は命令的な副作用ですが、Reactのライフサイクル内で宣言的に管理するために `useEffect` でラップし、データの同一性チェック（Deep Comparison または Reference Check）を行って不要な更新を防ぎます。
+
+## 4. バッチ処理とメインスレッドの解放
+
+数万点のポイントデータをループ処理する場合、メインスレッドをブロックし UI がフリーズ (Jank) する原因となります。**Chunking (チャンク化)** と `requestIdleCallback` または `setTimeout` を用いて処理を分割します。
 
 ```typescript
-async function processUploadedFile(file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-
-  try {
-    let features = []
-
-    if (ext === 'geojson') {
-      const text = await file.text()
-      features = JSON.parse(text).features || []
-    } else if (ext === 'kml') {
-      features = await parseKML(await file.text())
-    } else if (ext === 'gpx') {
-      features = await parseGPX(await file.text())
+function processLargeDataset(data: any[], type: string) {
+  let index = 0;
+  function processChunk() {
+    const start = performance.now();
+    while (index < data.length && performance.now() - start < 16) { // 16ms (1 frame) 以内で処理
+      processItem(data[index]);
+      index++;
     }
-
-    return {
-      success: true,
-      featureCount: features.length,
-      features: normalizeGeoJSON({ features })
+    
+    if (index < data.length) {
+      // 次のフレームへ持ち越し
+      requestAnimationFrame(processChunk); 
+    } else {
+      console.log('Done');
     }
-  } catch (error) {
-    return { success: false, error: error.message }
   }
+  processChunk();
 }
 ```
 
-## 7. エラーハンドリング
+## 5. ベストプラクティス：ロバストネス原則
 
-```typescript
-async function fetchWithRetry(url, maxRetries = 3) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      return await response.json()
-    } catch (error) {
-      if (attempt === maxRetries) throw error
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)))
-    }
-  }
-}
-```
+> "Be conservative in what you do, be liberal in what you accept from others." (Postel's Law)
 
-## 8. バッチ処理
-
-```typescript
-async function processFeaturesInBatches(features, processor, batchSize = 100) {
-  const results = []
-
-  for (let i = 0; i < features.length; i += batchSize) {
-    const batch = features.slice(i, i + batchSize)
-    const processed = await Promise.all(batch.map(processor))
-    results.push(...processed)
-    await new Promise(r => setTimeout(r, 0))
-  }
-
-  return results
-}
-```
-
-## 9. ベストプラクティス
-
-```
-取得段階:
-✓ ネットワーク接続確認
-✓ タイムアウト設定
-✓ リトライロジック
-✓ キャッシュ戦略
-
-処理段階:
-✓ データ正規化
-✓ スキーマ検証
-✓ エラーハンドリング
-✓ 品質チェック
-
-統合段階:
-✓ パフォーマンステスト
-✓ メモリ監視
-✓ UX確認
-✓ 属性表記確認
-```
+データインポートにおいては、「入力データは常に不正である可能性がある」という前提（**Defensive Programming**）に立ち、例外処理ではなく、グレースフルなデグレード（部分的に読み込めなくても全体はクラッシュさせない）を実装します。
 

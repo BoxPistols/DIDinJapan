@@ -3,155 +3,90 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/07_実装例" />
 
-# 実装例
+# 実装パターンとアルゴリズム解析
 
-React、TypeScript、GSI を組み合わせた実装例。
+本プロジェクトにおける主要な実装を、アルゴリズムとデザインパターンの観点から解析します。
 
-## 1. 飛行経路プランナー
+## 1. 飛行経路計画と有限オートマトン (Finite State Machine)
+
+飛行計画のUIロジックは、状態遷移が厳格に定義された **有限オートマトン (FSM)** としてモデル化できます。
+
+- **状態集合 $S$**: `{ Initial, Editing, Validating, Complete, Error }`
+- **入力集合 $\Sigma$**: `{ AddWaypoint, RemoteWaypoint, Submit, Reset }`
+- **遷移関数 $\delta$**: $S \times \Sigma \rightarrow S$
 
 ```typescript
-import { useReducer } from 'react'
+type State = 
+  | { status: 'idle'; waypoints: [] }
+  | { status: 'editing'; waypoints: Point[]; isValid: boolean }
+  | { status: 'submitting' }
+  | { status: 'error'; message: string }
 
-type FlightPlanState = {
-  waypoints: Array<[number, number]>
-  isValid: boolean
+// Reducer as Transition Function
+// δ(CurrentState, Action) -> NextState
+function flightPlanReducer(state: State, action: Action): State {
+  switch (state.status) {
+    case 'idle':
+      if (action.type === 'START') return { status: 'editing', waypoints: [], isValid: false };
+      break;
+    case 'editing':
+      // 編集ロジック...
+      break;
+  }
+  return state;
+}
+```
+
+## 2. レイヤー管理とStrategyパターン
+
+GSIタイル、GeoJSON、航空写真など異なるデータソースを統一的に扱うため、**Strategy Pattern** を適用しています。各レイヤーは共通のインターフェース `LayerStrategy` を実装し、マップコンテキストは実装の詳細を知ることなく描画を委譲します。
+
+```typescript
+interface LayerStrategy {
+  id: string;
+  load(): Promise<void>;
+  render(map: MapLibreGL.Map): void;
+  cleanup(): void;
 }
 
-type FlightPlanAction =
-  | { type: 'ADD_WAYPOINT'; coord: [number, number] }
-  | { type: 'VALIDATE' }
-  | { type: 'RESET' }
+class RasterLayerStrategy implements LayerStrategy {
+  // ラスタ固有の実装
+}
 
-function flightPlanReducer(state, action) {
-  switch (action.type) {
-    case 'ADD_WAYPOINT':
-      return { ...state, waypoints: [...state.waypoints, action.coord] }
-    case 'VALIDATE':
-      return { ...state, isValid: state.waypoints.length >= 2 }
-    case 'RESET':
-      return { waypoints: [], isValid: false }
-    default:
-      return state
+class VectorLayerStrategy implements LayerStrategy {
+  // ベクタ固有の実装
+}
+```
+
+## 3. アルゴリズム的複雑性解析 (Algorithmic Complexity)
+
+### タイル可視判定アルゴリズム
+
+ビューポートに含まれるタイルを計算する処理の計算量は、表示範囲の緯度経度矩形をカバーするタイルの数に比例します。
+
+- **時間計算量**: $O(N)$（$N$ は可視タイル数）
+- $N$ はズームレベル $Z$ に対して $O(4^Z)$ で増加する可能性がありますが、ビューポートサイズが一定であれば定数オーダー $O(1)$ に収束します。
+
+### 空間フィルタリング
+
+GeoJSONデータに対する空間フィルタ（Point-in-Polygon）は、単純な実装では $O(N \times M)$ ($N$: 点の数, $M$: ポリゴンの頂点数) となります。本システムでは、**R-Tree** などの空間インデックスを用いることで、検索コストを $O(\log M)$ に削減可能です。
+
+## 4. エラー処理とレジリエンス (Resilience Engineering)
+
+分散システムにおける「部分的な障害」を想定し、**Circuit Breaker** パターンや **Exponential Backoff** リトライ戦略を実装しています。
+
+```typescript
+// 指数バックオフ付きリトライ
+async function fetchWithRetry(url: string, retries = 3, delay = 1000) {
+  try {
+    return await fetch(url);
+  } catch (err) {
+    if (retries === 0) throw err;
+    await new Promise(r => setTimeout(r, delay));
+    return fetchWithRetry(url, retries - 1, delay * 2); // delayが増加
   }
 }
 ```
 
-## 2. カスタムフック：useGSITiles
-
-```typescript
-import { useCallback, useEffect, useState } from 'react'
-
-export function useGSITiles(bounds, zoom, tileTemplate) {
-  const [tiles, setTiles] = useState({ features: [] })
-  const [loading, setLoading] = useState(false)
-
-  const loadTiles = useCallback(async () => {
-    setLoading(true)
-    const visibleTiles = getVisibleTileXYZs(bounds, zoom)
-    const allFeatures = []
-
-    for (const tile of visibleTiles) {
-      try {
-        const url = tileTemplate
-          .replace('{z}', tile.z)
-          .replace('{x}', tile.x)
-          .replace('{y}', tile.y)
-
-        const response = await fetch(url)
-        const geojson = await response.json()
-        allFeatures.push(...(geojson.features || []))
-      } catch (err) {
-        console.warn('Failed to load tile:', err)
-      }
-    }
-
-    setTiles({ features: allFeatures })
-    setLoading(false)
-  }, [bounds, zoom, tileTemplate])
-
-  useEffect(() => {
-    loadTiles()
-  }, [loadTiles])
-
-  return { tiles, loading }
-}
-```
-
-## 3. 型安全なレイヤー管理
-
-```typescript
-interface LayerConfig {
-  id: string
-  name: string
-  kind: 'raster' | 'vector'
-  opacity?: number
-}
-
-class LayerManager {
-  private layers = new Map()
-
-  addLayer(config: LayerConfig) {
-    this.layers.set(config.id, config)
-  }
-
-  getLayer(id: string) {
-    return this.layers.get(id)
-  }
-}
-```
-
-## 4. エラー復旧パターン
-
-```typescript
-class ResilientTileLoader {
-  private cache = new Map()
-
-  async loadTilesWithFallback(url, fallbackData = null) {
-    if (this.cache.has(url)) {
-      return this.cache.get(url)
-    }
-
-    try {
-      const response = await fetch(url)
-      const data = await response.json()
-      this.cache.set(url, data)
-      return data
-    } catch (error) {
-      return fallbackData || { features: [] }
-    }
-  }
-}
-```
-
-## 5. パフォーマンス監視
-
-```typescript
-class PerformanceMonitor {
-  private metrics = new Map()
-
-  markStart(label) {
-    performance.mark(`${label}-start`)
-  }
-
-  markEnd(label) {
-    performance.mark(`${label}-end`)
-    performance.measure(label, `${label}-start`, `${label}-end`)
-    const measure = performance.getEntriesByName(label)[0]
-
-    if (!this.metrics.has(label)) {
-      this.metrics.set(label, [])
-    }
-    this.metrics.get(label).push(measure.duration)
-  }
-
-  getStats(label) {
-    const values = this.metrics.get(label) || []
-    return {
-      avg: values.reduce((a, b) => a + b, 0) / values.length,
-      max: Math.max(...values),
-      min: Math.min(...values)
-    }
-  }
-}
-```
+この再帰的アプローチにより、一時的なネットワーク輻輳時のサーバー負荷を軽減し、システムの回復性を高めています。
 

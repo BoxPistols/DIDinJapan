@@ -3,83 +3,85 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/06_GSIアーキテクチャ" />
 
-# GSIアーキテクチャ
+# GSIアーキテクチャと分散システム
 
-国土地理院システムの詳細なアーキテクチャ解説。
+国土地理院地図システムを大規模分散地理情報システム (Distributed GIS) の一例として捉え、そのスケーラビリティとパフォーマンス特性を分析します。
 
-## 1. タイル座標系の詳細（XYZ）
+## 1. ズームレベルと空間分解能の数学
 
-### Z（ズームレベル）
+解像度（1ピクセルあたりの実距離）は、赤道において最大となり、緯度が高くなるにつれて小さくなります。Web Mercator における解像度 $R_{ground}$ (meter/pixel) は以下の式で求められます（タイルサイズ 256px の場合）。
 
-```
-Z=0: 世界全体を1タイル
-Z=1: 世界全体を4タイル
-Z=n: 世界全体を4^n タイル
+```latex
+R_{ground} = \frac{\text{Earth Circumference} \times \cos(\text{latitude})}{2^{\text{zoom}} \times 256}
 ```
 
-### X（経度方向）
+地球の円周は約 40,075,017m です。
 
-```
-西（-180度） ←→ 東（+180度）
-X=0 ... X=2^Z-1
-```
+### 計算例（赤道付近、latitude = 0）
 
-### Y（緯度方向）
+- **Z=0**: $156,543 \text{ m/px}$ (国全体)
+- **Z=10**: $152.8 \text{ m/px}$ (都市全体)
+- **Z=18**: $0.597 \text{ m/px}$ (車一台分)
 
-```
-北（+85度）
-    ↑
-    Y=0
-    ...
-    Y=2^Z-1
-    ↓
-南（-85度）
-```
+## 2. クライアント-サーバー分散モデル
 
-## 2. Web Mercator（EPSG:3857）
+本システムは、**Fat Client** モデルを採用しています。
 
-ウェブ地図の標準投影方式。
+- **サーバー (GSI)**: 静的なアセット（タイル画像、GeoJSON）の配信に特化。計算資源を消費せず、CDNによるキャッシュ効率が極大化されています。
+- **クライアント (Browser)**: レンダリング、スタイリング、フィルタリング、空間解析などの計算負荷の高い処理を担当。
 
-### 特徴
+### 非同期データフェッチと並行性
 
-1. **等角写像**: 角度関係を保持
-2. **正方形タイル**: 簡単に管理可能
-3. **シームレス**: タイル間に隙間がない
-
-### 座標変換
+タイルの取得は大量の並列HTTPリクエストとして発生します。ブラウザの同時接続数制限（通常6-8）を考慮し、優先度付きキューイングやビューポート外のリクエストキャンセル（AbortController）が重要になります。
 
 ```typescript
-function lngLatToWebMercator(lng, lat) {
-  const x = lng * 20037508.34 / 180.0
-  const y = Math.log(Math.tan((90.0 + lat) * Math.PI / 360.0)) * 20037508.34 / Math.PI
-  return { x, y }
+// AbortController を用いたリクエスト管理の概念モデル
+class TileFetcher {
+  private controllers = new Map<string, AbortController>();
+
+  loadTile(url: string) {
+    if (this.controllers.has(url)) {
+      this.controllers.get(url).abort(); // 重複/不要リクエストのキャンセル
+    }
+    
+    const controller = new AbortController();
+    this.controllers.set(url, controller);
+
+    return fetch(url, { signal: controller.signal })
+      .finally(() => this.controllers.delete(url));
+  }
 }
 ```
 
-## 3. GSI タイルサービス
+## 3. Web Mercator (EPSG:3857) の幾何学的特性
 
-| サービス | URL | ズーム | 用途 |
+### 等角写像 (Conformal Projection) と歪み
+
+Web Mercatorは角度を保存しますが、面積は保存しません。高緯度ほど面積が拡大されます。
+
+- **緯度0度**: 拡大率 1.0
+- **緯度60度**: 拡大率 2.0 (面積は4倍)
+- **緯度85度**: 拡大率 $\approx$ 11.5 (面積は100倍以上)
+
+北海道（北緯43度）と沖縄（北緯26度）では、同じズームレベルでも縮尺（画面上の1cmが表す実距離）が異なることに注意が必要です。
+
+## 4. GSI タイルサービス仕様一覧
+
+| サービス | URLテンプレート | データ形式 | 用途と特徴 |
 |---------|-----|--------|------|
-| 標準地図 | std/zoom/x/y.png | 0-18 | 汎用 |
-| 淡色地図 | pale/zoom/x/y.png | 0-18 | 背景 |
-| 航空写真 | seamlessphoto | 0-18 | 詳細 |
-| Kokuarea | kokuarea/zoom/x/y.geojson | 0-18 | 空港空域 |
+| **標準地図** | `std/{z}/{x}/{y}.png` | Raster (PNG) | 道路、建物、等高線を含む基本図。注記が焼付けられているため動的なスタイル変更不可。 |
+| **淡色地図** | `pale/{z}/{x}/{y}.png` | Raster (PNG) | データの視認性を高めるため、彩度を落とした背景地図。 |
+| **航空写真** | `seamlessphoto/...` | Raster (JPEG) | 複数の時期・ソースの写真を色調補正して接合したモザイク画像。 |
+| **Kokuarea** | `kokuarea/{z}/{x}/{y}.geojson` | Vector (GeoJSON) | 航空法制限表面。クライアント側でのクリック判定やスタイリングが可能。 |
 
-## 4. ズームレベル定義
-
-| ズーム | スケール | 用途 |
-|------|---------|------|
-| 0-4 | 世界～国 | 初期表示 |
-| 5-8 | 都道府県～市 | 飛行計画 |
-| 9-12 | 地区～ブロック | 経路詳細 |
-| 13-15 | 建物～詳細 | 近接検査 |
-| 16-18 | 街路～敷地 | 最大詳細 |
-
-## 5. 属性表記要件
+## 5. 法的・技術的帰属要件
 
 ```html
-<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>
+<!-- 地理院タイル利用規約に基づく必須の帰属表示 -->
+<a href="https://maps.gsi.go.jp/development/ichiran.html" rel="noreferrer noopener">
+  国土地理院
+</a>
 ```
 
-これは法的要件です。
+これは単なるデザイン上の要素ではなく、**著作権法** および **測量法** に基づくライセンス要件です。
 

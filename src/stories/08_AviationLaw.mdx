@@ -3,112 +3,83 @@ import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/08_航空法対策" />
 
-# 航空法対策
+# 航空法コンプライアンスのアルゴリズム
 
-日本の航空法要件と本アプリケーションでの対応方法。
+ドローン（無人航空機）飛行支援システムにおける法令遵守（Compliance Engineering）機能の技術的実装について解説します。
 
-## 1. 航空法概要
+## 1. 地理フェンス (Geofencing) アルゴリズム
 
-日本の航空法は無人航空機（ドローン）の飛行を規制しています。
+「飛行禁止空域」の判定は、計算幾何学における **Point-in-Polygon (PIP)** 問題に帰着します。
 
-### 適用範囲
-- 無人航空機（ドローン）
-- 有人航空機
-- 航空運送事業者
+### Ray Casting Algorithm (光線投影法)
 
-## 2. 飛行禁止空域
-
-### 空港周辺空域
-
-```
-- 空港から半径9km以内
-- 進入表面内
-- 転移表面内
-- 水平表面内
-- 円錐表面内
-```
-
-### その他の制限
-
-```
-- 人口密集地（制限あり）
-- 高度150メートル以上（許可必要）
-- 夜間飛行（許可必要）
-- 目視外飛行（許可必要）
-```
-
-## 3. 空港空域の可視化
+任意の点 $P$ から半直線を伸ばし、ポリゴンの境界線と交差する回数を数えます。
+- **奇数回**: 内部
+- **偶数回**: 外部
 
 ```typescript
-const kokuareaLayer = {
-  id: 'kokuarea-restriction',
-  paint: {
-    'fill-color': '#FF4444',
-    'fill-opacity': 0.3
+// O(N) Complexity Implementation
+function isPointInPolygon(point: number[], vs: number[][]) {
+  const x = point[0], y = point[1];
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][0], yi = vs[i][1];
+    const xj = vs[j][0], yj = vs[j][1];
+    
+    // Ray intersection test
+    const intersect = ((yi > y) !== (yj > y))
+        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
   }
+  return inside;
 }
-
-map.addLayer(kokuareaLayer)
 ```
 
-## 4. 飛行経路バリデーション
+## 2. 測地線距離計算 (Geodesic Distance)
+
+地球表面上の2点間の最短距離は、大円距離 (Great-circle distance) として計算されます。
+
+### Haversine Formula (半正矢関数)
+
+```latex
+a = \sin^2\left(\frac{\Delta\phi}{2}\right) + \cos \phi_1 \cdot \cos \phi_2 \cdot \sin^2\left(\frac{\Delta\lambda}{2}\right)
+c = 2 \cdot \text{atan2}(\sqrt{a}, \sqrt{1-a})
+d = R \cdot c
+```
+
+ここで、$\phi$ は緯度 (radian)、$\lambda$ は経度 (radian)、$R$ は地球半径です。
 
 ```typescript
-function validateFlightPath(waypoints, restrictedAreas) {
-  const issues = []
+function calculateHaversineDistance(p1: [number, number], p2: [number, number]): number {
+  const R = 6371e3; // meters
+  const phi1 = p1[1] * Math.PI / 180;
+  const phi2 = p2[1] * Math.PI / 180;
+  const deltaPhi = (p2[1] - p1[1]) * Math.PI / 180;
+  const deltaLambda = (p2[0] - p1[0]) * Math.PI / 180;
 
-  for (const waypoint of waypoints) {
-    if (checkPointInRestriction(waypoint, restrictedAreas)) {
-      issues.push(`ウェイポイント ${waypoint} は制限空域内`)
-    }
-  }
+  const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-  return { isValid: issues.length === 0, issues }
+  return R * c;
 }
 ```
 
-## 5. 距離計算
+**※注意**: Haversine式は地球を真球と仮定します。より高精度な計算が必要な場合（空港の敷地境界誤差数cmレベルなど）は、回転楕円体を考慮した **Vincenty法** を使用すべきですが、リアルタイム判定には計算コストが高いため、用途に応じて使い分けます。
 
-```typescript
-function calculateDistanceToAirport(position, airportCenter) {
-  const R = 6371000
-  const lat1 = position[1] * Math.PI / 180
-  const lat2 = airportCenter[1] * Math.PI / 180
-  const deltaLat = (airportCenter[1] - position[1]) * Math.PI / 180
-  const deltaLng = (airportCenter[0] - position[0]) * Math.PI / 180
+## 3. 高さ制限と3次元空間解析
 
-  const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-            Math.cos(lat1) * Math.cos(lat2) *
-            Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  const distance = R * c
+空港周辺では、滑走路からの距離に応じて高度制限（進入表面）が変化します。これは幾何学的には「滑走路を基準線とした斜平面との距離計算」となります。
 
-  return { distanceMeters: Math.round(distance), safetyViolation: distance < 9000 }
-}
-```
+$$ H_{limit} = \tan(\theta) \times D_{runway} + H_{runway} $$
 
-## 6. 許可申請サポート
+勾配 $\theta$ は 1/50 (2%) 等と法律で定義されています。
 
-```typescript
-function generateApplicationSummary(data) {
-  return `
-申請者: ${data.operatorName}
-機体タイプ: ${data.droneType}
-機体重量: ${data.droneWeight}kg
-飛行期間: ${data.estimatedFlightTime}時間
-  `
-}
-```
+## 4. コンプライアンス・エンジニアリング
 
-## 7. 飛行安全チェックリスト
+システムは「ユーザーが故意に違反しようとしない限り、自然に法令を遵守できる」設計（**Poka-yoke**）を目指します。
 
-```
-✓ 許可書有効期限確認
-✓ 気象条件確認
-✓ 飛行区域確認
-✓ Kokuarea データ確認
-✓ 航空情報確認
-✓ 機体状態確認
-✓ バッテリー確認
-```
+1.  **Fail-Safe**: データ取得失敗時は「飛行不可」と判定（安全側に倒す）。
+2.  **Audit Trail**: 飛行計画作成時の使用データバージョンと判定ロジックバージョンを記録し、事後検証可能性を担保。
 
