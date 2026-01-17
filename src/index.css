@@ -6,6 +6,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
 }
 
 .maplibregl-popup-content {
@@ -78,6 +79,25 @@ input[type="checkbox"] {
   height: 18px;
   cursor: pointer;
   accent-color: #3388ff;
+}
+
+/* Modal and panel content theming fixes */
+/* Force modal/dialog content to use theme colors */
+[role="dialog"] {
+  background: rgba(26, 31, 46, 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[role="dialog"] * {
+  color: inherit;
+}
+
+/* Override hardcoded white backgrounds in modals */
+[role="dialog"] [style*="backgroundColor"],
+[role="dialog"] div[style*="background"] {
+  background-color: rgba(26, 31, 46, 0.5) !important;
+  background-image: none !important;
 }
 
 /* Interactive button hover effects for better UX */
