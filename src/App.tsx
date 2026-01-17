@@ -789,9 +789,8 @@ function App() {
           toggleRestriction('facility-landing')
           break
 
-        // [M] Military (Self Defense Force)
-        // Was: map style (moved to 'b')
-        case 'm':
+        // [J] Jieitai (Self Defense Force / Military)
+        case 'j':
           toggleRestriction('facility-military')
           break
 
@@ -806,10 +805,7 @@ function App() {
           toggleRestriction('facility-medical')
           break
 
-        // [W] Wind Field (Mock) - Keeping for now as per plan, or user didn't explicitly ask to remove this one?
-        // User said "Temporary Data" section. Wind is an overlay. Let's keep existing behavior for 'w' and 'c' unless confusing.
-        // Actually, user said "仮設置データは全て削除" (Delete all temporary data).
-        // These are overlays, not strictly "restriction" temporary data. I will leave them for now to avoid over-deletion.
+        // [W] Wind Field (Mock)
         case 'w':
           toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
           break
@@ -817,8 +813,8 @@ function App() {
           toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
           break
 
-        // [B] Base Map (moved from 'm')
-        case 'b':
+        // [M] Map style toggle (restored)
+        case 'm':
           {
             const keys = Object.keys(BASE_MAPS) as BaseMapKey[]
             const currentIndex = keys.indexOf(baseMap)
@@ -4193,7 +4189,7 @@ function App() {
                   {facility.id === 'facility-landing'
                     ? 'H'
                     : facility.id === 'facility-military'
-                      ? 'M'
+                      ? 'J'
                       : facility.id === 'facility-fire'
                         ? 'F'
                         : facility.id === 'facility-medical'
