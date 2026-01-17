@@ -79,3 +79,25 @@ input[type="checkbox"] {
   cursor: pointer;
   accent-color: #3388ff;
 }
+
+/* Interactive button hover effects for better UX */
+button {
+  transition: all 0.15s ease-out;
+}
+
+/* Button hover effect - subtle glassmorphism-compatible feedback */
+button:not(:disabled):hover {
+  opacity: 0.92;
+  filter: brightness(1.05);
+}
+
+button:not(:disabled):active {
+  opacity: 0.85;
+  filter: brightness(0.98);
+}
+
+/* Tab/button hover state indicator */
+[role="tab"],
+[role="button"] {
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}

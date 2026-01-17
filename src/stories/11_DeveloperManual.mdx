@@ -1,151 +1,207 @@
-{/* IntegrationGuide.mdx */}
+{/*IntegrationReference.mdx*/}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/11_統合アーキテクチャガイド" />
+<Meta title="Learning/11_既存プロジェクト導入ガイド (詳細版)" />
 
-# DID-J26 統合アーキテクチャガイド
+# 既存プロジェクト導入ガイド (React / Next.js)
 
-本ドキュメントでは、`DID-J26` のシステム（地図機能、飛行可否判定ロジック等）を、既存のWebアプリケーションやサードパーティシステムに組み込むためのアーキテクチャパターンと実装ガイドラインを解説します。
+本ドキュメントでは、`DID-J26` のコードベースを既存の **Next.js** や **React** プロジェクトに統合するための詳細な手順と、各コンポーネント・ユーティリティのAPIリファレンスを提供します。
 
-## 1. 統合パターン概要
+## 1. 導入手順 (Step-by-Step)
 
-利用シナリオに応じて、3つの統合レベルを提供します。
+### Step 1: 依存ライブラリのインストール
 
-### **A. IFrame Embedding** (View)
-- **ユースケース**: 簡易的な地図表示、LPへの埋め込み
-- **難易度**: 低
-
-### **B. NPM Package (UI)** (Component) 
-- **ユースケース**: Reactアプリへの地図機能統合
-- **難易度**: 中
-
-### **C. Core Logic SDK** (Logic)
-- **ユースケース**: 独自のUIを持つシステムでの判定ロジック利用
-- **難易度**: 高
-
-## 2. A. IFrame Embedding (View Integration)
-
-最も単純な統合方法です。ホストされた `DID-J26` アプリケーションを `iframe` として埋め込みます。
-
-### 通信プロトコル: `postMessage` API
-
-親ウィンドウ（ホストアプリ）と `iframe` 間で、`window.postMessage` を用いて双方向通信を行います。
-
-```typescript
-// Host Application (Parent)
-const iframe = document.getElementById('did-map');
-
-// 1. 地図の移動命令
-iframe.contentWindow.postMessage({
-  type: 'SET_VIEW',
-  payload: { lat: 35.681, lng: 139.767, zoom: 14 }
-}, 'https://did-j26.example.com');
-
-// 2. 判定結果の受信
-window.addEventListener('message', (event) => {
-  if (event.origin !== 'https://did-j26.example.com') return;
-  
-  if (event.data.type === 'FLIGHT_STATUS_UPDATE') {
-    console.log('飛行可否:', event.data.payload.isFlyable); // true/false
-  }
-});
-```
-
-このパターンは、**疎結合 (Loose Coupling)** であり、ホスト側の技術スタック（Vue, Angular, PHP等）を問いません。
-
-## 3. B. NPM Package Integration (Component Integration) - **[ROADMAP]**
-
-※ 本機能は現在 **設計段階** です。将来的なMonorepo化またはパッケージ化を見据えた設計案です。
-
-`DID-J26` を React コンポーネントライブラリとして提供し、ホストアプリの一部としてレンダリングする構想です。
-
-### アーキテクチャ設計案
-
-将来的に `npm publish` 可能な構成へとリファクタリングする場合、以下のパッケージ構成を目指します。
+プロジェクトに必要な地図ライブラリとユーティリティをインストールします。
 
 ```bash
-# 将来的なインストールコマンドのイメージ
-npm install @did-j26/react-map
+# Core Map Libraries
+pnpm add maplibre-gl @mapbox/mapbox-gl-draw
+
+# Geometry & Utilities
+pnpm add turf unalib date-fns
+
+# Type Definitions (TypeScriptの場合)
+pnpm add -D @types/mapbox__mapbox-gl-draw @types/geojson @types/react @types/react-dom
 ```
 
-### 実装イメージ
+### Step 2: ソースコードの移行
 
-ホストアプリ側で `DIDMap` コンポーネントを使用する設計です（**Controlled Component** パターン）。
+本レポジトリの `src/` 配下にある以下のディレクトリを、対象プロジェクトの `src/` (または `components/`) にコピーしてください。
+
+| ディレクトリ | 内容 | 必須 | 備考 |
+
+|Data | Description | Required | Note |
+|---|---|---|---|
+| `components/` | 地図UIコンポーネント (DrawingTools, InfoPanel等) | ✅ | 一部は `src/lib` に依存 |
+| `lib/` | 地図ロジック、データフェッチ、型定義 | ✅ | コアロジック |
+| `utils/` | 汎用ユーティリティ (toast, dialog等) | ✅ | |
+| `styles/` | テーマ定義、CSS | ✅ | |
+
+### Step 3: 静的アセットの移行
+
+`public/` ディレクトリ内のファイルを、対象プロジェクトの `public/` にコピーします。
+特に `pmtiles` ファイルやカスタムアイコン画像がないと地図が正しく表示されません。
+
+### Step 4: 地図コンポーネントの実装
+
+現在、地図の初期化とレイヤー管理のロジックは `src/App.tsx` に集約されています。
+これを再利用可能なコンポーネント（例: `MapComponent.tsx`）として切り出すことを推奨します。
+
+#### Next.js (App Router) での実装例
 
 ```tsx
-// ※ 架空のコードです。現在は実装されていません。
-import { DIDMap, useFlightCheck } from '@did-j26/react-map';
+// src/components/Map/MapComponent.tsx
+'use client';
 
-function HostApp() {
-  const [targetPoint, setTargetPoint] = useState(null);
+import { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 
-  const handleMapClick = (point) => {
-    setTargetPoint(point);
-    saveToHostDB(point);
-  };
+import { DrawingTools } from '@/components/DrawingTools';
+import { CoordinateDisplay } from '@/components/CoordinateDisplay';
+// ... その他 `src/lib` からのインポート
+
+export default function MapComponent() {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  useEffect(() => {
+    if (mapRef.current) return;
+
+    mapRef.current = new maplibregl.Map({
+      container: mapContainer.current!,
+      style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json', // または自作スタイル
+      center: [139.767, 35.681],
+      zoom: 13,
+    });
+
+    mapRef.current.on('load', () => {
+      setMapLoaded(true);
+      // ここでレイヤー追加などを行う
+    });
+  }, []);
 
   return (
-    <div className="layout">
-      <DIDMap 
-        apiKey="YOUR_API_KEY"
-        onMapClick={handleMapClick}
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+      
+      {/* UIパーツの配置 */}
+      <DrawingTools
+        map={mapRef.current}
+        mapLoaded={mapLoaded}
+        darkMode={false} // アプリのステートに合わせて変更
+      />
+      
+      <CoordinateDisplay
+        lng={/* 現在の中心座標などを渡す */}
+        lat={/* ... */}
+        darkMode={false}
       />
     </div>
   );
 }
 ```
 
-## 4. C. Core Logic SDK (Logic Integration) - **[ROADMAP]**
+## 2. コンポーネント API リファレンス
 
-※ 本機能は現在 **設計段階** です。
+### `DrawingTools`
 
-UI（地図）は不要で、「ある座標がDID地区に含まれるか？」「空港から何メートルか？」といった**判定ロジックのみ**を利用する場合の Headless アプローチです。
+多角形（飛行範囲）、円、ポイント、ラインの描画機能を提供するコンポーネントです。
 
-### 構成要素（計画）
+**Path**: `src/components/DrawingTools.tsx`
 
-- **Geometry Engine**: Point-in-Polygon 判定機
-- **Data Fetcher**: GSIタイル/GeoJSONの取得とキャッシング
-- **Regulation Rules**: 法令ロジックセット
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `map` | `maplibregl.Map \| null` | - | **必須** マップインスタンスへの参照 |
+| `mapLoaded` | `boolean` | `false` | マップのロード完了フラグ（trueになるまで操作をブロック） |
+| `embedded` | `boolean` | `false` | `true`の場合、UIをサイドバー埋め込み用に最適化（モーダルではなくインナースクロール等） |
+| `darkMode` | `boolean` | `false` | UIをダークモード配で表示 |
+| `onFeaturesChange` | `(features: DrawnFeature[]) => void` | - | 描画内容が変更された時に呼ばれるコールバック |
+| `onUndoRedoStateChange` | `(state: UndoRedoState) => void` | - | Undo/Redoの状態変化通知 |
 
-### インターフェース定義案
+#### Usage Example
+
+```tsx
+<DrawingTools
+  map={mapInstance}
+  mapLoaded={true}
+  darkMode={isDarkMode}
+  onFeaturesChange={(features) => console.log('Current Drawings:', features)}
+/>
+```
+
+### `CoordinateDisplay`
+
+現在のマウス位置や地図中心の座標情報を、10進数およびDMS（度分秒）形式で表示・コピーできるパネルです。
+
+**Path**: `src/components/CoordinateDisplay.tsx`
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `lng` | `number` | - | **必須** 表示する経度 |
+| `lat` | `number` | - | **必須** 表示する緯度 |
+| `darkMode` | `boolean` | - | **必須** ダークモードフラグ |
+| `onClose` | `() => void` | - | パネルを閉じる際のコールバック |
+
+### `CustomLayerManager`
+
+ユーザーが保有するGeoJSONファイルを地図上に重ねて表示・管理するためのマネージャーUIです。
+
+**Path**: `src/components/CustomLayerManager.tsx`
+
+| Prop | Type | Description |
+|---|---|---|
+| `onLayerAdded` | `(layer: CustomLayer) => void` | レイヤー追加時のコールバック |
+| `visibleLayers` | `Set<string>` | 現在表示状態にあるレイヤーIDのセット |
+| `darkMode` | `boolean` | ダークモードフラグ |
+
+## 3. ロジック・ユーティリティ Reference
+
+地図のコアロジックは `src/lib/` 配下に集約されています。
+
+### `src/lib/mappings.ts` (定数定義)
+
+- **`ZONE_IDS`**: 各種規制エリア（DID, 空港, 禁止空域）のレイヤーID定数。
+- **`LAYER_GROUPS`**: レイヤーのグルーピング定義（関東、関西など）。
+
+### `src/lib/layers/` (レイヤー生成)
+
+GeoJSONデータからMapLibre用のLayreスタイルオブジェクトを生成する関数群です。
+
+- **`generateAirportGeoJSON(data)`**: 空港データからGeoJSONを生成。
+- **`generateRedZoneGeoJSON(data)`**: 飛行禁止区域のGeoJSONを生成。
+
+### `src/lib/utils/geo.ts` (幾何計算)
+
+- **`createCirclePolygon(center, radiusKm, points)`**: 中心と半径から円のポリゴン（GeoJSON）を生成。
+- **`formatCoordinatesDMS(lng, lat)`**: 座標をDMS形式（例: `35°40′53″N 139°46′00″E`）にフォーマット。
+
+## 4. スタイリングとテーマ
+
+`src/styles/theme.ts` にアプリケーション全体のカラーパレット定義があります。
+移行先のデザインシステムに合わせて、このファイルを調整することでUIの色味を一括変更できます。
 
 ```typescript
-// ※ 架空のコードです。現在は実装されていません。
-import { DIDEngine, RegulationRules } from '@did-j26/core';
-
-// インスタンス化
-const engine = new DIDEngine({ rules: [RegulationRules.DID] });
-
-async function checkFlight(lat: number, lng: number) {
-  const result = await engine.checkPoint({ lat, lng });
-  console.log(result);
+// src/styles/theme.ts
+export const sharedColors = {
+  primary: '#2196f3',
+  // ...
 }
 ```
 
-このパターンは、バックエンド (Node.js) でのバッチ処理等での利用を想定しています。
+## 5. Next.js App Router 特有の注意点
 
-## 5. 認証とセキュリティ
+地図コンポーネントは `window` オブジェクトに強く依存するため、Server Component としてレンダリングできません。
+必ず `dynamic import` を使用し、`ssr: false` を設定してください。
 
-外部システム統合時には、無制限なAPIアクセスを防ぐためのセキュリティ設計が必要です。
-
-- **API Key / Client ID**: リクエスト元の識別。
-- **CORS Policy**: 許可されたドメインからのリクエストのみを受け付ける。
-- **Rate Limiting**: タイルサーバーへの過剰な負荷を防ぐ。
-
-## 6. データ更新ライフサイクル
-
-法令データ（DID, 空港データ）の更新をホストアプリにどう反映させるかの戦略です。
-
-- **Pull型**: ライブラリのバージョンアップ（`npm update`）時に静的データを更新。
-- **Push型**: アプリ起動時にCDNから最新の「データマニフェストファイル」を取得し、動的に最新データをロードする（推奨）。
-
-```json
-/* manifest.json (CDN) */
-{
-  "version": "2025-01-01",
-  "did_source": "https://cdn.example.com/did_2025.pbf",
-  "airport_source": "https://cdn.example.com/airports_v2.geojson"
-}
+```tsx
+// 正しいインポート方法
+const MapComponent = dynamic(() => import('@/components/MapComponent'), {
+  ssr: false,
+  loading: () => <div className="loading">地図を読み込み中...</div>,
+});
 ```
 
-このアーキテクチャにより、ライブラリ自体の更新なしに規制データの鮮度を保つことが可能です。
+また、CSSのインポート順序によっては地図スタイルが崩れる場合があります。`globals.css` の先頭に近い場所で `maplibre-gl.css` を読み込むことを推奨します。
