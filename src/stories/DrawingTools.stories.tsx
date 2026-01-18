@@ -4,9 +4,9 @@ import { DrawingTools } from '../components/DrawingTools'
 import { createMockMapEnvironment } from './helpers/mockMap'
 
 /**
- * DrawingTools - 描画ツール・飛行経路エディタ
+ * DrawingTools - 描画ツール・経路エディタ
  *
- * ドローンの飛行経路、飛行範囲、ウェイポイントなどを地図上に描画・編集するコンポーネント。
+ * 飛行経路、範囲、ウェイポイントなどを地図上に描画・編集するコンポーネント。
  * MapLibre GL と Mapbox GL Draw を使用し、複数の描画モードをサポートします。
  *
  * ## 機能
@@ -27,7 +27,7 @@ const meta: Meta<typeof DrawingTools> = {
         component: `
 ## 概要
 
-DrawingTools は、MapLibre GL と Mapbox GL Draw を統合した高度なドローン飛行経路・飛行範囲エディタです。2900行以上の複雑な実装で、複数の描画モード、複数のUIタブ、ローカルストレージ永続化、複数形式のエクスポート機能を提供します。
+DrawingTools は、MapLibre GL と Mapbox GL Draw を統合した高度な経路・範囲エディタです。2900行以上の複雑な実装で、複数の描画モード、複数のUIタブ、ローカルストレージ永続化、複数形式のエクスポート機能を提供します。
 
 ### UI/UX 特徴
 

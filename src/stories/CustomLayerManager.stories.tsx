@@ -6,7 +6,7 @@ import { CustomLayerManager } from '../components/CustomLayerManager'
  * CustomLayerManager - カスタムレイヤー管理コンポーネント
  *
  * ユーザーが独自のGeoJSONデータをインポート/エクスポート/管理できるUIコンポーネント。
- * ドローン飛行制限エリアの公開APIがない場合に、ユーザーが独自のデータを追加できます。
+ * 公開APIがないデータでも、ユーザーが独自のレイヤーとして追加できます。
  *
  * ## 機能
  * - GeoJSONファイルのインポート

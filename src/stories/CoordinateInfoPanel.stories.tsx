@@ -12,7 +12,7 @@ import type { CoordinateInfo } from '../lib/services/elevationService'
  *
  * マップのクリック位置の座標、海抜高度、推奨飛行高度を表示します。
  * 国土地理院の標高データ（GSI DEM）から高度情報を取得し、
- * ドローンの推奨飛行高度を計算して表示します。
+ * 推奨飛行高度を計算して表示します。
  *
  * ## 機能
  * - WGS84座標の表示
@@ -573,7 +573,7 @@ export const WithRecommendedAltitude: Story = {
                   fontSize: '12px'
                 }}
               >
-                <strong>💡 ドローン操作ガイド</strong>
+                <strong>💡 操作ガイド</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                   <li>座標をメモして飛行計画に使用</li>
                   <li>推奨高度を参考に安全な高度で飛行</li>
@@ -603,7 +603,7 @@ export const WithRecommendedAltitude: Story = {
         story: `
 推奨飛行高度が表示される完全な状態です。
 GSI APIから取得した地形高度に、安全マージン（デフォルト30m）を加えた値が表示されます。
-この高度はドローンの飛行計画に参考にできます。
+この高度は飛行計画の参考にできます。
         `
       }
     }
