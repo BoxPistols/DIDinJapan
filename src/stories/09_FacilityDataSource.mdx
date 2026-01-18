@@ -1,6 +1,6 @@
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/13_施設データ取得ロジック" />
+<Meta title="Learning/09_施設データ取得ロジック" />
 
 # 施設データの自動取得システム
 
@@ -70,6 +70,7 @@ const OVERPASS_ENDPOINTS = [
 ```
 
 **フェイルオーバーロジック**:
+
 1. 最初のエンドポイントで試行
 2. エラー時、次のエンドポイントへ自動切り替え
 3. 最大3回までリトライ（`MAX_RETRIES = 3`）
@@ -85,6 +86,7 @@ await sleep(1200) // クエリ間に1.2秒の待機
 ```
 
 **Polite Crawling (礼儀正しいクロール)**:
+
 - クエリ間に必ず待機時間を設ける
 - タイムアウト: 180秒（大量データ取得に対応）
 - 重複排除: 同一施設を複数回取得しない
@@ -111,6 +113,7 @@ out center tags;
 ```
 
 **解説**:
+
 - `[out:json]`: JSON形式で出力
 - `[timeout:180]`: 180秒でタイムアウト
 - `area["ISO3166-1"="JP"]`: 日本のエリアを検索範囲に指定
@@ -142,10 +145,12 @@ out center tags;
 ```
 
 **OSMタグの意味**:
+
 - `amenity=hospital`: 総合病院・専門病院
 - `amenity=clinic`: 診療所・クリニック・医院
 
 **取得対象のジオメトリタイプ**:
+
 - `node`: ポイント（点）
 - `way`: ポリゴン（建物形状）
 - `relation`: 複雑な建物群
@@ -165,6 +170,7 @@ out center tags;
 ```
 
 **OSMタグ**:
+
 - `amenity=fire_station`: 消防本部・消防署・出張所
 
 #### 3. 有人機発着地（空港・ヘリポート）
@@ -188,6 +194,7 @@ out center tags;
 ```
 
 **OSMタグ**:
+
 - `aeroway=aerodrome`: 空港・飛行場
 - `aeroway=heliport`: ヘリコプター着陸場
 
@@ -219,6 +226,7 @@ out center tags;
 ```
 
 **OSMタグ**:
+
 - `military=base`: 軍事基地・駐屯地
 - `military=barracks`: 兵舎・宿舎
 - `military=airfield`: 軍用飛行場
@@ -273,6 +281,7 @@ const pickName = (tags) => {
 ```
 
 **優先順位**:
+
 1. `name`: 最も一般的な名称
 2. `name:ja`: 日本語名（多言語対応施設）
 3. `name:en`: 英語名
@@ -388,11 +397,13 @@ notifier.notify({
 ### 推奨される使用方法
 
 ✅ **適切な用途**:
+
 - 地図上での視覚的な参考情報
 - 概算の施設分布把握
 - デモ・プロトタイプ開発
 
 ❌ **不適切な用途**:
+
 - 公式な飛行申請の根拠資料
 - 法的効力を持つドキュメント
 - 生命・安全に関わる判断材料
@@ -453,18 +464,21 @@ area["ISO3166-2"="JP-17"][admin_level=4]->.a;
 ### よく使うOSMタグ
 
 医療・救急:
+
 - `amenity=hospital` - 病院
 - `amenity=clinic` - 診療所
 - `amenity=doctors` - 医師
 - `emergency=yes` - 救急対応
 
 公共施設:
+
 - `amenity=police` - 警察署
 - `amenity=fire_station` - 消防署
 - `amenity=townhall` - 市役所
 - `amenity=post_office` - 郵便局
 
 交通:
+
 - `aeroway=aerodrome` - 空港
 - `aeroway=heliport` - ヘリポート
 - `railway=station` - 鉄道駅

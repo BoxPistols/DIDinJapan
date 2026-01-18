@@ -56,6 +56,7 @@ import {
   type UndoRedoState
 } from './components/DrawingTools'
 import { CoordinateDisplay } from './components/CoordinateDisplay'
+import { FocusCrosshair, type CrosshairDesign } from './components/FocusCrosshair'
 import { Modal } from './components/Modal'
 // NOTE: 右下の比較パネル（重複ボタン）は廃止し、隆起表示は右上UIに統一
 import { ToastContainer } from './components/Toast'
@@ -539,6 +540,34 @@ function App() {
     return false // デフォルトはオフ
   })
 
+  // Focus crosshair settings (default: visible with 'square' design)
+  const [showFocusCrosshair, setShowFocusCrosshair] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showFocusCrosshair: savedSetting } = JSON.parse(stored)
+        return savedSetting ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true // デフォルトはオン
+  })
+  const [crosshairDesign, setCrosshairDesign] = useState<CrosshairDesign>(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { crosshairDesign: savedDesign } = JSON.parse(stored)
+        if (savedDesign === 'square' || savedDesign === 'circle' || savedDesign === 'minimal') {
+          return savedDesign
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return 'square' // デフォルト
+  })
+
   // 2D/3D切り替え
   const toggle3DMode = useCallback(() => {
     const map = mapRef.current
@@ -655,13 +684,15 @@ function App() {
         darkMode,
         baseMap,
         enableCoordinateDisplay,
+        showFocusCrosshair,
+        crosshairDesign,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
     } catch (e) {
       console.error('Failed to save UI settings:', e)
     }
-  }, [darkMode, baseMap, enableCoordinateDisplay])
+  }, [darkMode, baseMap, enableCoordinateDisplay, showFocusCrosshair, crosshairDesign])
 
   // ============================================
   // Save comparison settings (persist across baseMap reload)
@@ -1286,6 +1317,16 @@ function App() {
           lat: e.lngLat.lat
         })
       }
+    })
+
+    // Handle right-click (contextmenu) to display coordinates (Google Maps style)
+    map.on('contextmenu', (e) => {
+      // Coordinates are always shown on right-click regardless of the enableCoordinateDisplay setting
+      e.preventDefault()
+      setDisplayCoordinates({
+        lng: e.lngLat.lng,
+        lat: e.lngLat.lat
+      })
     })
 
     // Comparison layers click and hover handlers
@@ -3949,6 +3990,55 @@ function App() {
               座標表示 [G]
             </span>
           </label>
+
+          {/* Focus Crosshair toggle and design selector */}
+          <label
+            title="マップ中央にフォーカス十字を表示します"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              minWidth: 0,
+              flex: '0 0 auto'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showFocusCrosshair}
+              onChange={(e) => setShowFocusCrosshair(e.target.checked)}
+            />
+            <span
+              style={{
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              中心十字
+            </span>
+          </label>
+          {showFocusCrosshair && (
+            <select
+              value={crosshairDesign}
+              onChange={(e) => setCrosshairDesign(e.target.value as CrosshairDesign)}
+              style={{
+                fontSize: '11px',
+                padding: '2px 4px',
+                backgroundColor: darkMode ? '#333' : '#fff',
+                color: darkMode ? '#e0e0e0' : '#333',
+                border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+              title="十字デザインを変更"
+            >
+              <option value="square">□ 四角</option>
+              <option value="circle">○ 円形</option>
+              <option value="minimal">＋ シンプル</option>
+            </select>
+          )}
         </div>
 
         {/* Drawing Tools - サイドバー内に埋め込み */}
@@ -5765,6 +5855,9 @@ function App() {
           onClose={() => setDisplayCoordinates(null)}
         />
       )}
+
+      {/* Focus Crosshair - map center target */}
+      <FocusCrosshair visible={showFocusCrosshair} design={crosshairDesign} darkMode={darkMode} />
     </div>
   )
 }

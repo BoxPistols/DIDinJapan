@@ -1,7 +1,7 @@
-{/* AviationLaw.mdx */}
+{/*AviationLaw.mdx*/}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/08_航空法対策" />
+<Meta title="Learning/12_航空法対策" />
 
 # 航空法コンプライアンスのアルゴリズム
 
@@ -14,6 +14,7 @@ import { Meta } from '@storybook/blocks'
 ### Ray Casting Algorithm (光線投影法)
 
 任意の点 P から半直線を伸ばし、ポリゴンの境界線と交差する回数を数えます。
+
 - **奇数回**: 内部
 - **偶数回**: 外部
 
@@ -82,5 +83,5 @@ H_limit = tan(θ) × D_runway + H_runway
 
 システムは「ユーザーが故意に違反しようとしない限り、自然に法令を遵守できる」設計（**Poka-yoke**）を目指します。
 
-1.  **Fail-Safe**: データ取得失敗時は「飛行不可」と判定（安全側に倒す）。
-2.  **Audit Trail**: 飛行計画作成時の使用データバージョンと判定ロジックバージョンを記録し、事後検証可能性を担保。
+1. **Fail-Safe**: データ取得失敗時は「飛行不可」と判定（安全側に倒す）。
+2. **Audit Trail**: 飛行計画作成時の使用データバージョンと判定ロジックバージョンを記録し、事後検証可能性を担保。

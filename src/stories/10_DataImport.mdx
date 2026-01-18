@@ -1,7 +1,7 @@
-{/* DataImport.mdx */}
+{/*DataImport.mdx*/}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/09_データインポートプロセス" />
+<Meta title="Learning/10_データインポートプロセス" />
 
 # データパイプラインとETLアーキテクチャ
 
@@ -104,4 +104,3 @@ function processLargeDataset(data: any[], type: string) {
 > "Be conservative in what you do, be liberal in what you accept from others." (Postel's Law)
 
 データインポートにおいては、「入力データは常に不正である可能性がある」という前提（**Defensive Programming**）に立ち、例外処理ではなく、グレースフルなデグレード（部分的に読み込めなくても全体はクラッシュさせない）を実装します。
-

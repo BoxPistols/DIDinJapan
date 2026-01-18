@@ -28,7 +28,7 @@ function debounce<Args extends unknown[]>(
 type DrawMode = 'none' | 'polygon' | 'circle' | 'point' | 'line'
 
 // エクスポート形式の型定義
-type ExportFormat = 'geojson' | 'kml' | 'csv' | 'dms'
+type ExportFormat = 'geojson' | 'kml' | 'csv' | 'csv-dms' | 'dms'
 
 // モード名の日本語表示
 const MODE_LABELS: Record<DrawMode, string> = {
@@ -44,6 +44,7 @@ const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
   geojson: 'GeoJSON',
   kml: 'KML',
   csv: 'CSV',
+  'csv-dms': 'CSV (DMS)',
   dms: 'DMS'
 }
 
@@ -2225,8 +2226,20 @@ ${kmlFeatures}
   }
 
   // CSVフォーマットに変換
-  const convertToCSV = (features: GeoJSON.Feature[]): string => {
-    const rows = ['Type,Name,Latitude,Longitude,Radius(m),MaxAltitude(m)']
+  const convertToCSV = (features: GeoJSON.Feature[], useDMS = false): string => {
+    const header = useDMS
+      ? 'Type,Name,Latitude(DMS),Longitude(DMS),Radius(m),MaxAltitude(m)'
+      : 'Type,Name,Latitude,Longitude,Radius(m),MaxAltitude(m)'
+    const rows = [header]
+
+    const formatCoord = (lat: number, lng: number): [string, string] => {
+      if (useDMS) {
+        // DMS形式で出力（日本語形式）
+        return [convertDecimalToDMS(lat, true, 'ja'), convertDecimalToDMS(lng, false, 'ja')]
+      }
+      // 10進数形式
+      return [String(lat), String(lng)]
+    }
 
     features.forEach((f) => {
       const props = f.properties || {}
@@ -2238,17 +2251,20 @@ ${kmlFeatures}
 
       if (f.geometry.type === 'Point') {
         const coords = f.geometry.coordinates as [number, number]
+        const [latStr, lngStr] = formatCoord(coords[1], coords[0])
         const radius = props.isCircle && props.radiusKm ? (props.radiusKm * 1000).toFixed(0) : ''
-        rows.push(`Point,${name},${coords[1]},${coords[0]},${radius},${maxAlt}`)
+        rows.push(`Point,${name},"${latStr}","${lngStr}",${radius},${maxAlt}`)
       } else if (f.geometry.type === 'LineString') {
         const coords = f.geometry.coordinates as [number, number][]
         coords.forEach((c, i) => {
-          rows.push(`LinePoint,${name}_${i + 1},${c[1]},${c[0]},,${maxAlt}`)
+          const [latStr, lngStr] = formatCoord(c[1], c[0])
+          rows.push(`LinePoint,${name}_${i + 1},"${latStr}","${lngStr}",,${maxAlt}`)
         })
       } else if (f.geometry.type === 'Polygon') {
         const coords = f.geometry.coordinates[0] as [number, number][]
         coords.forEach((c, i) => {
-          rows.push(`PolygonPoint,${name}_${i + 1},${c[1]},${c[0]},,${maxAlt}`)
+          const [latStr, lngStr] = formatCoord(c[1], c[0])
+          rows.push(`PolygonPoint,${name}_${i + 1},"${latStr}","${lngStr}",,${maxAlt}`)
         })
       }
     })
@@ -2353,7 +2369,10 @@ ${kmlFeatures}
         data = convertToKML(allFeatures.features)
         break
       case 'csv':
-        data = convertToCSV(allFeatures.features)
+        data = convertToCSV(allFeatures.features, false)
+        break
+      case 'csv-dms':
+        data = convertToCSV(allFeatures.features, true)
         break
       case 'dms':
         data = convertToDMS(allFeatures.features)
@@ -2370,6 +2389,7 @@ ${kmlFeatures}
       geojson: 'application/json',
       kml: 'application/vnd.google-earth.kml+xml',
       csv: 'text/csv',
+      'csv-dms': 'text/csv',
       dms: 'text/plain'
     }
 
@@ -2377,6 +2397,7 @@ ${kmlFeatures}
       geojson: 'geojson',
       kml: 'kml',
       csv: 'csv',
+      'csv-dms': 'csv',
       dms: 'txt'
     }
 
@@ -4036,9 +4057,9 @@ ${kmlFeatures}
 
                 {/* エクスポート形式選択 */}
                 <div style={{ marginBottom: '6px' }}>
-                  {/* Row 1: GeoJSON, KML, CSV */}
+                  {/* Row 1: GeoJSON, KML */}
                   <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                    {(['geojson', 'kml', 'csv'] as ExportFormat[]).map((format) => (
+                    {(['geojson', 'kml'] as ExportFormat[]).map((format) => (
                       <button
                         key={format}
                         onClick={() => setExportFormat(format)}
@@ -4077,7 +4098,48 @@ ${kmlFeatures}
                       </button>
                     ))}
                   </div>
-                  {/* Row 2: DMS */}
+                  {/* Row 2: CSV (10進数), CSV (DMS / 60進数) */}
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                    {(['csv', 'csv-dms'] as ExportFormat[]).map((format) => (
+                      <button
+                        key={format}
+                        onClick={() => setExportFormat(format)}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          backgroundColor:
+                            exportFormat === format
+                              ? darkMode
+                                ? 'rgba(171, 71, 188, 0.2)'
+                                : 'rgba(156, 39, 176, 0.1)'
+                              : buttonBg,
+                          color:
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : darkMode
+                                ? '#ccc'
+                                : '#666',
+                          border: `1px solid ${
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : borderColor
+                          }`,
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: exportFormat === format ? '700' : 'normal',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {EXPORT_FORMAT_LABELS[format]}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Row 3: DMS (テキスト形式) */}
                   <div style={{ display: 'flex' }}>
                     <button
                       onClick={() => setExportFormat('dms')}

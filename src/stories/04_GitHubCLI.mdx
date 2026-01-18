@@ -1,6 +1,6 @@
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/12_GitHub CLI" />
+<Meta title="Learning/04_GitHub CLI" />
 
 # GitHub CLI
 
@@ -170,6 +170,7 @@ gh api graphql -f query='
 ```
 
 **出力:**
+
 ```json
 {
   "data": {
@@ -280,6 +281,7 @@ gh api graphql -f query='
 ```
 
 **出力例:**
+
 ```json
 {
   "id": "PRRT_kwDOQ2E2785p3NzQ",
@@ -298,6 +300,7 @@ gh api graphql -f query='...' --jq '.data.repository.pullRequest.reviewThreads.n
 ```
 
 **出力:**
+
 ```
 PRRT_kwDOQ2E2785p3NzQ
 PRRT_kwDOQ2E2785p3NzT
@@ -345,12 +348,14 @@ echo "All threads resolved! ✅"
 ```
 
 **実行:**
+
 ```bash
 chmod +x resolve_threads.sh
 ./resolve_threads.sh
 ```
 
 **出力:**
+
 ```
 Resolving 15 review threads...
 Resolving thread: PRRT_kwDOQ2E2785p3NzQ
@@ -386,6 +391,7 @@ gh api graphql -f query='
 ```
 
 **出力:**
+
 ```json
 {
   "totalThreads": 15,
@@ -522,7 +528,7 @@ gh api repos/BoxPistols/DID-J26/compare/$PREVIOUS_TAG...$CURRENT_TAG \
 
 ### GitHub GraphQL Explorer
 
-**URL:** https://docs.github.com/en/graphql/overview/explorer
+**URL:** [https://docs.github.com/en/graphql/overview/explorer](https://docs.github.com/en/graphql/overview/explorer)
 
 ブラウザ上でGraphQLクエリを試せます。
 
@@ -547,6 +553,7 @@ gh api graphql -f query='
 ```
 
 **出力:**
+
 ```
 name: String
 description: String
@@ -580,6 +587,7 @@ Error: HTTP 401: Bad credentials
 ```
 
 **解決策:**
+
 ```bash
 # 再認証
 gh auth logout
@@ -595,6 +603,7 @@ Error: Field 'xxxxx' doesn't exist on type 'Repository'
 ```
 
 **解決策:**
+
 ```bash
 # スキーマを確認
 gh api graphql -f query='{__type(name: "Repository") {fields {name}}}'
@@ -609,6 +618,7 @@ Error: API rate limit exceeded
 ```
 
 **解決策:**
+
 ```bash
 # Rate limit状況確認
 gh api rate_limit
@@ -629,6 +639,7 @@ date -r 1705612800
 ```
 
 **回避策:**
+
 - 認証済みユーザーは 5,000 req/hour
 - GraphQL使用でリクエスト数削減
 - キャッシュ活用
@@ -642,6 +653,7 @@ parse error: Invalid numeric literal
 ```
 
 **解決策:**
+
 ```bash
 # jqデバッグモード
 gh api ... --jq '.' | jq '.'  # まず生のJSONを確認

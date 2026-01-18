@@ -19,3 +19,6 @@ export type {} from './CoordinateInfoPanel'
 
 export { IsikawaNotoComparisonPanel } from './IsikawaNotoComparisonPanel'
 export type { IsikawaNotoComparisonPanelProps } from './IsikawaNotoComparisonPanel'
+
+export { FocusCrosshair } from './FocusCrosshair'
+export type { FocusCrosshairProps, CrosshairDesign } from './FocusCrosshair'
