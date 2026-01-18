@@ -10,6 +10,8 @@ export interface CoordinateDisplayProps {
   screenX?: number
   /** Screen Y coordinate where the click occurred (optional, for tooltip positioning) */
   screenY?: number
+  /** Auto-fade after 3 seconds (default: true) */
+  autoFade?: boolean
 }
 
 /**
@@ -22,12 +24,13 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
   darkMode,
   onClose,
   screenX,
-  screenY
+  screenY,
+  autoFade = true
 }) => {
   const [showModal, setShowModal] = useState(true)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const autoCloseTimerRef = useRef<number | null>(null)
-  const [autoCloseEnabled, setAutoCloseEnabled] = useState(true)
+  const [autoCloseEnabled, setAutoCloseEnabled] = useState(autoFade)
 
   type PanelPos = { left: number; top: number }
   const [pos, setPos] = useState<PanelPos | null>(null)
@@ -72,11 +75,11 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       return
     }
     clearAutoCloseTimer()
-    // Auto-close after 5 seconds
+    // Auto-close after 3 seconds
     autoCloseTimerRef.current = window.setTimeout(() => {
       setShowModal(false)
       onClose?.()
-    }, 5000)
+    }, 3000)
     return () => clearAutoCloseTimer()
   }, [autoCloseEnabled, clearAutoCloseTimer, onClose, lng, lat])
 
@@ -102,38 +105,34 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       const margin = 16
       const arrowSize = 10
 
-      // クリック位置が指定されている場合はその付近に配置
+      // クリック位置が指定されている場合はその付近に配置（右横優先）
       if (screenX !== undefined && screenY !== undefined) {
         const panelWidth = rect.width || 280
         const panelHeight = rect.height || 180
 
-        // パネルをクリック位置の上に表示（デフォルト）
-        let left = screenX - panelWidth / 2
-        let top = screenY - panelHeight - arrowSize - 8
-        let dir: ArrowDirection = 'bottom'
+        // デフォルト: クリック位置の右横に表示
+        let left = screenX + arrowSize + 12
+        let top = screenY - panelHeight / 2
+        let dir: ArrowDirection = 'left'
 
-        // 上に収まらない場合は下に表示
-        if (top < margin) {
-          top = screenY + arrowSize + 8
+        // 右に収まらない場合は左に表示
+        if (left + panelWidth > window.innerWidth - margin) {
+          left = screenX - panelWidth - arrowSize - 12
+          dir = 'right'
+        }
+
+        // 左にも収まらない場合は下に表示
+        if (left < margin) {
+          left = Math.max(margin, screenX - panelWidth / 2)
+          top = screenY + arrowSize + 12
           dir = 'top'
         }
 
-        // 左右の画面外補正
-        if (left < margin) {
-          left = margin
-        } else if (left + panelWidth > window.innerWidth - margin) {
-          left = window.innerWidth - panelWidth - margin
-        }
-
-        // 下にも収まらない場合は右に表示
-        if (top + panelHeight > window.innerHeight - margin) {
-          top = Math.max(margin, screenY - panelHeight / 2)
-          left = screenX + arrowSize + 8
-          dir = 'left'
-          if (left + panelWidth > window.innerWidth - margin) {
-            left = screenX - panelWidth - arrowSize - 8
-            dir = 'right'
-          }
+        // 上下の画面外補正
+        if (top < margin) {
+          top = margin
+        } else if (top + panelHeight > window.innerHeight - margin) {
+          top = window.innerHeight - panelHeight - margin
         }
 
         setArrowDir(dir)
@@ -200,7 +199,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       height: 0,
       border: `${arrowSize}px solid transparent`
     }
-    const color = darkMode ? 'rgba(45,45,45,0.85)' : 'rgba(255,255,255,0.88)'
+    const color = darkMode ? 'rgba(35,35,35,0.75)' : 'rgba(255,255,255,0.75)'
 
     switch (arrowDir) {
       case 'bottom':
@@ -252,15 +251,15 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
         ...(pos
           ? { left: `${pos.left}px`, top: `${pos.top}px` }
           : { bottom: '20px', right: '20px' }),
-        backgroundColor: darkMode ? 'rgba(45,45,45,0.85)' : 'rgba(255,255,255,0.88)',
-        border: `2px solid ${darkMode ? '#444' : '#ccc'}`,
+        backgroundColor: darkMode ? 'rgba(35,35,35,0.75)' : 'rgba(255,255,255,0.75)',
+        border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
         borderRadius: '8px',
-        padding: '16px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        padding: '14px',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         zIndex: 1000,
-        maxWidth: '360px',
+        maxWidth: '320px',
         color: darkMode ? '#e0e0e0' : '#333',
         fontFamily: 'system-ui, -apple-system, sans-serif'
       }}

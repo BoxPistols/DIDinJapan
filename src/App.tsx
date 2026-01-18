@@ -185,6 +185,8 @@ function App() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const popupRef = useRef<maplibregl.Popup | null>(null)
+  const popupAutoCloseTimerRef = useRef<number | null>(null)
+  const tooltipAutoFadeRef = useRef(true)
   const showTooltipRef = useRef(false)
   const restrictionStatesRef = useRef<Map<string, boolean>>(new Map())
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -307,7 +309,19 @@ function App() {
   const [isResizingRight, setIsResizingRight] = useState(false)
 
   // Tooltip visibility
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(true)
+  const [tooltipAutoFade, setTooltipAutoFade] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { tooltipAutoFade: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true // デフォルト: 自動で消える
+  })
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
@@ -598,6 +612,19 @@ function App() {
     return 'square' // デフォルト
   })
 
+  const [crosshairColor, setCrosshairColor] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { crosshairColor: saved } = JSON.parse(stored)
+        if (saved) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return '#00bcd4' // デフォルト: シアン
+  })
+
   // Flexible coordinate settings
   type CoordClickType = 'right' | 'left' | 'both'
   type CoordDisplayPosition = 'click' | 'fixed'
@@ -625,7 +652,7 @@ function App() {
     } catch {
       // ignore
     }
-    return 'click' // デフォルト: クリック位置
+    return 'fixed' // デフォルト: 右下固定
   })
 
   const [crosshairClickCapture, setCrosshairClickCapture] = useState<boolean>(() => {
@@ -638,7 +665,20 @@ function App() {
     } catch {
       // ignore
     }
-    return false // デフォルト: 装飾のみ
+    return true // デフォルト: クリック有効
+  })
+
+  const [coordAutoFade, setCoordAutoFade] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { coordAutoFade: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true // デフォルト: 自動で消える
   })
 
   // 2D/3D切り替え
@@ -762,6 +802,9 @@ function App() {
         coordClickType,
         coordDisplayPosition,
         crosshairClickCapture,
+        coordAutoFade,
+        tooltipAutoFade,
+        crosshairColor,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -776,7 +819,10 @@ function App() {
     crosshairDesign,
     coordClickType,
     coordDisplayPosition,
-    crosshairClickCapture
+    crosshairClickCapture,
+    coordAutoFade,
+    tooltipAutoFade,
+    crosshairColor
   ])
 
   // ============================================
@@ -849,6 +895,10 @@ function App() {
   useEffect(() => {
     coordDisplayPositionRef.current = coordDisplayPosition
   }, [coordDisplayPosition])
+
+  useEffect(() => {
+    tooltipAutoFadeRef.current = tooltipAutoFade
+  }, [tooltipAutoFade])
 
   // Note: enableCoordinateDisplay logic removed - now controlled by coordClickType setting
 
@@ -1224,6 +1274,24 @@ function App() {
       setMapLoaded(true)
     })
 
+    // Helper: start auto-close timer for popup
+    const startPopupAutoCloseTimer = () => {
+      // Clear existing timer
+      if (popupAutoCloseTimerRef.current !== null) {
+        window.clearTimeout(popupAutoCloseTimerRef.current)
+        popupAutoCloseTimerRef.current = null
+      }
+      // Only set timer if auto-fade is enabled
+      if (tooltipAutoFadeRef.current) {
+        popupAutoCloseTimerRef.current = window.setTimeout(() => {
+          if (popupRef.current) {
+            popupRef.current.remove()
+          }
+          popupAutoCloseTimerRef.current = null
+        }, 2000) // 2秒後に自動消去
+      }
+    }
+
     map.on('mousemove', (e) => {
       if (!showTooltipRef.current) {
         if (popupRef.current) {
@@ -1286,6 +1354,7 @@ function App() {
           </div>
         `
         popupRef.current.setLngLat(e.lngLat).setHTML(content).addTo(map)
+        startPopupAutoCloseTimer()
       } else if (restrictionFeature && popupRef.current) {
         map.getCanvas().style.cursor = 'pointer'
         const props = restrictionFeature.properties
@@ -1394,6 +1463,7 @@ function App() {
           </div>
         `
         popupRef.current.setLngLat(e.lngLat).setHTML(content).addTo(map)
+        startPopupAutoCloseTimer()
       } else if (popupRef.current) {
         map.getCanvas().style.cursor = ''
         popupRef.current.remove()
@@ -1479,6 +1549,7 @@ function App() {
         `
 
         popupRef.current?.setLngLat(e.lngLat).setHTML(content).addTo(map)
+        startPopupAutoCloseTimer()
       })
 
       map.on('mouseenter', layerConfig.id, () => {
@@ -4043,22 +4114,43 @@ function App() {
           }}
         >
           {/* Tooltip toggle */}
-          <label
-            title="マップ上にマウスをホバーした時に、DID情報や制限区域の詳細をポップアップ表示します"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={showTooltip}
-              onChange={(e) => setShowTooltip(e.target.checked)}
-            />
-            <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>ツールチップ [T]</span>
-          </label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label
+              title="マップ上にマウスをホバーした時に、DID情報や制限区域の詳細をポップアップ表示します"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showTooltip}
+                onChange={(e) => setShowTooltip(e.target.checked)}
+              />
+              <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>ツールチップ [T]</span>
+            </label>
+            {showTooltip && (
+              <label
+                style={{
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+                title="オフにするとマウスを離すまで表示し続けます"
+              >
+                <input
+                  type="checkbox"
+                  checked={tooltipAutoFade}
+                  onChange={(e) => setTooltipAutoFade(e.target.checked)}
+                />
+                自動で消える
+              </label>
+            )}
+          </div>
 
           {/* Coordinate capture settings */}
           <div
@@ -4176,6 +4268,25 @@ function App() {
                     <option value="square">□ 四角</option>
                     <option value="circle">○ 円形</option>
                     <option value="minimal">＋ シンプル</option>
+                  </select>
+                  <select
+                    value={crosshairColor}
+                    onChange={(e) => setCrosshairColor(e.target.value)}
+                    style={{
+                      fontSize: '11px',
+                      padding: '2px 4px',
+                      backgroundColor: darkMode ? '#333' : '#fff',
+                      color: darkMode ? '#e0e0e0' : '#333',
+                      border: `1px solid ${darkMode ? '#555' : '#ccc'}`,
+                      borderRadius: '4px'
+                    }}
+                    title="十字の色"
+                  >
+                    <option value="#e53935">🔴 赤</option>
+                    <option value="#1e88e5">🔵 青</option>
+                    <option value="#00bcd4">🩵 シアン</option>
+                    <option value="#ffffff">⚪ 白</option>
+                    <option value="#4caf50">🟢 緑</option>
                   </select>
                   <label
                     style={{
@@ -5922,6 +6033,7 @@ function App() {
           onClose={() => setDisplayCoordinates(null)}
           screenX={displayCoordinates.screenX}
           screenY={displayCoordinates.screenY}
+          autoFade={coordAutoFade}
         />
       )}
 
@@ -5929,6 +6041,7 @@ function App() {
       <FocusCrosshair
         visible={showFocusCrosshair}
         design={crosshairDesign}
+        color={crosshairColor}
         darkMode={darkMode}
         onClick={
           crosshairClickCapture
