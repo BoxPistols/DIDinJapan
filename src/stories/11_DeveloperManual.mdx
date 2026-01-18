@@ -109,78 +109,87 @@ const map = new maplibregl.Map({
 
 ### ディレクトリ構成
 
-<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+export const TableStyle = {
+  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
+  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
+  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
+  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  td: { padding: '12px' },
+  strong: { fontWeight: 700 }
+}
+
+<table style={TableStyle.table}>
   <thead>
-    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
-      <th style="padding: 12px; text-align: left; font-weight: 600;">ディレクトリ</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">役割・内容</th>
-      <th style="padding: 12px; text-align: center; font-weight: 600;">必須</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">依存関係</th>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>ディレクトリ</th>
+      <th style={TableStyle.th}>役割・内容</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>必須</th>
+      <th style={TableStyle.th}>依存関係</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><strong>components/</strong></td>
-      <td style="padding: 12px;">地図UIコンポーネント (DrawingTools, InfoPanel等)</td>
-      <td style="padding: 12px; text-align: center;">✅</td>
-      <td style="padding: 12px;">lib/ の型と設定に依存</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>components/</strong></td>
+      <td style={TableStyle.td}>地図UIコンポーネント (DrawingTools, InfoPanel等)</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>lib/ の型と設定に依存</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><strong>lib/</strong></td>
-      <td style="padding: 12px;">ビジネスロジック、データモデル、APIサービス</td>
-      <td style="padding: 12px; text-align: center;">✅</td>
-      <td style="padding: 12px;">外部依存なし (Core)</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>lib/</strong></td>
+      <td style={TableStyle.td}>ビジネスロジック、データモデル、APIサービス</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>外部依存なし (Core)</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><strong>utils/</strong></td>
-      <td style="padding: 12px;">トースト通知、ダイアログ等のヘルパー</td>
-      <td style="padding: 12px; text-align: center;">✅</td>
-      <td style="padding: 12px;">一部UIライブラリに依存</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>utils/</strong></td>
+      <td style={TableStyle.td}>トースト通知、ダイアログ等のヘルパー</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>一部UIライブラリに依存</td>
     </tr>
     <tr>
-      <td style="padding: 12px;"><strong>styles/</strong></td>
-      <td style="padding: 12px;">テーマ定義、グローバル変数</td>
-      <td style="padding: 12px; text-align: center;">✅</td>
-      <td style="padding: 12px;">components/ で使用</td>
+      <td style={TableStyle.td}><strong>styles/</strong></td>
+      <td style={TableStyle.td}>テーマ定義、グローバル変数</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>components/ で使用</td>
     </tr>
   </tbody>
 </table>
 
 ### 主要な状態変数
 
-<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+<table style={TableStyle.table}>
   <thead>
-    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
-      <th style="padding: 12px; text-align: left; font-weight: 600;">状態</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">型</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">説明</th>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>状態</th>
+      <th style={TableStyle.th}>型</th>
+      <th style={TableStyle.th}>説明</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>mapRef</code></td>
-      <td style="padding: 12px;"><code>useRef&lt;maplibregl.Map&gt;</code></td>
-      <td style="padding: 12px;">マップインスタンス（再レンダリング不要）</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapRef</code></td>
+      <td style={TableStyle.td}><code>useRef&lt;maplibregl.Map&gt;</code></td>
+      <td style={TableStyle.td}>マップインスタンス（再レンダリング不要）</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>mapLoaded</code></td>
-      <td style="padding: 12px;"><code>useState&lt;boolean&gt;</code></td>
-      <td style="padding: 12px;">マップのロード完了フラグ</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapLoaded</code></td>
+      <td style={TableStyle.td}><code>useState&lt;boolean&gt;</code></td>
+      <td style={TableStyle.td}>マップのロード完了フラグ</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>baseMap</code></td>
-      <td style="padding: 12px;"><code>useState&lt;BaseMapKey&gt;</code></td>
-      <td style="padding: 12px;">現在のベースマップ（'osm', 'satellite'等）</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>baseMap</code></td>
+      <td style={TableStyle.td}><code>useState&lt;BaseMapKey&gt;</code></td>
+      <td style={TableStyle.td}>現在のベースマップ（'osm', 'satellite'等）</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>layerStates</code></td>
-      <td style="padding: 12px;"><code>useState&lt;Map&lt;string, LayerState&gt;&gt;</code></td>
-      <td style="padding: 12px;">各レイヤーの表示状態管理</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>layerStates</code></td>
+      <td style={TableStyle.td}><code>useState&lt;Map&lt;string, LayerState&gt;&gt;</code></td>
+      <td style={TableStyle.td}>各レイヤーの表示状態管理</td>
     </tr>
     <tr>
-      <td style="padding: 12px;"><code>darkMode</code></td>
-      <td style="padding: 12px;"><code>useState&lt;boolean&gt;</code></td>
-      <td style="padding: 12px;">ダークモード有効フラグ</td>
+      <td style={TableStyle.td}><code>darkMode</code></td>
+      <td style={TableStyle.td}><code>useState&lt;boolean&gt;</code></td>
+      <td style={TableStyle.td}>ダークモード有効フラグ</td>
     </tr>
   </tbody>
 </table>
@@ -191,29 +200,29 @@ const map = new maplibregl.Map({
 
 ### 大規模データの扱い
 
-<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+<table style={TableStyle.table}>
   <thead>
-    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
-      <th style="padding: 12px; text-align: left; font-weight: 600;">形式</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">用途</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">推奨ファイルサイズ</th>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>形式</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>推奨ファイルサイズ</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><strong>GeoJSON</strong></td>
-      <td style="padding: 12px;">小規模区域（市区町村レベル）</td>
-      <td style="padding: 12px;">〜 5MB</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>GeoJSON</strong></td>
+      <td style={TableStyle.td}>小規模区域（市区町村レベル）</td>
+      <td style={TableStyle.td}>〜 5MB</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><strong>Vector Tiles (MVT)</strong></td>
-      <td style="padding: 12px;">中規模データ（都道府県レベル）</td>
-      <td style="padding: 12px;">5 - 100MB</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>Vector Tiles (MVT)</strong></td>
+      <td style={TableStyle.td}>中規模データ（都道府県レベル）</td>
+      <td style={TableStyle.td}>5 - 100MB</td>
     </tr>
     <tr>
-      <td style="padding: 12px;"><strong>PMTiles</strong></td>
-      <td style="padding: 12px;">大規模データ（全国レベル）</td>
-      <td style="padding: 12px;">100MB+</td>
+      <td style={TableStyle.td}><strong>PMTiles</strong></td>
+      <td style={TableStyle.td}>大規模データ（全国レベル）</td>
+      <td style={TableStyle.td}>100MB+</td>
     </tr>
   </tbody>
 </table>
@@ -222,39 +231,39 @@ const map = new maplibregl.Map({
 
 ## ストレージ キー一覧
 
-<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+<table style={TableStyle.table}>
   <thead>
-    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
-      <th style="padding: 12px; text-align: left; font-weight: 600;">キー</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">ストレージ</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">説明</th>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>キー</th>
+      <th style={TableStyle.th}>ストレージ</th>
+      <th style={TableStyle.th}>説明</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>ui-settings</code></td>
-      <td style="padding: 12px;">Local</td>
-      <td style="padding: 12px;">ダークモード、ベースマップ設定、タイムスタンプ</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>ui-settings</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>ダークモード、ベースマップ設定、タイムスタンプ</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>did-map-drawn-features</code></td>
-      <td style="padding: 12px;">Local</td>
-      <td style="padding: 12px;">DrawingToolsで描画した図形のバックアップ</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>did-map-drawn-features</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>DrawingToolsで描画した図形のバックアップ</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>did-expanded-groups</code></td>
-      <td style="padding: 12px;">Local</td>
-      <td style="padding: 12px;">左サイドバーの都道府県グループの開閉状態</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>did-expanded-groups</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>左サイドバーの都道府県グループの開閉状態</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>map-view-state-once</code></td>
-      <td style="padding: 12px;">Session</td>
-      <td style="padding: 12px;">ベースマップ切替時のリロード用ビュー位置保持</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>map-view-state-once</code></td>
+      <td style={TableStyle.td}>Session</td>
+      <td style={TableStyle.td}>ベースマップ切替時のリロード用ビュー位置保持</td>
     </tr>
     <tr>
-      <td style="padding: 12px;"><code>restriction-visible-ids</code></td>
-      <td style="padding: 12px;">Session</td>
-      <td style="padding: 12px;">表示中の制限区域レイヤーID一覧</td>
+      <td style={TableStyle.td}><code>restriction-visible-ids</code></td>
+      <td style={TableStyle.td}>Session</td>
+      <td style={TableStyle.td}>表示中の制限区域レイヤーID一覧</td>
     </tr>
   </tbody>
 </table>
@@ -269,51 +278,51 @@ const map = new maplibregl.Map({
 
 **Path**: `src/components/DrawingTools.tsx`
 
-<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+<table style={TableStyle.table}>
   <thead>
-    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
-      <th style="padding: 12px; text-align: left; font-weight: 600;">Prop</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">Type</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">Default</th>
-      <th style="padding: 12px; text-align: left; font-weight: 600;">Description</th>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>Prop</th>
+      <th style={TableStyle.th}>Type</th>
+      <th style={TableStyle.th}>Default</th>
+      <th style={TableStyle.th}>Description</th>
     </tr>
   </thead>
   <tbody>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>map</code></td>
-      <td style="padding: 12px;"><code>maplibregl.Map</code></td>
-      <td style="padding: 12px;">-</td>
-      <td style="padding: 12px;"><strong>必須</strong> 初期化済みのマップインスタンス</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>map</code></td>
+      <td style={TableStyle.td}><code>maplibregl.Map</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}><strong>必須</strong> 初期化済みのマップインスタンス</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>mapLoaded</code></td>
-      <td style="padding: 12px;"><code>boolean</code></td>
-      <td style="padding: 12px;"><code>false</code></td>
-      <td style="padding: 12px;">マップのロード完了フラグ</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapLoaded</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>マップのロード完了フラグ</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>onFeaturesChange</code></td>
-      <td style="padding: 12px;"><code>(features: DrawnFeature[]) => void</code></td>
-      <td style="padding: 12px;">-</td>
-      <td style="padding: 12px;">図形が追加・編集・削除された時に発火</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>onFeaturesChange</code></td>
+      <td style={TableStyle.td}><code>(features: DrawnFeature[]) =&gt; void</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}>図形が追加・編集・削除された時に発火</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>darkMode</code></td>
-      <td style="padding: 12px;"><code>boolean</code></td>
-      <td style="padding: 12px;"><code>false</code></td>
-      <td style="padding: 12px;">UIをダークモードで表示</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>darkMode</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>UIをダークモードで表示</td>
     </tr>
-    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-      <td style="padding: 12px;"><code>embedded</code></td>
-      <td style="padding: 12px;"><code>boolean</code></td>
-      <td style="padding: 12px;"><code>false</code></td>
-      <td style="padding: 12px;">サイドバー埋め込み用のコンパクト表示</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>embedded</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>サイドバー埋め込み用のコンパクト表示</td>
     </tr>
     <tr>
-      <td style="padding: 12px;"><code>onUndoRedoStateChange</code></td>
-      <td style="padding: 12px;"><code>(state: UndoRedoState) => void</code></td>
-      <td style="padding: 12px;">-</td>
-      <td style="padding: 12px;">Undo/Redoボタンの活性状態を通知</td>
+      <td style={TableStyle.td}><code>onUndoRedoStateChange</code></td>
+      <td style={TableStyle.td}><code>(state: UndoRedoState) =&gt; void</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}>Undo/Redoボタンの活性状態を通知</td>
     </tr>
   </tbody>
 </table>
