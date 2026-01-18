@@ -1,4 +1,3 @@
-{/*DeveloperManual.mdx - MapLibre実装ガイド＆アーキテクチャ解説*/}
 import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/11_Map実装ガイド" />
@@ -98,917 +97,232 @@ const map = new maplibregl.Map({
 
 **アーキテクチャ上の意味**:
 
-`new Map()`を呼んだ時点で、MapLibreは以下を実行します：
+`new Map()`を呼んだ時点で、MapLibreは以下を実行します:
 
-1. 指定したHTML要素にWebGL Canvasを生成
-2. styleのURLをfetchしてパース
-3. style内で定義されたソースからタイル取得開始
-4. GPUでレンダリング開始
-
-**設計上の注意点**:
-
-- **コンテナの高さ**: 必ず指定が必要。`height: 100%`は親要素に高さがないと0pxになる
-- **WebGLコンテキスト**: ブラウザの上限（8〜16個）がある。使い終わったら`map.remove()`で解放必須
-- **非同期処理**: 初期化直後はスタイルがまだ読み込まれていない
-
----
-
-### Step 2: スタイルの設計
-
-スタイルは「地図の設計図」です。どんなデータをどう表示するかを定義します。
-
-**やること**: 国土地理院のタイルを使うカスタムスタイル
-
-```javascript
-const style = {
-  version: 8,
-  sources: {
-    'gsi': {
-      type: 'raster',
-      tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '国土地理院'
-    }
-  },
-  layers: [
-    { id: 'gsi-tiles', type: 'raster', source: 'gsi' }
-  ],
-  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
-};
-```
-
-**アーキテクチャ上の意味**:
-
-スタイルは**宣言的**な設計になっています。「何をどう描画するか」を手続き的に書くのではなく、JSONで宣言します。
-
-- **`sources`**: データの取得元を定義（例: タイルURL、GeoJSONパス）
-- **`layers`**: データの描画方法を定義（例: 色、透明度、線幅）
-- **`glyphs`**: テキストラベルのフォント（例: PBF形式フォントのURL）
-- **`sprite`**: アイコン画像セット（例: スプライト画像のURL）
-
-**設計上の注意点**:
-
-- **レイヤーの順序**: 配列の後ろほど上に描画される
-- **glyphsの必須性**: 未設定だと日本語が□□□になる
-- **URLとオブジェクト**: styleはURL文字列でもオブジェクトでも渡せる
-
----
-
-### Step 3: データの追加（ソース）
-
-**やること**: 自分のGeoJSONデータを地図に追加できるようにする
-
-```javascript
-map.on('load', () => {
-  map.addSource('did-tokyo', {
-    type: 'geojson',
-    data: '/GeoJSON/2020/r02_did_13_tokyo.geojson'
-  });
-});
-```
-
-**アーキテクチャ上の意味**:
-
-`addSource`は**データの登録**です。この時点ではまだ何も描画されません。
-
-ソースには種類があります：
-
-- **`geojson`**: ベクターデータ。柔軟だが大量データで重い
-- **`vector`**: ベクタータイル。大規模データに適する
-- **`raster`**: 画像タイル。背景地図に使用
-- **`image`**: 1枚の画像。オーバーレイに使用
-
-**なぜ`map.on('load')`の中で実行するのか**:
+1. **Canvas要素の作成**: WebGL描画領域
+2. **スタイルの読み込み**: URLから地図スタイルをfetch
+3. **タイルのpreload**: 現在の表示範囲のタイルを事前取得
 
 ```text
-new Map()
-  ↓
-styleのfetch開始（非同期）
-  ↓
-fetch完了 → 'load'イベント発火
-  ↓
-ここで初めてaddSource/addLayerが可能に
+[ユーザーコード] → [new Map()] → [Canvas初期化] → [スタイルfetch] → [タイル取得]
 ```
 
-`load`イベント前に`addSource`を呼ぶと「スタイルがまだありません」エラーになります。
+### ディレクトリ構成
+
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
+      <th style="padding: 12px; text-align: left; font-weight: 600;">ディレクトリ</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">役割・内容</th>
+      <th style="padding: 12px; text-align: center; font-weight: 600;">必須</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">依存関係</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><strong>components/</strong></td>
+      <td style="padding: 12px;">地図UIコンポーネント (DrawingTools, InfoPanel等)</td>
+      <td style="padding: 12px; text-align: center;">✅</td>
+      <td style="padding: 12px;">lib/ の型と設定に依存</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><strong>lib/</strong></td>
+      <td style="padding: 12px;">ビジネスロジック、データモデル、APIサービス</td>
+      <td style="padding: 12px; text-align: center;">✅</td>
+      <td style="padding: 12px;">外部依存なし (Core)</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><strong>utils/</strong></td>
+      <td style="padding: 12px;">トースト通知、ダイアログ等のヘルパー</td>
+      <td style="padding: 12px; text-align: center;">✅</td>
+      <td style="padding: 12px;">一部UIライブラリに依存</td>
+    </tr>
+    <tr>
+      <td style="padding: 12px;"><strong>styles/</strong></td>
+      <td style="padding: 12px;">テーマ定義、グローバル変数</td>
+      <td style="padding: 12px; text-align: center;">✅</td>
+      <td style="padding: 12px;">components/ で使用</td>
+    </tr>
+  </tbody>
+</table>
+
+### 主要な状態変数
+
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
+      <th style="padding: 12px; text-align: left; font-weight: 600;">状態</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">型</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>mapRef</code></td>
+      <td style="padding: 12px;"><code>useRef&lt;maplibregl.Map&gt;</code></td>
+      <td style="padding: 12px;">マップインスタンス（再レンダリング不要）</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>mapLoaded</code></td>
+      <td style="padding: 12px;"><code>useState&lt;boolean&gt;</code></td>
+      <td style="padding: 12px;">マップのロード完了フラグ</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>baseMap</code></td>
+      <td style="padding: 12px;"><code>useState&lt;BaseMapKey&gt;</code></td>
+      <td style="padding: 12px;">現在のベースマップ（'osm', 'satellite'等）</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>layerStates</code></td>
+      <td style="padding: 12px;"><code>useState&lt;Map&lt;string, LayerState&gt;&gt;</code></td>
+      <td style="padding: 12px;">各レイヤーの表示状態管理</td>
+    </tr>
+    <tr>
+      <td style="padding: 12px;"><code>darkMode</code></td>
+      <td style="padding: 12px;"><code>useState&lt;boolean&gt;</code></td>
+      <td style="padding: 12px;">ダークモード有効フラグ</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
-### Step 4: データの表示（レイヤー）
+## パフォーマンス考慮事項
 
-**やること**: ソースに対して「見せ方」を定義する
+### 大規模データの扱い
 
-```javascript
-map.on('load', () => {
-  // ソース追加（前ステップ）
-  map.addSource('did-tokyo', { ... });
-
-  // 塗りつぶしレイヤー
-  map.addLayer({
-    id: 'did-tokyo-fill',
-    type: 'fill',
-    source: 'did-tokyo',
-    paint: {
-      'fill-color': '#ff6b6b',
-      'fill-opacity': 0.5
-    }
-  });
-
-  // 境界線レイヤー
-  map.addLayer({
-    id: 'did-tokyo-line',
-    type: 'line',
-    source: 'did-tokyo',
-    paint: {
-      'line-color': '#c0392b',
-      'line-width': 1
-    }
-  });
-});
-```
-
-**アーキテクチャ上の意味**:
-
-1つのソースに対して複数のレイヤーを定義することで：
-
-- 塗りつぶしと境界線を別々に制御できる
-- 境界線だけ非表示にすることも可能
-- データは1回だけ読み込む（メモリ効率）
-
-```text
-[GeoJSON Source]
-       │
-       ├── Layer: fill (塗りつぶし)
-       │
-       └── Layer: line (境界線)
-```
-
-**レイヤータイプの選び方**:
-
-- **`fill`**: ポリゴンの塗りつぶし（Polygon, MultiPolygon）
-- **`line`**: 線の描画（LineString, Polygon境界線）
-- **`circle`**: 点を円で表示（Point）
-- **`symbol`**: アイコン/テキスト（Point）
-- **`heatmap`**: ヒートマップ（Point）
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
+      <th style="padding: 12px; text-align: left; font-weight: 600;">形式</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">用途</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">推奨ファイルサイズ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><strong>GeoJSON</strong></td>
+      <td style="padding: 12px;">小規模区域（市区町村レベル）</td>
+      <td style="padding: 12px;">〜 5MB</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><strong>Vector Tiles (MVT)</strong></td>
+      <td style="padding: 12px;">中規模データ（都道府県レベル）</td>
+      <td style="padding: 12px;">5 - 100MB</td>
+    </tr>
+    <tr>
+      <td style="padding: 12px;"><strong>PMTiles</strong></td>
+      <td style="padding: 12px;">大規模データ（全国レベル）</td>
+      <td style="padding: 12px;">100MB+</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
-### Step 5: イベント処理
+## ストレージ キー一覧
 
-**やること**: ユーザーの操作に反応する
-
-```javascript
-// 特定レイヤー上のクリック
-map.on('click', 'did-tokyo-fill', (e) => {
-  const feature = e.features[0];
-  const name = feature.properties.CITYNAME;
-  
-  new maplibregl.Popup()
-    .setLngLat(e.lngLat)
-    .setHTML(`<h3>${name}</h3>`)
-    .addTo(map);
-});
-
-// ホバー時のカーソル変更
-map.on('mouseenter', 'did-tokyo-fill', () => {
-  map.getCanvas().style.cursor = 'pointer';
-});
-map.on('mouseleave', 'did-tokyo-fill', () => {
-  map.getCanvas().style.cursor = '';
-});
-```
-
-**アーキテクチャ上の意味**:
-
-MapLibreのイベントシステムは、**レイヤー単位でのフィルタリング**をサポートしています。
-
-```text
-map.on('click', callback)           → すべてのクリック
-map.on('click', 'layerId', callback) → 特定レイヤー上のクリックのみ
-```
-
-第2引数にレイヤーIDを渡すと、そのレイヤーのフィーチャーが`e.features`に含まれます。
-
-**設計上の注意点**:
-
-- `e.features`は配列（重なったフィーチャーすべて）
-- フィーチャーがない場合は空配列
-- Popupは使い捨て or 再利用の2パターン
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
+      <th style="padding: 12px; text-align: left; font-weight: 600;">キー</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">ストレージ</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>ui-settings</code></td>
+      <td style="padding: 12px;">Local</td>
+      <td style="padding: 12px;">ダークモード、ベースマップ設定、タイムスタンプ</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>did-map-drawn-features</code></td>
+      <td style="padding: 12px;">Local</td>
+      <td style="padding: 12px;">DrawingToolsで描画した図形のバックアップ</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>did-expanded-groups</code></td>
+      <td style="padding: 12px;">Local</td>
+      <td style="padding: 12px;">左サイドバーの都道府県グループの開閉状態</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>map-view-state-once</code></td>
+      <td style="padding: 12px;">Session</td>
+      <td style="padding: 12px;">ベースマップ切替時のリロード用ビュー位置保持</td>
+    </tr>
+    <tr>
+      <td style="padding: 12px;"><code>restriction-visible-ids</code></td>
+      <td style="padding: 12px;">Session</td>
+      <td style="padding: 12px;">表示中の制限区域レイヤーID一覧</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
-### Step 6: 動的なスタイル変更
+## コンポーネント API
 
-**やること**: ユーザー操作に応じてレイヤーの見た目を変える
+### DrawingTools
 
-```javascript
-// 表示/非表示
-map.setLayoutProperty('did-tokyo-fill', 'visibility', 'none');
-map.setLayoutProperty('did-tokyo-fill', 'visibility', 'visible');
+作図機能を一括提供するコンポーネントです。内部で MapboxDraw インスタンスを管理します。
 
-// 色の変更
-map.setPaintProperty('did-tokyo-fill', 'fill-color', '#3498db');
+**Path**: `src/components/DrawingTools.tsx`
 
-// 透明度の変更
-map.setPaintProperty('did-tokyo-fill', 'fill-opacity', 0.8);
-```
-
-**アーキテクチャ上の意味**:
-
-MapLibreは**layout**と**paint**を分離しています：
-
-- **layout**: 変更コスト高い（再レイアウト）。例: visibility, text-size
-- **paint**: 変更コスト低い（再描画のみ）。例: fill-color, opacity
-
-頻繁に変更する値は`paint`に、滅多に変わらない値は`layout`に入れるのが設計意図です。
-
----
-
-## Part 3: 描画機能のアーキテクチャ
-
-### MapboxDrawの役割
-
-ユーザーに地図上で図形を描かせる機能は、MapLibre本体には含まれていません。
-`@mapbox/mapbox-gl-draw`というライブラリを使います。
-
-```javascript
-import MapboxDraw from '@mapbox/mapbox-gl-draw';
-
-const draw = new MapboxDraw({
-  displayControlsDefault: false,
-  controls: { polygon: true, line_string: true, point: true, trash: true }
-});
-
-map.addControl(draw);
-```
-
-**アーキテクチャ上の意味**:
-
-MapboxDrawは「MapLibreのコントロール」として追加されます。内部的には：
-
-1. 専用のソース（`mapbox-gl-draw-cold-source`等）を追加
-2. 専用のレイヤー群を追加
-3. マウス/キーボードイベントをフック
-4. 描画状態を内部管理
-
-```text
-[MapLibreのソース/レイヤー]
-         │
-         ├── ベースマップ
-         ├── ユーザーのレイヤー
-         └── [MapboxDrawが追加]
-               ├── draw-cold-source
-               └── draw-layers (複数)
-```
-
-**設計上の注意点**:
-
-- MapboxDrawのレイヤーは常に最前面にしたい → レイヤー追加時に位置調整が必要
-- 描画完了後のデータは`draw.getAll()`でGeoJSONとして取得
+<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+  <thead>
+    <tr style="background-color: rgba(74, 158, 255, 0.1); border-bottom: 2px solid rgba(74, 158, 255, 0.3);">
+      <th style="padding: 12px; text-align: left; font-weight: 600;">Prop</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">Type</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">Default</th>
+      <th style="padding: 12px; text-align: left; font-weight: 600;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>map</code></td>
+      <td style="padding: 12px;"><code>maplibregl.Map</code></td>
+      <td style="padding: 12px;">-</td>
+      <td style="padding: 12px;"><strong>必須</strong> 初期化済みのマップインスタンス</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>mapLoaded</code></td>
+      <td style="padding: 12px;"><code>boolean</code></td>
+      <td style="padding: 12px;"><code>false</code></td>
+      <td style="padding: 12px;">マップのロード完了フラグ</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>onFeaturesChange</code></td>
+      <td style="padding: 12px;"><code>(features: DrawnFeature[]) => void</code></td>
+      <td style="padding: 12px;">-</td>
+      <td style="padding: 12px;">図形が追加・編集・削除された時に発火</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>darkMode</code></td>
+      <td style="padding: 12px;"><code>boolean</code></td>
+      <td style="padding: 12px;"><code>false</code></td>
+      <td style="padding: 12px;">UIをダークモードで表示</td>
+    </tr>
+    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+      <td style="padding: 12px;"><code>embedded</code></td>
+      <td style="padding: 12px;"><code>boolean</code></td>
+      <td style="padding: 12px;"><code>false</code></td>
+      <td style="padding: 12px;">サイドバー埋め込み用のコンパクト表示</td>
+    </tr>
+    <tr>
+      <td style="padding: 12px;"><code>onUndoRedoStateChange</code></td>
+      <td style="padding: 12px;"><code>(state: UndoRedoState) => void</code></td>
+      <td style="padding: 12px;">-</td>
+      <td style="padding: 12px;">Undo/Redoボタンの活性状態を通知</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
-### 円の描画（カスタム実装）
+## トラブルシューティング
 
-MapboxDrawには「円」モードがありません。GeoJSON仕様に円が存在しないためです。
-
-**解決策**: 円を多角形（64角形など）で近似する
-
-```javascript
-function createCircle(center, radiusKm, points = 64) {
-  const [lng, lat] = center;
-  const coords = [];
-
-  // 緯度による経度方向の距離補正
-  const latRad = lat * Math.PI / 180;
-  const lngPerKm = 1 / (111.32 * Math.cos(latRad));
-  const latPerKm = 1 / 110.574;
-
-  for (let i = 0; i <= points; i++) {
-    const angle = (i / points) * 2 * Math.PI;
-    const dx = radiusKm * Math.cos(angle) * lngPerKm;
-    const dy = radiusKm * Math.sin(angle) * latPerKm;
-    coords.push([lng + dx, lat + dy]);
-  }
-
-  return {
-    type: 'Feature',
-    properties: { isCircle: true, center, radiusKm },
-    geometry: { type: 'Polygon', coordinates: [coords] }
-  };
-}
-```
-
-**アーキテクチャ上の意味**:
-
-- `isCircle: true`をpropertiesに保存 → 後で円として識別可能
-- `center`, `radiusKm`も保存 → エクスポート時に円形式で出力可能
-- 緯度補正 → メルカトル図法での歪みを補正し、見た目を円にする
-
----
-
-## Part 4: 状態管理のアーキテクチャ
-
-### Reactとの統合
-
-**問題**: 地図の状態をどう管理するか
-
-```text
-[Reactの世界]              [MapLibreの世界]
-useState, useRef           map.getCenter(), map.getZoom()
-                           source.setData(), layer.visibility
-```
-
-MapLibre自体が状態を持っています（マップインスタンスはstateful）。
-これをReactの状態管理とどう統合するかが設計の肝です。
-
-**推奨パターン**:
-
-```tsx
-function MapComponent() {
-  const mapRef = useRef<maplibregl.Map | null>(null);     // マップ本体
-  const [mapLoaded, setMapLoaded] = useState(false);       // ロード完了フラグ
-  const [layerVisibility, setLayerVisibility] = useState<Map<string, boolean>>(new Map());
-
-  useEffect(() => {
-    const map = new maplibregl.Map({ ... });
-    mapRef.current = map;
-
-    map.on('load', () => setMapLoaded(true));
-
-    return () => map.remove();
-  }, []);
-
-  // レイヤー表示/非表示の変更
-  const toggleLayer = (layerId: string) => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    const current = layerVisibility.get(layerId) ?? true;
-    const newVisibility = !current;
-
-    map.setLayoutProperty(layerId, 'visibility', newVisibility ? 'visible' : 'none');
-    setLayerVisibility(prev => new Map(prev).set(layerId, newVisibility));
-  };
-}
-```
-
-**アーキテクチャ上の意味**:
-
-- **mapインスタンス** → `useRef`（再レンダリング不要、参照だけ必要）
-- **ロード完了** → `useState`（UIの条件分岐に使う）
-- **レイヤー表示状態** → `useState`（サイドバーのチェックボックスに反映）
-- **座標・ズーム** → `useRef`（高頻度で変わるがUIに反映しないなら）
-
-**設計の指針**:
-
-1. **UIに反映するならuseState**: サイドバー、ツールバーの状態
-2. **参照だけならuseRef**: マップインスタンス、ポップアップインスタンス
-3. **高頻度更新はuseRef**: マウス座標、ズームレベル（表示する場合はデバウンス）
-
----
-
-### データの永続化
-
-**問題**: ユーザーが描画した図形をブラウザ間で保持したい
-
-```text
-[揮発性]                    [永続化先]
-MapboxDrawの内部状態  →→→   localStorage / IndexedDB
-```
-
-```javascript
-// 保存
-function saveDrawnFeatures() {
-  const geojson = draw.getAll();
-  localStorage.setItem('drawn-features', JSON.stringify(geojson));
-}
-
-// 復元
-function loadDrawnFeatures() {
-  const stored = localStorage.getItem('drawn-features');
-  if (stored) {
-    const geojson = JSON.parse(stored);
-    geojson.features.forEach(f => draw.add(f));
-  }
-}
-```
-
-**アーキテクチャ上の意味**:
-
-- **localStorage**: 5MB、小さな設定、描画データ
-- **sessionStorage**: 5MB、タブ内のみ有効な一時状態
-- **IndexedDB**: 50MB〜、大きなGeoJSONのキャッシュ
-
----
-
-## Part 5: パフォーマンスアーキテクチャ
-
-### なぜ地図アプリはパフォーマンスに敏感か
-
-一般的なWebアプリで100msの遅延は許容範囲です。
-しかし地図をドラッグ中に100msのカク付きがあると、「壊れている」と感じます。
-
-**目標**: 60fps（16.6msごとに1フレーム）を維持
-
-### 主要なボトルネック
-
-```text
-1. データ読み込み
-   └── 大きなGeoJSONのfetchとパース
-
-2. レンダリング
-   └── 大量ポリゴンの描画
-
-3. Reactの再レンダリング
-   └── 不要なコンポーネント更新
-```
-
-### 対策
-
-**データ読み込み**:
-
-- 遅延読み込み（必要な都道府県だけ）
-- IndexedDBキャッシュ
-- 大規模データはベクタータイル化
-
-**レンダリング**:
-
-- ズームレベルでのフィルタリング
-- 画面外フィーチャーの描画スキップ（MapLibre内蔵）
-
-**React再レンダリング**:
-
-- useRefで不要な再レンダリングを避ける
-- 地図イベントからのuseState更新をデバウンス
-
----
-
-## Part 6: 本プロジェクトへの適用
-
-### DID-J26のアーキテクチャ
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                         App.tsx                              │
-│   ・マップ初期化                                              │
-│   ・レイヤー管理                                              │
-│   ・イベントハンドリング                                       │
-│   ・UIパネル                                                  │
-├─────────────────────────────────────────────────────────────┤
-│                     components/                              │
-│   ・DrawingTools.tsx（描画機能、MapboxDrawのラッパー）         │
-│   ・CoordinateDisplay.tsx（座標表示）                         │
-├─────────────────────────────────────────────────────────────┤
-│                        lib/                                  │
-│   ・config/ - 設定定義（ベースマップ、レイヤー、オーバーレイ）  │
-│   ・services/ - 外部API呼び出し（標高、ジオコーディング）       │
-│   ・utils/ - ユーティリティ（幾何計算、座標変換）              │
-│   ・cache.ts - IndexedDBキャッシュ                           │
-│   ・types.ts - 型定義                                        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**設計意図**:
-
-1. **App.tsxに集約**: 地図の状態は密結合しているため、無理に分割しない
-2. **lib/はReact非依存**: ロジックを純粋関数で記述し、テスト・再利用可能に
-3. **config/で定義を分離**: 新しいレイヤーの追加が各ファイルで完結
-
----
-
-### まとめ: 地図アプリ設計のチェックリスト
-
-```text
-□ 3層構造（表示・データ・インタラクション）を意識しているか
-□ ソースとレイヤーの分離を活用しているか
-□ map.on('load')の中でaddSource/addLayerしているか
-□ useRefとuseStateを適切に使い分けているか
-□ WebGLコンテキストを解放しているか（map.remove()）
-□ 大量データの遅延読み込みを検討したか
-□ 60fpsを維持できる設計か
-```
-
----
-
-## Part 7: 高度なレイヤーテクニック
-
-### 7.1 式（Expression）によるデータ駆動スタイル
-
-MapLibreでは、フィーチャーのプロパティに基づいて動的にスタイルを変えられます。
-
-**例: 人口密度で色を変える**
-
-```javascript
-map.addLayer({
-  id: 'did-fill',
-  type: 'fill',
-  source: 'did-source',
-  paint: {
-    'fill-color': [
-      'interpolate', ['linear'], ['get', 'DENSITY'],
-      0, '#ffffcc',      // 低密度: 薄い黄色
-      5000, '#fd8d3c',   // 中密度: オレンジ
-      10000, '#bd0026'   // 高密度: 赤
-    ],
-    'fill-opacity': 0.7
-  }
-});
-```
-
-**アーキテクチャ上の意味**:
-
-式（Expression）は**宣言的にデータ変換を表現**する仕組みです。
-
-```text
-[Expression]
-    │
-    ├── データアクセス: ['get', 'propertyName']
-    ├── 数値変換: ['to-number', value]
-    ├── 補間: ['interpolate', method, input, stop1, output1, ...]
-    ├── 条件分岐: ['case', condition1, result1, ..., fallback]
-    └── マッチング: ['match', input, value1, output1, ..., fallback]
-```
-
-**なぜ式を使うのか**:
-
-1. **パフォーマンス**: GPU側で処理されるため、JavaScript側でループするより高速
-2. **リアクティブ**: ズームやデータ変更時に自動再評価
-3. **宣言的**: ロジックがスタイル定義に集約される
-
-### 7.2 フィルターによる条件表示
-
-特定の条件に合うフィーチャーだけを表示できます。
-
-```javascript
-map.addLayer({
-  id: 'high-density-only',
-  type: 'fill',
-  source: 'did-source',
-  filter: ['>', ['get', 'DENSITY'], 5000],  // 密度5000以上のみ
-  paint: { 'fill-color': '#e74c3c' }
-});
-```
-
-**フィルター式の例**:
-
-```javascript
-// 等しい
-['==', ['get', 'type'], 'residential']
-
-// 複数条件（AND）
-['all',
-  ['==', ['get', 'type'], 'commercial'],
-  ['>', ['get', 'area'], 1000]
-]
-
-// 複数条件（OR）
-['any',
-  ['==', ['get', 'status'], 'active'],
-  ['==', ['get', 'status'], 'pending']
-]
-
-// 範囲指定
-['all',
-  ['>=', ['get', 'year'], 2020],
-  ['<=', ['get', 'year'], 2024]
-]
-```
-
-**アーキテクチャ上の意味**:
-
-フィルターは**描画前に適用**されます。フィルターで除外されたフィーチャーは描画処理自体がスキップされるため、パフォーマンスに優れます。
-
-```text
-[全フィーチャー] → [フィルター] → [描画対象のみ] → [レンダリング]
-```
-
-### 7.3 ズームレベルによるスタイル変化
-
-ズームレベルに応じてスタイルを変えることで、適切な詳細度を提供できます。
-
-```javascript
-map.addLayer({
-  id: 'labels',
-  type: 'symbol',
-  source: 'cities',
-  layout: {
-    'text-field': ['get', 'name'],
-    'text-size': [
-      'interpolate', ['linear'], ['zoom'],
-      5, 10,   // ズーム5で文字サイズ10
-      10, 14,  // ズーム10で文字サイズ14
-      15, 20   // ズーム15で文字サイズ20
-    ]
-  },
-  paint: {
-    'text-opacity': [
-      'step', ['zoom'],
-      0,    // ズーム0〜7: 非表示
-      8, 1  // ズーム8以上: 表示
-    ]
-  }
-});
-```
-
-**interpolateとstepの違い**:
-
-- **`interpolate`**: 中間値を滑らかに補間。サイズや色の段階的変化に使用
-- **`step`**: 閾値で離散的に変化。表示/非表示の切り替えに使用
-
----
-
-## Part 8: データ管理のアーキテクチャ
-
-### 8.1 遅延読み込みの設計
-
-**問題**: 全国のDIDデータ（50MB+）を一度に読み込めない
-
-**解決策**: 都道府県単位で遅延読み込み
-
-```text
-[ユーザー操作]
-     │
-     ▼
-サイドバーで「東京都」をクリック
-     │
-     ▼
-データがキャッシュにあるか確認
-     │
-     ├── ある → キャッシュから読み込み
-     │
-     └── ない → fetchしてキャッシュに保存
-                    │
-                    ▼
-              addSource → addLayer
-```
-
-**実装パターン**:
-
-```typescript
-const layerStates = new Map<string, { loaded: boolean; visible: boolean }>();
-
-async function loadLayer(layerId: string, path: string) {
-  const state = layerStates.get(layerId);
-  
-  // 既にロード済みならスキップ
-  if (state?.loaded) return;
-
-  // キャッシュ付きfetch
-  const geojson = await fetchWithCache(path);
-  
-  map.addSource(layerId, { type: 'geojson', data: geojson });
-  map.addLayer({
-    id: layerId,
-    type: 'fill',
-    source: layerId,
-    paint: { 'fill-color': '#ff6b6b', 'fill-opacity': 0.5 }
-  });
-  
-  layerStates.set(layerId, { loaded: true, visible: true });
-}
-```
-
-**アーキテクチャ上の意味**:
-
-遅延読み込みでは**状態の管理**が重要です：
-
-- **未ロード**: ソースもレイヤーも存在しない → loadLayerでロード
-- **ロード済み・表示**: 両方存在、visible → toggleで非表示に
-- **ロード済み・非表示**: 両方存在、hidden → toggleで表示に
-
-### 8.2 キャッシュ戦略
-
-**IndexedDBを使ったGeoJSONキャッシュ**:
-
-```typescript
-const DB_NAME = 'map-cache';
-const STORE_NAME = 'geojson';
-const CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7日
-
-async function fetchWithCache<T>(url: string): Promise<T> {
-  // 1. キャッシュを確認
-  const cached = await getFromIndexedDB(url);
-  if (cached && !isExpired(cached.timestamp)) {
-    return cached.data;
-  }
-
-  // 2. ネットワークから取得
-  const response = await fetch(url);
-  const data = await response.json();
-
-  // 3. キャッシュに保存
-  await saveToIndexedDB(url, { data, timestamp: Date.now() });
-
-  return data;
-}
-```
-
-**なぜIndexedDBか**:
-
-- **localStorage**: 5MB、小さな設定値
-- **sessionStorage**: 5MB、セッション中の一時データ
-- **IndexedDB**: 50MB〜、大きなGeoJSONデータ
-
-### 8.3 タイル形式への変換
-
-大規模データ（10MB超）の場合、GeoJSONのままでは限界があります。
-
-**タイル形式の選択肢**:
-
-- **ラスタータイル**: PNG/JPG画像。背景地図に使用
-- **ベクタータイル（MVT）**: バイナリ形式。大規模ポリゴン/ラインに適する
-- **PMTiles**: シングルファイル配信。CDN配信に最適
-
-**PMTilesの使い方**:
-
-```javascript
-import { Protocol } from 'pmtiles';
-
-const protocol = new Protocol();
-maplibregl.addProtocol('pmtiles', protocol.tile);
-
-map.addSource('large-data', {
-  type: 'vector',
-  url: 'pmtiles:///path/to/data.pmtiles'
-});
-```
-
-**アーキテクチャ上の意味**:
-
-タイル形式の利点は**表示範囲のみ取得**できること：
-
-```text
-[GeoJSON方式]
-全データをダウンロード → メモリに展開 → 描画
-
-[タイル方式]
-表示範囲のタイルのみダウンロード → 描画
-  └── ズームアウトすると粗いタイル
-  └── ズームインすると詳細タイル
-```
-
----
-
-## Part 9: 描画ツールの詳細設計
-
-### 9.1 MapboxDrawの内部構造
-
-MapboxDrawをマップに追加すると、内部的に以下が発生します：
-
-```text
-map.addControl(draw)
-     │
-     ├── ソース追加
-     │   ├── mapbox-gl-draw-cold-source（確定した図形）
-     │   └── mapbox-gl-draw-hot-source（描画中の図形）
-     │
-     ├── レイヤー追加（約20個）
-     │   ├── gl-draw-polygon-fill-inactive
-     │   ├── gl-draw-polygon-stroke-inactive
-     │   ├── gl-draw-line-inactive
-     │   ├── gl-draw-point-inactive
-     │   └── ... (active状態、頂点用など)
-     │
-     └── イベントハンドラー登録
-         ├── マウスイベント
-         ├── キーボードイベント
-         └── タッチイベント
-```
-
-**coldとhotの違い**:
-
-- **cold**: 確定済みの図形（編集していない）
-- **hot**: 現在編集中/描画中の図形
-
-描画完了時にhotからcoldへ移動します。
-
-### 9.2 カスタムスタイルの適用
-
-MapboxDrawのデフォルトスタイルを置き換えられます：
-
-```javascript
-const customStyles = [
-  {
-    id: 'gl-draw-polygon-fill-inactive',
-    type: 'fill',
-    filter: ['all',
-      ['==', 'active', 'false'],
-      ['==', '$type', 'Polygon']
-    ],
-    paint: {
-      'fill-color': '#3498db',
-      'fill-opacity': 0.3
-    }
-  },
-  {
-    id: 'gl-draw-polygon-stroke-inactive',
-    type: 'line',
-    filter: ['all',
-      ['==', 'active', 'false'],
-      ['==', '$type', 'Polygon']
-    ],
-    paint: {
-      'line-color': '#2980b9',
-      'line-width': 2
-    }
-  }
-  // ... 他のスタイル
-];
-
-const draw = new MapboxDraw({ styles: customStyles });
-```
-
-### 9.3 Undo/Redo の実装
-
-MapboxDrawにはUndo機能がないため、自前で実装します。
-
-```typescript
-const historyStack: GeoJSON.FeatureCollection[] = [];
-const redoStack: GeoJSON.FeatureCollection[] = [];
-const MAX_HISTORY = 50;
-
-function pushHistory() {
-  const current = draw.getAll();
-  historyStack.push(JSON.parse(JSON.stringify(current)));
-  
-  if (historyStack.length > MAX_HISTORY) {
-    historyStack.shift();
-  }
-  
-  // 新しい操作をしたらredoスタックはクリア
-  redoStack.length = 0;
-}
-
-function undo() {
-  if (historyStack.length < 2) return;
-  
-  const current = historyStack.pop()!;
-  redoStack.push(current);
-  
-  const previous = historyStack[historyStack.length - 1];
-  draw.set(previous);
-}
-
-function redo() {
-  if (redoStack.length === 0) return;
-  
-  const next = redoStack.pop()!;
-  historyStack.push(next);
-  draw.set(next);
-}
-```
-
-**アーキテクチャ上の意味**:
-
-Undo/Redoは**コマンドパターン**の一種です：
-
-```text
-[操作1] → [操作2] → [操作3] → 現在
-                              │
-                         [Undo]
-                              │
-                              ▼
-[操作1] → [操作2] → 現在    [RedoStack: 操作3]
-```
-
-### 9.4 描画イベントのフック
-
-```javascript
-// 図形作成完了時
-map.on('draw.create', (e) => {
-  const feature = e.features[0];
-  pushHistory();
-  
-  // カスタム処理: 名前を付ける
-  draw.setFeatureProperty(feature.id, 'name', `図形-${feature.id.slice(0, 6)}`);
-});
-
-// 図形編集完了時
-map.on('draw.update', (e) => {
-  pushHistory();
-});
-
-// 図形削除時
-map.on('draw.delete', (e) => {
-  pushHistory();
-});
-
-// 選択変更時
-map.on('draw.selectionchange', (e) => {
-  if (e.features.length > 0) {
-    setSelectedFeatureId(e.features[0].id);
-  } else {
-    setSelectedFeatureId(null);
-  }
-});
-```
-
----
-
-## Part 10: エラーハンドリング
-
-### 10.1 よくあるエラーと対処
+### よくあるエラーと対処
 
 **1. "Style is not loaded"**
 
@@ -1046,545 +360,4 @@ map.setLayoutProperty('unknown-layer', 'visibility', 'none');
 if (map.getLayer('my-layer')) {
   map.setLayoutProperty('my-layer', 'visibility', 'none');
 }
-```
-
-### 10.2 GeoJSON読み込みエラー
-
-```typescript
-async function loadGeoJSON(url: string) {
-  try {
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${url}`);
-    }
-    
-    const data = await response.json();
-    
-    // GeoJSONの形式チェック
-    if (data.type !== 'FeatureCollection' && data.type !== 'Feature') {
-      throw new Error('Invalid GeoJSON format');
-    }
-    
-    return data;
-  } catch (error) {
-    console.error(`Failed to load GeoJSON: ${url}`, error);
-    
-    // フォールバック: 空のFeatureCollection
-    return { type: 'FeatureCollection', features: [] };
-  }
-}
-```
-
-### 10.3 WebGLコンテキストエラー
-
-**問題**: コンテキスト上限に達するとエラー
-
-```javascript
-// コンソールに表示される警告
-// WARNING: Too many active WebGL contexts. Oldest context will be lost.
-```
-
-**対策**:
-
-```typescript
-const mapInstancesRef = useRef<Set<maplibregl.Map>>(new Set());
-
-function createMap(container: HTMLDivElement): maplibregl.Map {
-  // 既存のインスタンスを解放（古いものから）
-  if (mapInstancesRef.current.size >= 8) {
-    const oldest = mapInstancesRef.current.values().next().value;
-    oldest.remove();
-    mapInstancesRef.current.delete(oldest);
-  }
-  
-  const map = new maplibregl.Map({ container, ... });
-  mapInstancesRef.current.add(map);
-  
-  return map;
-}
-```
-
----
-
-## Part 11: テスト戦略
-
-### 11.1 テストの分類
-
-- **lib/utils**: ユニットテスト（Vitest, Jest）
-- **lib/services**: ユニットテスト + モック（Vitest + MSW）
-- **components**: 結合テスト（Testing Library）
-- **地図全体**: E2Eテスト（Playwright）
-
-### 11.2 ユニットテストの例
-
-```typescript
-// lib/utils/geo.test.ts
-import { describe, it, expect } from 'vitest';
-import { createCircle, calculateDistance } from './geo';
-
-describe('createCircle', () => {
-  it('指定した点数の頂点を持つポリゴンを生成する', () => {
-    const circle = createCircle([139.7, 35.6], 1, 64);
-    
-    expect(circle.type).toBe('Polygon');
-    expect(circle.coordinates[0]).toHaveLength(65); // 64 + 閉じる
-  });
-
-  it('propertiesに円情報を保持する', () => {
-    const feature = createCircleFeature([139.7, 35.6], 1);
-    
-    expect(feature.properties.isCircle).toBe(true);
-    expect(feature.properties.radiusKm).toBe(1);
-    expect(feature.properties.center).toEqual([139.7, 35.6]);
-  });
-});
-
-describe('calculateDistance', () => {
-  it('2点間の距離をkmで返す', () => {
-    const distance = calculateDistance(
-      [139.7671, 35.6812],  // 東京
-      [135.5023, 34.6937]   // 大阪
-    );
-    
-    // 東京-大阪は約400km
-    expect(distance).toBeGreaterThan(350);
-    expect(distance).toBeLessThan(450);
-  });
-});
-```
-
-### 11.3 APIモックの例
-
-```typescript
-// lib/services/elevation.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchElevation } from './elevation';
-
-describe('fetchElevation', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('正常なレスポンスで標高を返す', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ elevation: 35.5 })
-    } as Response);
-
-    const result = await fetchElevation(139.7, 35.6);
-    
-    expect(result).toBe(35.5);
-  });
-
-  it('APIエラー時にnullを返す', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: false,
-      status: 500
-    } as Response);
-
-    const result = await fetchElevation(139.7, 35.6);
-    
-    expect(result).toBeNull();
-  });
-});
-```
-
-### 11.4 E2Eテストの例
-
-```typescript
-// e2e/map.spec.ts
-import { test, expect } from '@playwright/test';
-
-test('地図が表示される', async ({ page }) => {
-  await page.goto('/');
-  
-  // MapLibreのCanvas要素を確認
-  const canvas = page.locator('.maplibregl-canvas');
-  await expect(canvas).toBeVisible();
-});
-
-test('レイヤーをクリックするとポップアップが表示される', async ({ page }) => {
-  await page.goto('/');
-  
-  // 地図のロードを待つ
-  await page.waitForSelector('.maplibregl-canvas');
-  await page.waitForTimeout(2000);
-  
-  // 特定の座標をクリック
-  const canvas = page.locator('.maplibregl-canvas');
-  await canvas.click({ position: { x: 400, y: 300 } });
-  
-  // ポップアップの確認
-  const popup = page.locator('.maplibregl-popup');
-  await expect(popup).toBeVisible({ timeout: 5000 });
-});
-```
-
----
-
-## Part 12: デプロイとインフラ
-
-### 12.1 静的ファイルの配信
-
-**GeoJSONファイルの配置**:
-
-```text
-/public
-  └── GeoJSON
-        └── 2020
-              ├── r02_did_01_hokkaido.geojson  (2.1MB)
-              ├── r02_did_13_tokyo.geojson     (1.8MB)
-              └── ...
-```
-
-**注意点**:
-
-1. **ビルド時に含めない**: GeoJSONはpublicに置くことで、バンドルサイズに影響しない
-2. **CDN配信を検討**: 大きなファイルはCloudFront/CloudflareなどのCDNで配信
-3. **gzip圧縮**: サーバー側でgzip圧縮すると転送サイズが1/5〜1/10になる
-
-### 12.2 環境変数
-
-```bash
-# .env.local
-VITE_MAPTILER_KEY=your_key_here
-VITE_GSI_TILE_URL=https://cyberjapandata.gsi.go.jp/xyz
-```
-
-```typescript
-// 使用側
-const tileUrl = import.meta.env.VITE_GSI_TILE_URL;
-```
-
-### 12.3 Vercel/Netlifyでのデプロイ
-
-**vercel.json**:
-
-```json
-{
-  "buildCommand": "pnpm build",
-  "outputDirectory": "dist",
-  "headers": [
-    {
-      "source": "/GeoJSON/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=604800" }
-      ]
-    }
-  ]
-}
-```
-
-**ポイント**:
-
-- GeoJSONに長めのキャッシュヘッダーを設定
-- 更新頻度の低いデータは1週間キャッシュ
-
----
-
-## Part 13: DID-J26の実装詳細
-
-### 13.1 主要な状態変数
-
-```typescript
-// App.tsx での状態管理
-
-// マップ関連（再レンダリング不要）
-const mapRef = useRef<maplibregl.Map | null>(null);
-const popupRef = useRef<maplibregl.Popup | null>(null);
-const drawRef = useRef<MapboxDraw | null>(null);
-
-// UI表示に必要な状態
-const [mapLoaded, setMapLoaded] = useState(false);
-const [baseMap, setBaseMap] = useState<BaseMapKey>('osm');
-const [darkMode, setDarkMode] = useState(false);
-
-// レイヤー状態
-const [layerStates, setLayerStates] = useState<Map<string, LayerState>>(new Map());
-const [overlayStates, setOverlayStates] = useState<Map<string, boolean>>(new Map());
-const [restrictionStates, setRestrictionStates] = useState<Map<string, boolean>>(new Map());
-
-// 検索
-const [searchTerm, setSearchTerm] = useState('');
-const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-```
-
-### 13.2 レイヤー追加の実装
-
-```typescript
-const addLayer = useCallback(async (layer: LayerConfig, initialVisible = false) => {
-  const map = mapRef.current;
-  if (!map || !mapLoaded) return;
-
-  // 既にロード済みならスキップ
-  if (map.getSource(layer.id)) return;
-
-  try {
-    // キャッシュ付きfetch
-    const data = await fetchGeoJSONWithCache(layer.path);
-
-    // ソース追加
-    map.addSource(layer.id, { type: 'geojson', data });
-
-    // 塗りつぶしレイヤー
-    map.addLayer({
-      id: layer.id,
-      type: 'fill',
-      source: layer.id,
-      paint: {
-        'fill-color': layer.color,
-        'fill-opacity': 0.5
-      },
-      layout: { visibility: initialVisible ? 'visible' : 'none' }
-    });
-
-    // アウトラインレイヤー
-    map.addLayer({
-      id: `${layer.id}-outline`,
-      type: 'line',
-      source: layer.id,
-      paint: {
-        'line-color': layer.color,
-        'line-width': 1
-      },
-      layout: { visibility: initialVisible ? 'visible' : 'none' }
-    });
-
-    // 状態更新
-    setLayerStates(prev => {
-      const next = new Map(prev);
-      next.set(layer.id, { loaded: true, visible: initialVisible });
-      return next;
-    });
-
-  } catch (error) {
-    console.error(`Failed to load layer ${layer.id}:`, error);
-    toast.error(`${layer.name}の読み込みに失敗しました`);
-  }
-}, [mapLoaded]);
-```
-
-### 13.3 レイヤー設定の定義
-
-```typescript
-// lib/config/layers.ts
-
-export interface LayerConfig {
-  id: string;
-  name: string;
-  path: string;
-  color: string;
-}
-
-export interface LayerGroup {
-  name: string;  // 地域名（関東、近畿など）
-  layers: LayerConfig[];
-}
-
-export const LAYER_GROUPS: LayerGroup[] = [
-  {
-    name: '関東',
-    layers: [
-      { id: 'did-08', name: '茨城県', path: '/GeoJSON/2020/r02_did_08_ibaraki.geojson', color: '#e74c3c' },
-      { id: 'did-09', name: '栃木県', path: '/GeoJSON/2020/r02_did_09_tochigi.geojson', color: '#e67e22' },
-      { id: 'did-10', name: '群馬県', path: '/GeoJSON/2020/r02_did_10_gunma.geojson', color: '#f1c40f' },
-      { id: 'did-11', name: '埼玉県', path: '/GeoJSON/2020/r02_did_11_saitama.geojson', color: '#2ecc71' },
-      { id: 'did-12', name: '千葉県', path: '/GeoJSON/2020/r02_did_12_chiba.geojson', color: '#1abc9c' },
-      { id: 'did-13', name: '東京都', path: '/GeoJSON/2020/r02_did_13_tokyo.geojson', color: '#3498db' },
-      { id: 'did-14', name: '神奈川県', path: '/GeoJSON/2020/r02_did_14_kanagawa.geojson', color: '#9b59b6' }
-    ]
-  },
-  // ... 他の地域
-];
-```
-
-### 13.4 ベースマップ切り替え
-
-```typescript
-// ベースマップ変更時の処理
-const handleBaseMapChange = useCallback((newBaseMap: BaseMapKey) => {
-  if (newBaseMap === baseMap) return;
-
-  // 現在のビュー状態を保存
-  const map = mapRef.current;
-  if (map) {
-    sessionStorage.setItem('map-view-state', JSON.stringify({
-      center: [map.getCenter().lng, map.getCenter().lat],
-      zoom: map.getZoom(),
-      pitch: map.getPitch(),
-      bearing: map.getBearing()
-    }));
-  }
-
-  // 設定を保存
-  localStorage.setItem('ui-settings', JSON.stringify({
-    baseMap: newBaseMap,
-    darkMode,
-    timestamp: Date.now()
-  }));
-
-  // ページリロード（スタイル全体を入れ替えるため）
-  window.location.reload();
-}, [baseMap, darkMode]);
-```
-
-**なぜリロードするのか**:
-
-MapLibreでスタイルを変更すると、追加したソース・レイヤーがすべて消えます。
-これを避けるために、リロード方式を採用しています。
-sessionStorageでビュー状態を保持することで、ユーザーには継続的な体験を提供します。
-
----
-
-## Part 14: トラブルシューティング FAQ
-
-### Q1: 地図が表示されない（画面が真っ白）
-
-**確認項目**:
-
-```text
-□ コンテナ要素に高さがあるか（DevToolsで確認）
-□ maplibre-gl.css を読み込んでいるか
-□ styleのURLが有効か（ブラウザで直接アクセスして確認）
-□ CORSエラーが出ていないか（コンソール確認）
-```
-
-### Q2: GeoJSONが表示されない
-
-**確認項目**:
-
-```text
-□ map.on('load') の中で addSource/addLayer しているか
-□ ソースIDとレイヤーのsourceプロパティが一致しているか
-□ GeoJSONの座標が [経度, 緯度] の順か
-□ ポリゴンの座標が閉じているか（最初と最後が同じ）
-□ visibilityが 'visible' になっているか
-□ opacityが 0 になっていないか
-```
-
-### Q3: ラベルが文字化けする（□□□）
-
-**原因**: glyphsが未設定
-
-**対策**:
-
-```javascript
-const style = {
-  // ...
-  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
-};
-```
-
-### Q4: 円が楕円に見える
-
-**原因**: メルカトル図法の歪みを補正していない
-
-**対策**: 緯度に応じた経度方向の補正を入れる（Part 9参照）
-
-### Q5: パフォーマンスが悪い
-
-**確認項目**:
-
-```text
-□ GeoJSONのサイズが大きすぎないか（5MB以上は要注意）
-□ 不要な再レンダリングが発生していないか
-□ useRefとuseStateを適切に使い分けているか
-□ 大量のイベントリスナーを毎フレーム登録していないか
-```
-
-### Q6: Next.jsでエラーが出る
-
-**"window is not defined"**:
-
-```tsx
-import dynamic from 'next/dynamic';
-
-const MapComponent = dynamic(() => import('./MapComponent'), {
-  ssr: false
-});
-```
-
----
-
-## 終わりに
-
-このガイドでは、MapLibre GL JSを使った地図アプリケーションの構築方法と、その背後にあるアーキテクチャ設計を解説しました。
-
-**重要なポイント**:
-
-1. **3層構造**（表示・データ・インタラクション）を意識する
-2. **ソースとレイヤーの分離**を活用する
-3. **React状態管理**ではuseRefとuseStateを使い分ける
-4. **パフォーマンス**は設計段階から考慮する
-5. **エラーハンドリング**を適切に行う
-
-地図アプリケーションは通常のWebアプリとは異なる課題がありますが、アーキテクチャを理解して取り組めば、スケーラブルで保守しやすいコードが書けます。
-
----
-
-## 付録: チートシート
-
-### よく使うAPI
-
-```javascript
-// マップ
-const map = new maplibregl.Map({ container, style, center, zoom });
-map.on('load', callback);
-map.remove();
-
-// ソース
-map.addSource(id, { type: 'geojson', data });
-map.getSource(id);
-map.removeSource(id);
-
-// レイヤー
-map.addLayer({ id, type, source, paint, layout });
-map.getLayer(id);
-map.removeLayer(id);
-map.setLayoutProperty(id, property, value);
-map.setPaintProperty(id, property, value);
-
-// イベント
-map.on('click', callback);
-map.on('click', layerId, callback);
-map.off('click', callback);
-
-// ポップアップ
-new maplibregl.Popup().setLngLat(lnglat).setHTML(html).addTo(map);
-
-// MapboxDraw
-draw.add(feature);
-draw.delete(id);
-draw.getAll();
-draw.changeMode(mode);
-```
-
-### レイヤータイプ
-
-- **fill**: 塗りつぶし（Polygon）
-- **line**: 線（LineString, Polygon境界）
-- **circle**: 点を円表示（Point）
-- **symbol**: アイコン/テキスト（Point）
-- **heatmap**: ヒートマップ（Point）
-- **fill-extrusion**: 3D建物（Polygon）
-- **raster**: ラスター画像
-
-### 式のパターン
-
-```javascript
-// プロパティ取得
-['get', 'propertyName']
-
-// 補間
-['interpolate', ['linear'], ['get', 'value'], 0, '#fff', 100, '#000']
-
-// 段階
-['step', ['get', 'value'], '#aaa', 50, '#666', 100, '#333']
-
-// 条件分岐
-['case', ['>', ['get', 'pop'], 1000000], 'red', 'blue']
-
-// マッチング
-['match', ['get', 'type'], 'A', 'red', 'B', 'blue', 'gray']
 ```
