@@ -896,9 +896,282 @@ VITE_GSI_TILE_URL=https://cyberjapandata.gsi.go.jp/xyz
 
 ---
 
+## Part 7: GitHub CLI 活用ガイド
+
+GitHub CLI (`gh`) を使った効率的な開発ワークフロー。PR レビューコメントの一括操作など、実践的なテクニックを解説します。
+
+### GitHub CLI 基礎
+
+#### インストールと認証
+
+```bash
+# macOS (Homebrew)
+brew install gh
+
+# 初回認証
+gh auth login
+
+# 認証状態確認
+gh auth status
+```
+
+#### 基本コマンド
+
+```bash
+# PR一覧
+gh pr list
+
+# PR作成
+gh pr create --title "feat: 新機能追加" --body "詳細な説明"
+
+# PR詳細表示
+gh pr view 8
+
+# PRをブラウザで開く
+gh pr view 8 --web
+```
+
+---
+
+### GraphQL API の活用
+
+GitHub CLI は GraphQL API を直接叩けるため、RESTよりも柔軟な操作が可能です。
+
+#### Query（データ取得）
+
+```bash
+gh api graphql -f query='
+{
+  repository(owner: "BoxPistols", name: "DID-J26") {
+    pullRequest(number: 8) {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) {
+            nodes {
+              body
+              path
+            }
+          }
+        }
+      }
+    }
+  }
+}'
+```
+
+#### Mutation（データ変更）
+
+```bash
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input: {threadId: "PRRT_xxx"}) {
+    thread {
+      id
+      isResolved
+    }
+  }
+}
+'
+```
+
+---
+
+### PR レビューコメントの一括操作
+
+**実践例：PR #8 の全レビューコメントを一括で Resolve する**
+
+#### ステップ1: 未解決スレッドを取得
+
+```bash
+gh api graphql -f query='
+{
+  repository(owner: "BoxPistols", name: "DID-J26") {
+    pullRequest(number: 8) {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          isResolved
+          comments(first: 1) {
+            nodes {
+              body
+              path
+            }
+          }
+        }
+      }
+    }
+  }
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | {id: .id, path: .comments.nodes[0].path}'
+```
+
+#### ステップ2: 一括Resolve実行
+
+```bash
+#!/bin/bash
+# resolve_threads.sh
+
+THREAD_IDS=(
+  "PRRT_kwDOQ2E2785p3NzQ"
+  "PRRT_kwDOQ2E2785p3NzT"
+  "PRRT_kwDOQ2E2785p3NzU"
+  # ... 全スレッドID
+)
+
+for thread_id in "${THREAD_IDS[@]}"; do
+  echo "Resolving thread: $thread_id"
+
+  gh api graphql -f query="
+    mutation {
+      resolveReviewThread(input: {threadId: \"$thread_id\"}) {
+        thread {
+          id
+          isResolved
+        }
+      }
+    }
+  " --jq '.data.resolveReviewThread.thread | "✅ Resolved: \(.id) - isResolved: \(.isResolved)"'
+done
+
+echo "All threads resolved! ✅"
+```
+
+#### ステップ3: 確認
+
+```bash
+gh api graphql -f query='
+{
+  repository(owner: "BoxPistols", name: "DID-J26") {
+    pullRequest(number: 8) {
+      reviewThreads(first: 50) {
+        totalCount
+        nodes {
+          isResolved
+        }
+      }
+    }
+  }
+}' --jq '{
+  totalThreads: .data.repository.pullRequest.reviewThreads.totalCount,
+  resolved: [.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == true)] | length,
+  unresolved: [.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length
+}'
+```
+
+**結果:**
+```json
+{
+  "totalThreads": 15,
+  "resolved": 15,
+  "unresolved": 0
+}
+```
+
+---
+
+### 実践例集
+
+#### 例1: 未解決PRコメントの自動通知
+
+```bash
+#!/bin/bash
+PR_NUMBER=8
+UNRESOLVED=$(gh api graphql -f query="..." --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+
+if [ "$UNRESOLVED" -gt 0 ]; then
+  echo "⚠️  PR #$PR_NUMBER has $UNRESOLVED unresolved comments!"
+else
+  echo "✅ All comments resolved!"
+fi
+```
+
+#### 例2: 特定ラベルのIssueを一括クローズ
+
+```bash
+#!/bin/bash
+ISSUES=$(gh issue list --label "wontfix" --json number --jq '.[].number')
+
+for issue in $ISSUES; do
+  echo "Closing issue #$issue"
+  gh issue close $issue --comment "Outdated issue. Closing."
+done
+```
+
+#### 例3: リリースノート自動生成
+
+```bash
+#!/bin/bash
+PREVIOUS_TAG="v1.0.0"
+CURRENT_TAG="v1.1.0"
+
+echo "# Release Notes: $CURRENT_TAG"
+echo ""
+echo "## 🎉 New Features"
+gh api repos/BoxPistols/DID-J26/compare/$PREVIOUS_TAG...$CURRENT_TAG \
+  --jq '.commits[] | select(.commit.message | startswith("feat")) | "- \(.commit.message | split("\n")[0])"'
+```
+
+---
+
+### jqでデータ整形
+
+```bash
+# PR一覧をタイトルとURLのみ表示
+gh pr list --json number,title,url --jq '.[] | "\(.number): \(.title) - \(.url)"'
+
+# フィルタリング
+--jq '.[] | select(.state == "OPEN")'
+
+# カウント
+--jq '.[] | length'
+
+# ソート
+--jq 'sort_by(.createdAt)'
+```
+
+---
+
+### トラブルシューティング
+
+#### エラー1: 認証エラー
+
+```bash
+# 再認証
+gh auth logout
+gh auth login
+```
+
+#### エラー2: Rate Limit
+
+```bash
+# Rate limit状況確認
+gh api rate_limit
+
+# 出力:
+# {
+#   "resources": {
+#     "core": {
+#       "limit": 5000,
+#       "remaining": 0,
+#       "reset": 1705612800
+#     }
+#   }
+# }
+```
+
+---
+
 ## 参考リンク
 
+### MapLibre関連
 - [MapLibre GL JS Documentation](https://maplibre.org/maplibre-gl-js-docs/)
 - [Mapbox GL Draw](https://github.com/mapbox/mapbox-gl-draw)
 - [国土地理院タイル一覧](https://maps.gsi.go.jp/development/ichiran.html)
 - [GeoJSON RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946)
+
+### GitHub CLI関連
+- [GitHub CLI Manual](https://cli.github.com/manual/)
+- [GitHub GraphQL API](https://docs.github.com/en/graphql)
+- [GitHub GraphQL Explorer](https://docs.github.com/en/graphql/overview/explorer)
+- [jq Manual](https://stedolan.github.io/jq/manual/)
