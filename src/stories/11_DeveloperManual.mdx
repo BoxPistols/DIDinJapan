@@ -1,207 +1,602 @@
-{/*IntegrationReference.mdx*/}
+{/*DeveloperManual.mdx - MapLibre実装ガイド＆アーキテクチャ解説*/}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/11_既存プロジェクト導入ガイド (詳細版)" />
+<Meta title="Learning/11_Map実装ガイド" />
 
-# 既存プロジェクト導入ガイド (React / Next.js)
+# MapLibre GL JS 実装ガイド
 
-本ドキュメントでは、`DID-J26` のコードベースを既存の **Next.js** や **React** プロジェクトに統合するための詳細な手順と、各コンポーネント・ユーティリティのAPIリファレンスを提供します。
+このガイドは、**MapLibreを使った地図アプリケーションの構築方法**と、**その背後にあるアーキテクチャ設計の考え方**を解説します。
 
-## 1. 導入手順 (Step-by-Step)
+単にコードを書くだけでなく、「なぜこの構造になっているのか」「何を解決しようとしているのか」を理解することで、応用力のある実装ができるようになります。
 
-### Step 1: 依存ライブラリのインストール
+---
 
-プロジェクトに必要な地図ライブラリとユーティリティをインストールします。
+## Part 1: 地図アプリのアーキテクチャ
 
-```bash
-# Core Map Libraries
-pnpm add maplibre-gl @mapbox/mapbox-gl-draw
+### 地図アプリを構成する3つの層
 
-# Geometry & Utilities
-pnpm add turf unalib date-fns
+地図アプリケーションは、以下の3層で構成されます。この構造を理解することが、設計の第一歩です。
 
-# Type Definitions (TypeScriptの場合)
-pnpm add -D @types/mapbox__mapbox-gl-draw @types/geojson @types/react @types/react-dom
+```text
+┌───────────────────────────────────────────────────────┐
+│                  表示層（View Layer）                  │
+│                                                        │
+│   ユーザーが目にするもの                                │
+│   ・ベースマップ（背景の地図画像）                       │
+│   ・レイヤー（DID、空港、描画した図形など）              │
+│   ・UI要素（ポップアップ、コントロール）                 │
+├───────────────────────────────────────────────────────┤
+│                  データ層（Data Layer）                │
+│                                                        │
+│   表示するためのデータとその管理                        │
+│   ・GeoJSONファイル                                    │
+│   ・タイル画像                                         │
+│   ・API応答                                            │
+│   ・キャッシュ                                         │
+├───────────────────────────────────────────────────────┤
+│              インタラクション層（Interaction）          │
+│                                                        │
+│   ユーザー操作の受け取りと処理                          │
+│   ・クリック、ホバー、ドラッグ                          │
+│   ・描画操作                                           │
+│   ・検索、フィルタ                                     │
+└───────────────────────────────────────────────────────┘
 ```
 
-### Step 2: ソースコードの移行
+**なぜ3層に分けるのか**:
 
-本レポジトリの `src/` 配下にある以下のディレクトリを、対象プロジェクトの `src/` (または `components/`) にコピーしてください。
+1. **責務の分離**: 表示ロジックとデータ取得を混ぜると、変更が困難になる
+2. **テスト容易性**: データ層は純粋な関数として単体テストできる
+3. **再利用性**: 同じデータをPC版とモバイル版で別UIで表示できる
 
-| ディレクトリ | 内容 | 必須 | 備考 |
+---
 
-|Data | Description | Required | Note |
-|---|---|---|---|
-| `components/` | 地図UIコンポーネント (DrawingTools, InfoPanel等) | ✅ | 一部は `src/lib` に依存 |
-| `lib/` | 地図ロジック、データフェッチ、型定義 | ✅ | コアロジック |
-| `utils/` | 汎用ユーティリティ (toast, dialog等) | ✅ | |
-| `styles/` | テーマ定義、CSS | ✅ | |
+### MapLibreの役割
 
-### Step 3: 静的アセットの移行
+MapLibreは主に**表示層**を担当しますが、3層すべてに関わります。
 
-`public/` ディレクトリ内のファイルを、対象プロジェクトの `public/` にコピーします。
-特に `pmtiles` ファイルやカスタムアイコン画像がないと地図が正しく表示されません。
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                         MapLibre GL JS                       │
+│                                                              │
+│  [表示層]         [データ層]           [インタラクション層]   │
+│  ・Canvas描画     ・タイル取得          ・マウスイベント      │
+│  ・レイヤー管理   ・GeoJSON解析         ・ドラッグ/ズーム     │
+│  ・スタイル適用   ・ソース管理          ・ピック（選択）      │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### Step 4: 地図コンポーネントの実装
+**重要な設計判断**:
 
-現在、地図の初期化とレイヤー管理のロジックは `src/App.tsx` に集約されています。
-これを再利用可能なコンポーネント（例: `MapComponent.tsx`）として切り出すことを推奨します。
+MapLibreは「ソース」と「レイヤー」を明確に分離しています。
 
-#### Next.js (App Router) での実装例
+- **ソース（Source）**: データそのもの（GeoJSON、タイルURL）
+- **レイヤー（Layer）**: データの見せ方（色、線の太さ）
 
-```tsx
-// src/components/Map/MapComponent.tsx
-'use client';
+この分離により、**同じデータを複数の見た目で表示**できます。例えば1つのGeoJSONソースに対して、塗りつぶしレイヤーと境界線レイヤーを別々に定義できます。
 
-import { useEffect, useRef, useState } from 'react';
+---
+
+## Part 2: 基本実装とアーキテクチャ
+
+### Step 1: マップの初期化
+
+**やること**: 画面に地図を表示する
+
+```javascript
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 
-import { DrawingTools } from '@/components/DrawingTools';
-import { CoordinateDisplay } from '@/components/CoordinateDisplay';
-// ... その他 `src/lib` からのインポート
-
-export default function MapComponent() {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  useEffect(() => {
-    if (mapRef.current) return;
-
-    mapRef.current = new maplibregl.Map({
-      container: mapContainer.current!,
-      style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json', // または自作スタイル
-      center: [139.767, 35.681],
-      zoom: 13,
-    });
-
-    mapRef.current.on('load', () => {
-      setMapLoaded(true);
-      // ここでレイヤー追加などを行う
-    });
-  }, []);
-
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
-      
-      {/* UIパーツの配置 */}
-      <DrawingTools
-        map={mapRef.current}
-        mapLoaded={mapLoaded}
-        darkMode={false} // アプリのステートに合わせて変更
-      />
-      
-      <CoordinateDisplay
-        lng={/* 現在の中心座標などを渡す */}
-        lat={/* ... */}
-        darkMode={false}
-      />
-    </div>
-  );
-}
-```
-
-## 2. コンポーネント API リファレンス
-
-### `DrawingTools`
-
-多角形（飛行範囲）、円、ポイント、ラインの描画機能を提供するコンポーネントです。
-
-**Path**: `src/components/DrawingTools.tsx`
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `map` | `maplibregl.Map \| null` | - | **必須** マップインスタンスへの参照 |
-| `mapLoaded` | `boolean` | `false` | マップのロード完了フラグ（trueになるまで操作をブロック） |
-| `embedded` | `boolean` | `false` | `true`の場合、UIをサイドバー埋め込み用に最適化（モーダルではなくインナースクロール等） |
-| `darkMode` | `boolean` | `false` | UIをダークモード配で表示 |
-| `onFeaturesChange` | `(features: DrawnFeature[]) => void` | - | 描画内容が変更された時に呼ばれるコールバック |
-| `onUndoRedoStateChange` | `(state: UndoRedoState) => void` | - | Undo/Redoの状態変化通知 |
-
-#### Usage Example
-
-```tsx
-<DrawingTools
-  map={mapInstance}
-  mapLoaded={true}
-  darkMode={isDarkMode}
-  onFeaturesChange={(features) => console.log('Current Drawings:', features)}
-/>
-```
-
-### `CoordinateDisplay`
-
-現在のマウス位置や地図中心の座標情報を、10進数およびDMS（度分秒）形式で表示・コピーできるパネルです。
-
-**Path**: `src/components/CoordinateDisplay.tsx`
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `lng` | `number` | - | **必須** 表示する経度 |
-| `lat` | `number` | - | **必須** 表示する緯度 |
-| `darkMode` | `boolean` | - | **必須** ダークモードフラグ |
-| `onClose` | `() => void` | - | パネルを閉じる際のコールバック |
-
-### `CustomLayerManager`
-
-ユーザーが保有するGeoJSONファイルを地図上に重ねて表示・管理するためのマネージャーUIです。
-
-**Path**: `src/components/CustomLayerManager.tsx`
-
-| Prop | Type | Description |
-|---|---|---|
-| `onLayerAdded` | `(layer: CustomLayer) => void` | レイヤー追加時のコールバック |
-| `visibleLayers` | `Set<string>` | 現在表示状態にあるレイヤーIDのセット |
-| `darkMode` | `boolean` | ダークモードフラグ |
-
-## 3. ロジック・ユーティリティ Reference
-
-地図のコアロジックは `src/lib/` 配下に集約されています。
-
-### `src/lib/mappings.ts` (定数定義)
-
-- **`ZONE_IDS`**: 各種規制エリア（DID, 空港, 禁止空域）のレイヤーID定数。
-- **`LAYER_GROUPS`**: レイヤーのグルーピング定義（関東、関西など）。
-
-### `src/lib/layers/` (レイヤー生成)
-
-GeoJSONデータからMapLibre用のLayreスタイルオブジェクトを生成する関数群です。
-
-- **`generateAirportGeoJSON(data)`**: 空港データからGeoJSONを生成。
-- **`generateRedZoneGeoJSON(data)`**: 飛行禁止区域のGeoJSONを生成。
-
-### `src/lib/utils/geo.ts` (幾何計算)
-
-- **`createCirclePolygon(center, radiusKm, points)`**: 中心と半径から円のポリゴン（GeoJSON）を生成。
-- **`formatCoordinatesDMS(lng, lat)`**: 座標をDMS形式（例: `35°40′53″N 139°46′00″E`）にフォーマット。
-
-## 4. スタイリングとテーマ
-
-`src/styles/theme.ts` にアプリケーション全体のカラーパレット定義があります。
-移行先のデザインシステムに合わせて、このファイルを調整することでUIの色味を一括変更できます。
-
-```typescript
-// src/styles/theme.ts
-export const sharedColors = {
-  primary: '#2196f3',
-  // ...
-}
-```
-
-## 5. Next.js App Router 特有の注意点
-
-地図コンポーネントは `window` オブジェクトに強く依存するため、Server Component としてレンダリングできません。
-必ず `dynamic import` を使用し、`ssr: false` を設定してください。
-
-```tsx
-// 正しいインポート方法
-const MapComponent = dynamic(() => import('@/components/MapComponent'), {
-  ssr: false,
-  loading: () => <div className="loading">地図を読み込み中...</div>,
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
+  center: [139.7671, 35.6812],
+  zoom: 10
 });
 ```
 
-また、CSSのインポート順序によっては地図スタイルが崩れる場合があります。`globals.css` の先頭に近い場所で `maplibre-gl.css` を読み込むことを推奨します。
+**アーキテクチャ上の意味**:
+
+`new Map()`を呼んだ時点で、MapLibreは以下を実行します：
+
+1. 指定したHTML要素にWebGL Canvasを生成
+2. styleのURLをfetchしてパース
+3. style内で定義されたソースからタイル取得開始
+4. GPUでレンダリング開始
+
+**設計上の注意点**:
+
+- **コンテナの高さ**: 必ず指定が必要。`height: 100%`は親要素に高さがないと0pxになる
+- **WebGLコンテキスト**: ブラウザの上限（8〜16個）がある。使い終わったら`map.remove()`で解放必須
+- **非同期処理**: 初期化直後はスタイルがまだ読み込まれていない
+
+---
+
+### Step 2: スタイルの設計
+
+スタイルは「地図の設計図」です。どんなデータをどう表示するかを定義します。
+
+**やること**: 国土地理院のタイルを使うカスタムスタイル
+
+```javascript
+const style = {
+  version: 8,
+  sources: {
+    'gsi': {
+      type: 'raster',
+      tiles: ['https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '国土地理院'
+    }
+  },
+  layers: [
+    { id: 'gsi-tiles', type: 'raster', source: 'gsi' }
+  ],
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
+};
+```
+
+**アーキテクチャ上の意味**:
+
+スタイルは**宣言的**な設計になっています。「何をどう描画するか」を手続き的に書くのではなく、JSONで宣言します。
+
+| 要素 | 役割 | 例 |
+|------|------|-----|
+| `sources` | データの取得元を定義 | タイルURL、GeoJSONパス |
+| `layers` | データの描画方法を定義 | 色、透明度、線幅 |
+| `glyphs` | テキストラベルのフォント | PBF形式フォントのURL |
+| `sprite` | アイコン画像セット | スプライト画像のURL |
+
+**設計上の注意点**:
+
+- **レイヤーの順序**: 配列の後ろほど上に描画される
+- **glyphsの必須性**: 未設定だと日本語が□□□になる
+- **URLとオブジェクト**: styleはURL文字列でもオブジェクトでも渡せる
+
+---
+
+### Step 3: データの追加（ソース）
+
+**やること**: 自分のGeoJSONデータを地図に追加できるようにする
+
+```javascript
+map.on('load', () => {
+  map.addSource('did-tokyo', {
+    type: 'geojson',
+    data: '/GeoJSON/2020/r02_did_13_tokyo.geojson'
+  });
+});
+```
+
+**アーキテクチャ上の意味**:
+
+`addSource`は**データの登録**です。この時点ではまだ何も描画されません。
+
+ソースには種類があります：
+
+| type | 用途 | 特徴 |
+|------|------|------|
+| `geojson` | ベクターデータ | 柔軟だが大量データで重い |
+| `vector` | ベクタータイル | 大規模データに適する |
+| `raster` | 画像タイル | 背景地図に使用 |
+| `image` | 1枚の画像 | オーバーレイに使用 |
+
+**なぜ`map.on('load')`の中で実行するのか**:
+
+```text
+new Map()
+  ↓
+styleのfetch開始（非同期）
+  ↓
+fetch完了 → 'load'イベント発火
+  ↓
+ここで初めてaddSource/addLayerが可能に
+```
+
+`load`イベント前に`addSource`を呼ぶと「スタイルがまだありません」エラーになります。
+
+---
+
+### Step 4: データの表示（レイヤー）
+
+**やること**: ソースに対して「見せ方」を定義する
+
+```javascript
+map.on('load', () => {
+  // ソース追加（前ステップ）
+  map.addSource('did-tokyo', { ... });
+
+  // 塗りつぶしレイヤー
+  map.addLayer({
+    id: 'did-tokyo-fill',
+    type: 'fill',
+    source: 'did-tokyo',
+    paint: {
+      'fill-color': '#ff6b6b',
+      'fill-opacity': 0.5
+    }
+  });
+
+  // 境界線レイヤー
+  map.addLayer({
+    id: 'did-tokyo-line',
+    type: 'line',
+    source: 'did-tokyo',
+    paint: {
+      'line-color': '#c0392b',
+      'line-width': 1
+    }
+  });
+});
+```
+
+**アーキテクチャ上の意味**:
+
+1つのソースに対して複数のレイヤーを定義することで：
+
+- 塗りつぶしと境界線を別々に制御できる
+- 境界線だけ非表示にすることも可能
+- データは1回だけ読み込む（メモリ効率）
+
+```text
+[GeoJSON Source]
+       │
+       ├── Layer: fill (塗りつぶし)
+       │
+       └── Layer: line (境界線)
+```
+
+**レイヤータイプの選び方**:
+
+| type | 用途 | Geometryタイプ |
+|------|------|-------------|
+| `fill` | ポリゴンの塗りつぶし | Polygon, MultiPolygon |
+| `line` | 線の描画 | LineString, Polygon（境界線） |
+| `circle` | 点を円で表示 | Point |
+| `symbol` | アイコン/テキスト | Point |
+| `heatmap` | ヒートマップ | Point |
+
+---
+
+### Step 5: イベント処理
+
+**やること**: ユーザーの操作に反応する
+
+```javascript
+// 特定レイヤー上のクリック
+map.on('click', 'did-tokyo-fill', (e) => {
+  const feature = e.features[0];
+  const name = feature.properties.CITYNAME;
+  
+  new maplibregl.Popup()
+    .setLngLat(e.lngLat)
+    .setHTML(`<h3>${name}</h3>`)
+    .addTo(map);
+});
+
+// ホバー時のカーソル変更
+map.on('mouseenter', 'did-tokyo-fill', () => {
+  map.getCanvas().style.cursor = 'pointer';
+});
+map.on('mouseleave', 'did-tokyo-fill', () => {
+  map.getCanvas().style.cursor = '';
+});
+```
+
+**アーキテクチャ上の意味**:
+
+MapLibreのイベントシステムは、**レイヤー単位でのフィルタリング**をサポートしています。
+
+```text
+map.on('click', callback)           → すべてのクリック
+map.on('click', 'layerId', callback) → 特定レイヤー上のクリックのみ
+```
+
+第2引数にレイヤーIDを渡すと、そのレイヤーのフィーチャーが`e.features`に含まれます。
+
+**設計上の注意点**:
+
+- `e.features`は配列（重なったフィーチャーすべて）
+- フィーチャーがない場合は空配列
+- Popupは使い捨て or 再利用の2パターン
+
+---
+
+### Step 6: 動的なスタイル変更
+
+**やること**: ユーザー操作に応じてレイヤーの見た目を変える
+
+```javascript
+// 表示/非表示
+map.setLayoutProperty('did-tokyo-fill', 'visibility', 'none');
+map.setLayoutProperty('did-tokyo-fill', 'visibility', 'visible');
+
+// 色の変更
+map.setPaintProperty('did-tokyo-fill', 'fill-color', '#3498db');
+
+// 透明度の変更
+map.setPaintProperty('did-tokyo-fill', 'fill-opacity', 0.8);
+```
+
+**アーキテクチャ上の意味**:
+
+MapLibreは**layout**と**paint**を分離しています：
+
+| 種類 | 変更コスト | 例 |
+|------|----------|-----|
+| **layout** | 高い（再レイアウト） | visibility, text-size |
+| **paint** | 低い（再描画のみ） | fill-color, opacity |
+
+頻繁に変更する値は`paint`に、滅多に変わらない値は`layout`に入れるのが設計意図です。
+
+---
+
+## Part 3: 描画機能のアーキテクチャ
+
+### MapboxDrawの役割
+
+ユーザーに地図上で図形を描かせる機能は、MapLibre本体には含まれていません。
+`@mapbox/mapbox-gl-draw`というライブラリを使います。
+
+```javascript
+import MapboxDraw from '@mapbox/mapbox-gl-draw';
+
+const draw = new MapboxDraw({
+  displayControlsDefault: false,
+  controls: { polygon: true, line_string: true, point: true, trash: true }
+});
+
+map.addControl(draw);
+```
+
+**アーキテクチャ上の意味**:
+
+MapboxDrawは「MapLibreのコントロール」として追加されます。内部的には：
+
+1. 専用のソース（`mapbox-gl-draw-cold-source`等）を追加
+2. 専用のレイヤー群を追加
+3. マウス/キーボードイベントをフック
+4. 描画状態を内部管理
+
+```text
+[MapLibreのソース/レイヤー]
+         │
+         ├── ベースマップ
+         ├── ユーザーのレイヤー
+         └── [MapboxDrawが追加]
+               ├── draw-cold-source
+               └── draw-layers (複数)
+```
+
+**設計上の注意点**:
+
+- MapboxDrawのレイヤーは常に最前面にしたい → レイヤー追加時に位置調整が必要
+- 描画完了後のデータは`draw.getAll()`でGeoJSONとして取得
+
+---
+
+### 円の描画（カスタム実装）
+
+MapboxDrawには「円」モードがありません。GeoJSON仕様に円が存在しないためです。
+
+**解決策**: 円を多角形（64角形など）で近似する
+
+```javascript
+function createCircle(center, radiusKm, points = 64) {
+  const [lng, lat] = center;
+  const coords = [];
+
+  // 緯度による経度方向の距離補正
+  const latRad = lat * Math.PI / 180;
+  const lngPerKm = 1 / (111.32 * Math.cos(latRad));
+  const latPerKm = 1 / 110.574;
+
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dx = radiusKm * Math.cos(angle) * lngPerKm;
+    const dy = radiusKm * Math.sin(angle) * latPerKm;
+    coords.push([lng + dx, lat + dy]);
+  }
+
+  return {
+    type: 'Feature',
+    properties: { isCircle: true, center, radiusKm },
+    geometry: { type: 'Polygon', coordinates: [coords] }
+  };
+}
+```
+
+**アーキテクチャ上の意味**:
+
+- `isCircle: true`をpropertiesに保存 → 後で円として識別可能
+- `center`, `radiusKm`も保存 → エクスポート時に円形式で出力可能
+- 緯度補正 → メルカトル図法での歪みを補正し、見た目を円にする
+
+---
+
+## Part 4: 状態管理のアーキテクチャ
+
+### Reactとの統合
+
+**問題**: 地図の状態をどう管理するか
+
+```text
+[Reactの世界]              [MapLibreの世界]
+useState, useRef           map.getCenter(), map.getZoom()
+                           source.setData(), layer.visibility
+```
+
+MapLibre自体が状態を持っています（マップインスタンスはstateful）。
+これをReactの状態管理とどう統合するかが設計の肝です。
+
+**推奨パターン**:
+
+```tsx
+function MapComponent() {
+  const mapRef = useRef<maplibregl.Map | null>(null);     // マップ本体
+  const [mapLoaded, setMapLoaded] = useState(false);       // ロード完了フラグ
+  const [layerVisibility, setLayerVisibility] = useState<Map<string, boolean>>(new Map());
+
+  useEffect(() => {
+    const map = new maplibregl.Map({ ... });
+    mapRef.current = map;
+
+    map.on('load', () => setMapLoaded(true));
+
+    return () => map.remove();
+  }, []);
+
+  // レイヤー表示/非表示の変更
+  const toggleLayer = (layerId: string) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const current = layerVisibility.get(layerId) ?? true;
+    const newVisibility = !current;
+
+    map.setLayoutProperty(layerId, 'visibility', newVisibility ? 'visible' : 'none');
+    setLayerVisibility(prev => new Map(prev).set(layerId, newVisibility));
+  };
+}
+```
+
+**アーキテクチャ上の意味**:
+
+| 状態の種類 | 管理方法 | 理由 |
+|-----------|---------|------|
+| mapインスタンス | useRef | 再レンダリング不要、参照だけ必要 |
+| ロード完了 | useState | UIの条件分岐に使う |
+| レイヤー表示状態 | useState | サイドバーのチェックボックスに反映 |
+| 座標・ズーム | useRef | 高頻度で変わるがUIに反映しないなら |
+
+**設計の指針**:
+
+1. **UIに反映するならuseState**: サイドバー、ツールバーの状態
+2. **参照だけならuseRef**: マップインスタンス、ポップアップインスタンス
+3. **高頻度更新はuseRef**: マウス座標、ズームレベル（表示する場合はデバウンス）
+
+---
+
+### データの永続化
+
+**問題**: ユーザーが描画した図形をブラウザ間で保持したい
+
+```text
+[揮発性]                    [永続化先]
+MapboxDrawの内部状態  →→→   localStorage / IndexedDB
+```
+
+```javascript
+// 保存
+function saveDrawnFeatures() {
+  const geojson = draw.getAll();
+  localStorage.setItem('drawn-features', JSON.stringify(geojson));
+}
+
+// 復元
+function loadDrawnFeatures() {
+  const stored = localStorage.getItem('drawn-features');
+  if (stored) {
+    const geojson = JSON.parse(stored);
+    geojson.features.forEach(f => draw.add(f));
+  }
+}
+```
+
+**アーキテクチャ上の意味**:
+
+| 保存先 | 容量 | 用途 |
+|--------|------|------|
+| localStorage | 5MB | 小さな設定、描画データ |
+| sessionStorage | 5MB | タブ内のみ有効な一時状態 |
+| IndexedDB | 50MB〜 | 大きなGeoJSONのキャッシュ |
+
+---
+
+## Part 5: パフォーマンスアーキテクチャ
+
+### なぜ地図アプリはパフォーマンスに敏感か
+
+一般的なWebアプリで100msの遅延は許容範囲です。
+しかし地図をドラッグ中に100msのカク付きがあると、「壊れている」と感じます。
+
+**目標**: 60fps（16.6msごとに1フレーム）を維持
+
+### 主要なボトルネック
+
+```text
+1. データ読み込み
+   └── 大きなGeoJSONのfetchとパース
+
+2. レンダリング
+   └── 大量ポリゴンの描画
+
+3. Reactの再レンダリング
+   └── 不要なコンポーネント更新
+```
+
+### 対策
+
+**データ読み込み**:
+
+- 遅延読み込み（必要な都道府県だけ）
+- IndexedDBキャッシュ
+- 大規模データはベクタータイル化
+
+**レンダリング**:
+
+- ズームレベルでのフィルタリング
+- 画面外フィーチャーの描画スキップ（MapLibre内蔵）
+
+**React再レンダリング**:
+
+- useRefで不要な再レンダリングを避ける
+- 地図イベントからのuseState更新をデバウンス
+
+---
+
+## Part 6: 本プロジェクトへの適用
+
+### DID-J26のアーキテクチャ
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                         App.tsx                              │
+│   ・マップ初期化                                              │
+│   ・レイヤー管理                                              │
+│   ・イベントハンドリング                                       │
+│   ・UIパネル                                                  │
+├─────────────────────────────────────────────────────────────┤
+│                     components/                              │
+│   ・DrawingTools.tsx（描画機能、MapboxDrawのラッパー）         │
+│   ・CoordinateDisplay.tsx（座標表示）                         │
+├─────────────────────────────────────────────────────────────┤
+│                        lib/                                  │
+│   ・config/ - 設定定義（ベースマップ、レイヤー、オーバーレイ）  │
+│   ・services/ - 外部API呼び出し（標高、ジオコーディング）       │
+│   ・utils/ - ユーティリティ（幾何計算、座標変換）              │
+│   ・cache.ts - IndexedDBキャッシュ                           │
+│   ・types.ts - 型定義                                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**設計意図**:
+
+1. **App.tsxに集約**: 地図の状態は密結合しているため、無理に分割しない
+2. **lib/はReact非依存**: ロジックを純粋関数で記述し、テスト・再利用可能に
+3. **config/で定義を分離**: 新しいレイヤーの追加が各ファイルで完結
+
+---
+
+### まとめ: 地図アプリ設計のチェックリスト
+
+```text
+□ 3層構造（表示・データ・インタラクション）を意識しているか
+□ ソースとレイヤーの分離を活用しているか
+□ map.on('load')の中でaddSource/addLayerしているか
+□ useRefとuseStateを適切に使い分けているか
+□ WebGLコンテキストを解放しているか（map.remove()）
+□ 大量データの遅延読み込みを検討したか
+□ 60fpsを維持できる設計か
+```

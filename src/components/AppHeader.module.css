@@ -1,0 +1,22 @@
+/**
+ * App Header Styles
+ * Title and subtitle styling
+ */
+
+.container {
+  padding: 12px 0 8px 0;
+  margin-bottom: 12px;
+}
+
+.title {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
