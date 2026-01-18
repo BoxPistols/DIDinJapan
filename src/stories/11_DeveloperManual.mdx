@@ -1,151 +1,904 @@
-{/* IntegrationGuide.mdx */}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="Learning/11_統合アーキテクチャガイド" />
+<Meta title="Learning/11_Map実装ガイド" />
 
-# DID-J26 統合アーキテクチャガイド
+# MapLibre GL JS 実装ガイド
 
-本ドキュメントでは、`DID-J26` のシステム（地図機能、飛行可否判定ロジック等）を、既存のWebアプリケーションやサードパーティシステムに組み込むためのアーキテクチャパターンと実装ガイドラインを解説します。
+このガイドは、**MapLibreを使った地図アプリケーションの構築方法**と、**その背後にあるアーキテクチャ設計の考え方**を解説します。
 
-## 1. 統合パターン概要
+単にコードを書くだけでなく、「なぜこの構造になっているのか」「何を解決しようとしているのか」を理解することで、応用力のある実装ができるようになります。
 
-利用シナリオに応じて、3つの統合レベルを提供します。
+---
 
-### **A. IFrame Embedding** (View)
-- **ユースケース**: 簡易的な地図表示、LPへの埋め込み
-- **難易度**: 低
+## Part 1: 地図アプリのアーキテクチャ
 
-### **B. NPM Package (UI)** (Component) 
-- **ユースケース**: Reactアプリへの地図機能統合
-- **難易度**: 中
+### 地図アプリを構成する3つの層
 
-### **C. Core Logic SDK** (Logic)
-- **ユースケース**: 独自のUIを持つシステムでの判定ロジック利用
-- **難易度**: 高
+地図アプリケーションは、以下の3層で構成されます。この構造を理解することが、設計の第一歩です。
 
-## 2. A. IFrame Embedding (View Integration)
+```text
+┌───────────────────────────────────────────────────────┐
+│                  表示層（View Layer）                  │
+│                                                        │
+│   ユーザーが目にするもの                                │
+│   ・ベースマップ（背景の地図画像）                       │
+│   ・レイヤー（DID、空港、描画した図形など）              │
+│   ・UI要素（ポップアップ、コントロール）                 │
+├───────────────────────────────────────────────────────┤
+│                  データ層（Data Layer）                │
+│                                                        │
+│   表示するためのデータとその管理                        │
+│   ・GeoJSONファイル                                    │
+│   ・タイル画像                                         │
+│   ・API応答                                            │
+│   ・キャッシュ                                         │
+├───────────────────────────────────────────────────────┤
+│              インタラクション層（Interaction）          │
+│                                                        │
+│   ユーザー操作の受け取りと処理                          │
+│   ・クリック、ホバー、ドラッグ                          │
+│   ・描画操作                                           │
+│   ・検索、フィルタ                                     │
+└───────────────────────────────────────────────────────┘
+```
 
-最も単純な統合方法です。ホストされた `DID-J26` アプリケーションを `iframe` として埋め込みます。
+**なぜ3層に分けるのか**:
 
-### 通信プロトコル: `postMessage` API
+1. **責務の分離**: 表示ロジックとデータ取得を混ぜると、変更が困難になる
+2. **テスト容易性**: データ層は純粋な関数として単体テストできる
+3. **再利用性**: 同じデータをPC版とモバイル版で別UIで表示できる
 
-親ウィンドウ（ホストアプリ）と `iframe` 間で、`window.postMessage` を用いて双方向通信を行います。
+---
 
-```typescript
-// Host Application (Parent)
-const iframe = document.getElementById('did-map');
+### MapLibreの役割
 
-// 1. 地図の移動命令
-iframe.contentWindow.postMessage({
-  type: 'SET_VIEW',
-  payload: { lat: 35.681, lng: 139.767, zoom: 14 }
-}, 'https://did-j26.example.com');
+MapLibreは主に**表示層**を担当しますが、3層すべてに関わります。
 
-// 2. 判定結果の受信
-window.addEventListener('message', (event) => {
-  if (event.origin !== 'https://did-j26.example.com') return;
-  
-  if (event.data.type === 'FLIGHT_STATUS_UPDATE') {
-    console.log('飛行可否:', event.data.payload.isFlyable); // true/false
-  }
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                         MapLibre GL JS                       │
+│                                                              │
+│  [表示層]         [データ層]           [インタラクション層]   │
+│  ・Canvas描画     ・タイル取得          ・マウスイベント      │
+│  ・レイヤー管理   ・GeoJSON解析         ・ドラッグ/ズーム     │
+│  ・スタイル適用   ・ソース管理          ・ピック（選択）      │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**重要な設計判断**:
+
+MapLibreは「ソース」と「レイヤー」を明確に分離しています。
+
+- **ソース（Source）**: データそのもの（GeoJSON、タイルURL）
+- **レイヤー（Layer）**: データの見せ方（色、線の太さ）
+
+この分離により、**同じデータを複数の見た目で表示**できます。例えば1つのGeoJSONソースに対して、塗りつぶしレイヤーと境界線レイヤーを別々に定義できます。
+
+---
+
+## Part 2: 基本実装とアーキテクチャ
+
+### Step 1: マップの初期化
+
+**やること**: 画面に地図を表示する
+
+```javascript
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
+  center: [139.7671, 35.6812],
+  zoom: 10
 });
 ```
 
-このパターンは、**疎結合 (Loose Coupling)** であり、ホスト側の技術スタック（Vue, Angular, PHP等）を問いません。
+**アーキテクチャ上の意味**:
 
-## 3. B. NPM Package Integration (Component Integration) - **[ROADMAP]**
+`new Map()`を呼んだ時点で、MapLibreは以下を実行します:
 
-※ 本機能は現在 **設計段階** です。将来的なMonorepo化またはパッケージ化を見据えた設計案です。
+1. **Canvas要素の作成**: WebGL描画領域
+2. **スタイルの読み込み**: URLから地図スタイルをfetch
+3. **タイルのpreload**: 現在の表示範囲のタイルを事前取得
 
-`DID-J26` を React コンポーネントライブラリとして提供し、ホストアプリの一部としてレンダリングする構想です。
-
-### アーキテクチャ設計案
-
-将来的に `npm publish` 可能な構成へとリファクタリングする場合、以下のパッケージ構成を目指します。
-
-```bash
-# 将来的なインストールコマンドのイメージ
-npm install @did-j26/react-map
+```text
+[ユーザーコード] → [new Map()] → [Canvas初期化] → [スタイルfetch] → [タイル取得]
 ```
 
-### 実装イメージ
+### ディレクトリ構成
 
-ホストアプリ側で `DIDMap` コンポーネントを使用する設計です（**Controlled Component** パターン）。
+export const TableStyle = {
+  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
+  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
+  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
+  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  td: { padding: '12px' },
+  strong: { fontWeight: 700 }
+}
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>ディレクトリ</th>
+      <th style={TableStyle.th}>役割・内容</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>必須</th>
+      <th style={TableStyle.th}>依存関係</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>components/</strong></td>
+      <td style={TableStyle.td}>地図UIコンポーネント (DrawingTools, InfoPanel等)</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>lib/ の型と設定に依存</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>lib/</strong></td>
+      <td style={TableStyle.td}>ビジネスロジック、データモデル、APIサービス</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>外部依存なし (Core)</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>utils/</strong></td>
+      <td style={TableStyle.td}>トースト通知、ダイアログ等のヘルパー</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>一部UIライブラリに依存</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><strong>styles/</strong></td>
+      <td style={TableStyle.td}>テーマ定義、グローバル変数</td>
+      <td style={{...TableStyle.td, textAlign: 'center'}}>✅</td>
+      <td style={TableStyle.td}>components/ で使用</td>
+    </tr>
+  </tbody>
+</table>
+
+### 主要な状態変数
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>状態</th>
+      <th style={TableStyle.th}>型</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapRef</code></td>
+      <td style={TableStyle.td}><code>useRef&lt;maplibregl.Map&gt;</code></td>
+      <td style={TableStyle.td}>マップインスタンス（再レンダリング不要）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapLoaded</code></td>
+      <td style={TableStyle.td}><code>useState&lt;boolean&gt;</code></td>
+      <td style={TableStyle.td}>マップのロード完了フラグ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>baseMap</code></td>
+      <td style={TableStyle.td}><code>useState&lt;BaseMapKey&gt;</code></td>
+      <td style={TableStyle.td}>現在のベースマップ（'osm', 'satellite'等）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>layerStates</code></td>
+      <td style={TableStyle.td}><code>useState&lt;Map&lt;string, LayerState&gt;&gt;</code></td>
+      <td style={TableStyle.td}>各レイヤーの表示状態管理</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>darkMode</code></td>
+      <td style={TableStyle.td}><code>useState&lt;boolean&gt;</code></td>
+      <td style={TableStyle.td}>ダークモード有効フラグ</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## パフォーマンス考慮事項
+
+### 大規模データの扱い
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>形式</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>推奨ファイルサイズ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>GeoJSON</strong></td>
+      <td style={TableStyle.td}>小規模区域（市区町村レベル）</td>
+      <td style={TableStyle.td}>〜 5MB</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>Vector Tiles (MVT)</strong></td>
+      <td style={TableStyle.td}>中規模データ（都道府県レベル）</td>
+      <td style={TableStyle.td}>5 - 100MB</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><strong>PMTiles</strong></td>
+      <td style={TableStyle.td}>大規模データ（全国レベル）</td>
+      <td style={TableStyle.td}>100MB+</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## ストレージ キー一覧
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>キー</th>
+      <th style={TableStyle.th}>ストレージ</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>ui-settings</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>ダークモード、ベースマップ設定、タイムスタンプ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>did-map-drawn-features</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>DrawingToolsで描画した図形のバックアップ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>did-expanded-groups</code></td>
+      <td style={TableStyle.td}>Local</td>
+      <td style={TableStyle.td}>左サイドバーの都道府県グループの開閉状態</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>map-view-state-once</code></td>
+      <td style={TableStyle.td}>Session</td>
+      <td style={TableStyle.td}>ベースマップ切替時のリロード用ビュー位置保持</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>restriction-visible-ids</code></td>
+      <td style={TableStyle.td}>Session</td>
+      <td style={TableStyle.td}>表示中の制限区域レイヤーID一覧</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## コンポーネント API
+
+### DrawingTools
+
+作図機能を一括提供するコンポーネントです。内部で MapboxDraw インスタンスを管理します。
+
+**Path**: `src/components/DrawingTools.tsx`
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>Prop</th>
+      <th style={TableStyle.th}>Type</th>
+      <th style={TableStyle.th}>Default</th>
+      <th style={TableStyle.th}>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>map</code></td>
+      <td style={TableStyle.td}><code>maplibregl.Map</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}><strong>必須</strong> 初期化済みのマップインスタンス</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mapLoaded</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>マップのロード完了フラグ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>onFeaturesChange</code></td>
+      <td style={TableStyle.td}><code>(features: DrawnFeature[]) =&gt; void</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}>図形が追加・編集・削除された時に発火</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>darkMode</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>UIをダークモードで表示</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>embedded</code></td>
+      <td style={TableStyle.td}><code>boolean</code></td>
+      <td style={TableStyle.td}><code>false</code></td>
+      <td style={TableStyle.td}>サイドバー埋め込み用のコンパクト表示</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>onUndoRedoStateChange</code></td>
+      <td style={TableStyle.td}><code>(state: UndoRedoState) =&gt; void</code></td>
+      <td style={TableStyle.td}>-</td>
+      <td style={TableStyle.td}>Undo/Redoボタンの活性状態を通知</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## トラブルシューティング
+
+### よくあるエラーと対処
+
+**1. "Style is not loaded"**
+
+```javascript
+// ❌ エラーになる
+const map = new maplibregl.Map({ ... });
+map.addSource('src', { ... });  // スタイル未ロード
+
+// ✅ 正しい
+map.on('load', () => {
+  map.addSource('src', { ... });
+});
+```
+
+**2. "Source already exists"**
+
+```javascript
+// ❌ 2回追加するとエラー
+map.addSource('src', { ... });
+map.addSource('src', { ... });
+
+// ✅ 存在チェック
+if (!map.getSource('src')) {
+  map.addSource('src', { ... });
+}
+```
+
+**3. "Layer not found"**
+
+```javascript
+// ❌ 存在しないレイヤーを操作
+map.setLayoutProperty('unknown-layer', 'visibility', 'none');
+
+// ✅ 存在チェック
+if (map.getLayer('my-layer')) {
+  map.setLayoutProperty('my-layer', 'visibility', 'none');
+}
+```
+
+**4. WebGLコンテキスト上限エラー**
+
+ブラウザにはWebGLコンテキストの上限（8〜16個）があります。マップを破棄せずに再作成を繰り返すと発生します。
+
+```javascript
+// ❌ 解放忘れ
+useEffect(() => {
+  const map = new maplibregl.Map({ ... });
+  mapRef.current = map;
+}, []);
+
+// ✅ クリーンアップで解放
+useEffect(() => {
+  const map = new maplibregl.Map({ ... });
+  mapRef.current = map;
+  
+  return () => {
+    map.remove();  // WebGLコンテキストを解放
+  };
+}, []);
+```
+
+**5. Next.js での "window is not defined"**
+
+MapLibreはブラウザAPIに依存するため、SSR時にエラーになります。
 
 ```tsx
-// ※ 架空のコードです。現在は実装されていません。
-import { DIDMap, useFlightCheck } from '@did-j26/react-map';
+// ✅ Dynamic Importで回避
+import dynamic from 'next/dynamic';
 
-function HostApp() {
-  const [targetPoint, setTargetPoint] = useState(null);
-
-  const handleMapClick = (point) => {
-    setTargetPoint(point);
-    saveToHostDB(point);
-  };
-
-  return (
-    <div className="layout">
-      <DIDMap 
-        apiKey="YOUR_API_KEY"
-        onMapClick={handleMapClick}
-      />
-    </div>
-  );
-}
+const MapComponent = dynamic(() => import('./MapComponent'), {
+  ssr: false,
+  loading: () => <div>Loading map...</div>
+});
 ```
 
-## 4. C. Core Logic SDK (Logic Integration) - **[ROADMAP]**
+---
 
-※ 本機能は現在 **設計段階** です。
+## レイヤー管理の詳細
 
-UI（地図）は不要で、「ある座標がDID地区に含まれるか？」「空港から何メートルか？」といった**判定ロジックのみ**を利用する場合の Headless アプローチです。
+### ソースとレイヤーの関係
 
-### 構成要素（計画）
+MapLibreの最も重要な概念は「ソース」と「レイヤー」の分離です。
 
-- **Geometry Engine**: Point-in-Polygon 判定機
-- **Data Fetcher**: GSIタイル/GeoJSONの取得とキャッシング
-- **Regulation Rules**: 法令ロジックセット
+```text
+[GeoJSON ソース]
+       │
+       ├── fillレイヤー（塗りつぶし）
+       │
+       ├── lineレイヤー（境界線）
+       │
+       └── symbolレイヤー（ラベル）
+```
 
-### インターフェース定義案
+1つのソースに対して複数のレイヤーを定義でき、それぞれ独立にスタイルを変更できます。
+
+### レイヤータイプ一覧
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>Type</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>対象Geometry</th>
+      <th style={TableStyle.th}>主なプロパティ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>fill</code></td>
+      <td style={TableStyle.td}>ポリゴンの塗りつぶし</td>
+      <td style={TableStyle.td}>Polygon, MultiPolygon</td>
+      <td style={TableStyle.td}>fill-color, fill-opacity</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>line</code></td>
+      <td style={TableStyle.td}>線の描画</td>
+      <td style={TableStyle.td}>LineString, Polygon境界</td>
+      <td style={TableStyle.td}>line-color, line-width</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>circle</code></td>
+      <td style={TableStyle.td}>点を円で表示</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>circle-radius, circle-color</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>symbol</code></td>
+      <td style={TableStyle.td}>アイコン/テキスト</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>text-field, icon-image</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>heatmap</code></td>
+      <td style={TableStyle.td}>ヒートマップ</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>heatmap-intensity, heatmap-color</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>fill-extrusion</code></td>
+      <td style={TableStyle.td}>3D建物</td>
+      <td style={TableStyle.td}>Polygon</td>
+      <td style={TableStyle.td}>fill-extrusion-height</td>
+    </tr>
+  </tbody>
+</table>
+
+### レイヤーの表示順制御
+
+レイヤーは追加順に重なります。後から追加したものが上に表示されます。
+
+```javascript
+// 特定レイヤーの下に挿入
+map.addLayer({
+  id: 'my-layer',
+  type: 'fill',
+  source: 'my-source',
+  paint: { 'fill-color': '#ff0000' }
+}, 'waterway-label');  // 第2引数で挿入位置を指定
+```
+
+---
+
+## イベントハンドリング
+
+### マップイベント
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>イベント</th>
+      <th style={TableStyle.th}>発火タイミング</th>
+      <th style={TableStyle.th}>主な用途</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>load</code></td>
+      <td style={TableStyle.td}>スタイル読み込み完了時</td>
+      <td style={TableStyle.td}>ソース/レイヤー追加の開始点</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>click</code></td>
+      <td style={TableStyle.td}>マップクリック時</td>
+      <td style={TableStyle.td}>フィーチャー選択、ポップアップ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mousemove</code></td>
+      <td style={TableStyle.td}>マウス移動時</td>
+      <td style={TableStyle.td}>ホバー表示、座標表示</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>moveend</code></td>
+      <td style={TableStyle.td}>パン/ズーム完了時</td>
+      <td style={TableStyle.td}>表示範囲に応じたデータ読み込み</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>zoom</code></td>
+      <td style={TableStyle.td}>ズーム変更中</td>
+      <td style={TableStyle.td}>ズームレベル表示の更新</td>
+    </tr>
+  </tbody>
+</table>
+
+### レイヤー固有のイベント
+
+```javascript
+// 特定レイヤーでのみ発火
+map.on('click', 'did-layer', (e) => {
+  const feature = e.features[0];
+  console.log(feature.properties);
+});
+
+// ホバー時のカーソル変更
+map.on('mouseenter', 'did-layer', () => {
+  map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'did-layer', () => {
+  map.getCanvas().style.cursor = '';
+});
+```
+
+---
+
+## 描画ツール (MapboxDraw)
+
+### アーキテクチャ
+
+MapboxDrawは独立したコントロールとして動作し、内部で独自のソース/レイヤーを管理します。
+
+```text
+map.addControl(draw)
+     │
+     ├── mapbox-gl-draw-cold-source（確定済み図形）
+     ├── mapbox-gl-draw-hot-source（描画中図形）
+     │
+     └── 約20個のレイヤー（fill, line, 頂点等）
+```
+
+### 主要API
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>メソッド</th>
+      <th style={TableStyle.th}>説明</th>
+      <th style={TableStyle.th}>戻り値</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.getAll()</code></td>
+      <td style={TableStyle.td}>全フィーチャーをGeoJSONで取得</td>
+      <td style={TableStyle.td}>FeatureCollection</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.add(feature)</code></td>
+      <td style={TableStyle.td}>フィーチャーを追加</td>
+      <td style={TableStyle.td}>追加されたID配列</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.delete(id)</code></td>
+      <td style={TableStyle.td}>指定IDのフィーチャーを削除</td>
+      <td style={TableStyle.td}>削除されたフィーチャー</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.set(fc)</code></td>
+      <td style={TableStyle.td}>全フィーチャーを置換</td>
+      <td style={TableStyle.td}>追加されたID配列</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>draw.changeMode(mode)</code></td>
+      <td style={TableStyle.td}>描画モードを変更</td>
+      <td style={TableStyle.td}>void</td>
+    </tr>
+  </tbody>
+</table>
+
+### 描画イベント
+
+```javascript
+map.on('draw.create', (e) => {
+  console.log('Created:', e.features);
+});
+
+map.on('draw.update', (e) => {
+  console.log('Updated:', e.features);
+});
+
+map.on('draw.delete', (e) => {
+  console.log('Deleted:', e.features);
+});
+
+map.on('draw.selectionchange', (e) => {
+  console.log('Selected:', e.features);
+});
+```
+
+### 円の描画（カスタム実装）
+
+GeoJSONには「円」がないため、多角形で近似します。
 
 ```typescript
-// ※ 架空のコードです。現在は実装されていません。
-import { DIDEngine, RegulationRules } from '@did-j26/core';
+function createCirclePolygon(
+  center: [number, number],
+  radiusKm: number,
+  points: number = 64
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const [lng, lat] = center;
+  const coords: [number, number][] = [];
+  
+  // 緯度による経度方向の補正
+  const latRad = lat * Math.PI / 180;
+  const lngPerKm = 1 / (111.32 * Math.cos(latRad));
+  const latPerKm = 1 / 110.574;
 
-// インスタンス化
-const engine = new DIDEngine({ rules: [RegulationRules.DID] });
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dx = radiusKm * Math.cos(angle) * lngPerKm;
+    const dy = radiusKm * Math.sin(angle) * latPerKm;
+    coords.push([lng + dx, lat + dy]);
+  }
 
-async function checkFlight(lat: number, lng: number) {
-  const result = await engine.checkPoint({ lat, lng });
-  console.log(result);
+  return {
+    type: 'Feature',
+    properties: { 
+      isCircle: true, 
+      center, 
+      radiusKm 
+    },
+    geometry: { 
+      type: 'Polygon', 
+      coordinates: [coords] 
+    }
+  };
 }
 ```
 
-このパターンは、バックエンド (Node.js) でのバッチ処理等での利用を想定しています。
+---
 
-## 5. 認証とセキュリティ
+## キャッシュ戦略
 
-外部システム統合時には、無制限なAPIアクセスを防ぐためのセキュリティ設計が必要です。
+### IndexedDB によるGeoJSONキャッシュ
 
-- **API Key / Client ID**: リクエスト元の識別。
-- **CORS Policy**: 許可されたドメインからのリクエストのみを受け付ける。
-- **Rate Limiting**: タイルサーバーへの過剰な負荷を防ぐ。
+大きなGeoJSONファイルはIndexedDBにキャッシュすることで、2回目以降の読み込みを高速化できます。
 
-## 6. データ更新ライフサイクル
+```typescript
+const DB_NAME = 'did-map-cache';
+const STORE_NAME = 'geojson';
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日
 
-法令データ（DID, 空港データ）の更新をホストアプリにどう反映させるかの戦略です。
+async function fetchWithCache<T>(url: string): Promise<T> {
+  // 1. キャッシュを確認
+  const cached = await getCachedData(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
 
-- **Pull型**: ライブラリのバージョンアップ（`npm update`）時に静的データを更新。
-- **Push型**: アプリ起動時にCDNから最新の「データマニフェストファイル」を取得し、動的に最新データをロードする（推奨）。
+  // 2. ネットワークから取得
+  const response = await fetch(url);
+  const data = await response.json();
+
+  // 3. キャッシュに保存
+  await setCachedData(url, { data, timestamp: Date.now() });
+
+  return data;
+}
+```
+
+### 遅延読み込みパターン
+
+都道府県単位でデータを分割し、必要な時にのみ読み込みます。
+
+```typescript
+const loadedLayers = new Set<string>();
+
+async function loadLayerIfNeeded(layerId: string, path: string) {
+  if (loadedLayers.has(layerId)) return;
+  
+  const geojson = await fetchWithCache(path);
+  
+  map.addSource(layerId, { type: 'geojson', data: geojson });
+  map.addLayer({
+    id: layerId,
+    type: 'fill',
+    source: layerId,
+    paint: { 'fill-color': '#ff6b6b', 'fill-opacity': 0.5 }
+  });
+  
+  loadedLayers.add(layerId);
+}
+```
+
+---
+
+## 外部API連携
+
+### 標高取得 (GSI DEM API)
+
+国土地理院の標高APIを使用して、任意の座標の標高を取得できます。
+
+```typescript
+async function fetchElevation(lng: number, lat: number): Promise<number | null> {
+  const url = `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`;
+  
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.elevation ?? null;
+  } catch {
+    return null;
+  }
+}
+```
+
+### ジオコーディング (Nominatim)
+
+住所から座標を検索するジオコーディング機能です。
+
+```typescript
+async function geocode(query: string): Promise<GeocodeResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=jp`;
+  
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'DID-J26-App/1.0' }
+  });
+  
+  const data = await response.json();
+  return data.map((item: any) => ({
+    name: item.display_name,
+    lat: parseFloat(item.lat),
+    lng: parseFloat(item.lon)
+  }));
+}
+```
+
+---
+
+## キーボードショートカット
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>キー</th>
+      <th style={TableStyle.th}>機能</th>
+      <th style={TableStyle.th}>スコープ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>D</code></td>
+      <td style={TableStyle.td}>ダークモード切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>M</code></td>
+      <td style={TableStyle.td}>ベースマップ切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Ctrl+Z</code></td>
+      <td style={TableStyle.td}>Undo</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Ctrl+Shift+Z</code></td>
+      <td style={TableStyle.td}>Redo</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Delete</code></td>
+      <td style={TableStyle.td}>選択図形の削除</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>Escape</code></td>
+      <td style={TableStyle.td}>描画/選択のキャンセル</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 型定義
+
+### 主要な型
+
+```typescript
+// ベースマップのキー
+type BaseMapKey = 'osm' | 'gsi' | 'pale' | 'photo';
+
+// レイヤーの状態
+interface LayerState {
+  loaded: boolean;
+  visible: boolean;
+}
+
+// 描画されたフィーチャー
+interface DrawnFeature {
+  id: string;
+  type: 'polygon' | 'circle' | 'point' | 'line';
+  name: string;
+  coordinates: GeoJSON.Position | GeoJSON.Position[] | GeoJSON.Position[][];
+  radius?: number;        // 円の場合
+  center?: [number, number]; // 円の場合
+  elevation?: number;
+  flightHeight?: number;
+  maxAltitude?: number;
+}
+
+// レイヤー設定
+interface LayerConfig {
+  id: string;
+  name: string;
+  path: string;
+  color: string;
+}
+```
+
+---
+
+## デプロイ
+
+### 静的ファイルの配置
+
+GeoJSONファイルは`/public`ディレクトリに配置し、ビルド時にバンドルされないようにします。
+
+```text
+/public
+  └── GeoJSON
+        └── 2020
+              ├── r02_did_01_hokkaido.geojson  (2.1MB)
+              ├── r02_did_13_tokyo.geojson     (1.8MB)
+              └── ...
+```
+
+### 環境変数
+
+```bash
+# .env.local
+VITE_MAPTILER_KEY=your_api_key
+VITE_GSI_TILE_URL=https://cyberjapandata.gsi.go.jp/xyz
+```
+
+### Vercel設定
 
 ```json
-/* manifest.json (CDN) */
 {
-  "version": "2025-01-01",
-  "did_source": "https://cdn.example.com/did_2025.pbf",
-  "airport_source": "https://cdn.example.com/airports_v2.geojson"
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/GeoJSON/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    }
+  ]
 }
 ```
 
-このアーキテクチャにより、ライブラリ自体の更新なしに規制データの鮮度を保つことが可能です。
+---
+
+## 参考リンク
+
+- [MapLibre GL JS Documentation](https://maplibre.org/maplibre-gl-js-docs/)
+- [Mapbox GL Draw](https://github.com/mapbox/mapbox-gl-draw)
+- [国土地理院タイル一覧](https://maps.gsi.go.jp/development/ichiran.html)
+- [GeoJSON RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946)

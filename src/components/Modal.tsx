@@ -5,6 +5,7 @@
  */
 
 import { useEffect, type ReactNode } from 'react'
+import styles from './Modal.module.css'
 
 export interface ModalProps {
   /** モーダルの表示状態 */
@@ -81,64 +82,26 @@ export function Modal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: `rgba(0,0,0,${overlayOpacity})`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex
-      }}
+      className={styles.overlay}
+      style={{ zIndex }}
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={modalTitleId}
-        style={{
-          backgroundColor: darkMode ? '#1e1e1e' : '#fff',
-          borderRadius: '8px',
-          width,
-          maxWidth: '90vw',
-          maxHeight,
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-          border: darkMode ? '1px solid #444' : 'none'
-        }}
+        className={styles.modal}
+        style={{ width, maxWidth: '90vw', maxHeight }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー */}
-        <div
-          style={{
-            padding: '16px',
-            borderBottom: darkMode ? '1px solid #444' : '1px solid #ddd',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-        >
-          <h3
-            id={modalTitleId}
-            style={{ margin: 0, fontSize: '16px', color: darkMode ? '#fff' : '#333' }}
-          >
+        <div className={styles.header}>
+          <h3 id={modalTitleId} className={styles.title}>
             {title}
           </h3>
           <button
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              color: darkMode ? '#ccc' : '#666',
-              padding: '0 8px',
-              lineHeight: 1
-            }}
+            className={styles.closeButton}
             aria-label="閉じる"
           >
             ×
@@ -146,30 +109,10 @@ export function Modal({
         </div>
 
         {/* コンテンツ */}
-        <div
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '16px'
-          }}
-        >
-          {children}
-        </div>
+        <div className={styles.content}>{children}</div>
 
         {/* フッター */}
-        {footer && (
-          <div
-            style={{
-              padding: '16px',
-              borderTop: darkMode ? '1px solid #444' : '1px solid #ddd',
-              display: 'flex',
-              gap: '8px',
-              justifyContent: 'flex-end'
-            }}
-          >
-            {footer}
-          </div>
-        )}
+        {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   )

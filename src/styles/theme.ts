@@ -35,23 +35,28 @@ export const getAppTheme = (darkMode: boolean): AppTheme => {
   if (darkMode) {
     return {
       colors: {
-        pageBg: '#111',
-        panelBg: 'rgba(30,30,40,0.95)',
-        panelBgMuted: '#222',
-        modalBg: '#2a2a2a',
-        overlayBg: 'rgba(0,0,0,0.5)',
-        buttonBg: '#333',
-        buttonBgActive: '#3388ff',
-        text: '#fff',
-        textMuted: '#aaa',
-        textSubtle: '#888',
-        border: '#444',
-        borderStrong: '#555',
-        outline: 'rgba(0,0,0,0.1)'
+        // Surfaces
+        pageBg: '#0f1419',
+        panelBg: 'rgba(26, 31, 46, 0.95)',
+        panelBgMuted: '#1a1f2e',
+        modalBg: 'rgba(26, 31, 46, 0.8)',
+        overlayBg: 'rgba(0, 0, 0, 0.4)',
+        buttonBg: 'rgba(74, 158, 255, 0.1)',
+        buttonBgActive: '#4a9eff',
+
+        // Text
+        text: '#ffffff',
+        textMuted: '#b0b8cc',
+        textSubtle: '#7a8299',
+
+        // Borders / outlines
+        border: 'rgba(255, 255, 255, 0.1)',
+        borderStrong: 'rgba(255, 255, 255, 0.2)',
+        outline: 'rgba(74, 158, 255, 0.2)'
       },
       shadows: {
-        outline: '0 0 0 2px rgba(0,0,0,0.1)',
-        panel: '2px 0 8px rgba(0,0,0,0.1)'
+        outline: '0 0 0 2px rgba(74, 158, 255, 0.2)',
+        panel: '0 8px 32px rgba(0, 0, 0, 0.3)'
       },
       radii: {
         sm: 4,
@@ -62,23 +67,23 @@ export const getAppTheme = (darkMode: boolean): AppTheme => {
 
   return {
     colors: {
-      pageBg: '#fff',
-      panelBg: 'rgba(255,255,255,0.95)',
+      pageBg: '#ffffff',
+      panelBg: 'rgba(255, 255, 255, 0.95)',
       panelBgMuted: '#f8f8f8',
-      modalBg: '#fff',
-      overlayBg: 'rgba(0,0,0,0.5)',
-      buttonBg: '#fff',
-      buttonBgActive: '#3388ff',
-      text: '#333',
-      textMuted: '#666',
-      textSubtle: '#777',
-      border: '#ddd',
-      borderStrong: '#ccc',
-      outline: 'rgba(0,0,0,0.1)'
+      modalBg: 'rgba(255, 255, 255, 0.8)',
+      overlayBg: 'rgba(0, 0, 0, 0.4)',
+      buttonBg: 'rgba(74, 158, 255, 0.1)',
+      buttonBgActive: '#4a9eff',
+      text: '#1a1a1a',
+      textMuted: '#6b7280',
+      textSubtle: '#9ca3af',
+      border: 'rgba(0, 0, 0, 0.1)',
+      borderStrong: 'rgba(0, 0, 0, 0.15)',
+      outline: 'rgba(74, 158, 255, 0.2)'
     },
     shadows: {
-      outline: '0 0 0 2px rgba(0,0,0,0.1)',
-      panel: '2px 0 8px rgba(0,0,0,0.1)'
+      outline: '0 0 0 2px rgba(74, 158, 255, 0.2)',
+      panel: '0 8px 32px rgba(0, 0, 0, 0.1)'
     },
     radii: {
       sm: 4,

@@ -171,34 +171,54 @@ export function formatCoordinates(lng: number, lat: number): string {
 
 /**
  * Convert decimal degrees to degrees, minutes, seconds format (DMS)
+ * @param decimal Decimal degrees
+ * @param isLat Whether the coordinate is latitude
+ * @param locale 'en' for N/S/E/W suffix, 'ja' for 北緯/南緯/東経/西経 prefix
+ */
+export const convertDecimalToDMS = (
+  decimal: number,
+  isLat: boolean,
+  locale: 'en' | 'ja' = 'en'
+): string => {
+  const abs = Math.abs(decimal)
+  let degrees = Math.floor(abs)
+  let minutes = Math.floor((abs - degrees) * 60)
+  let seconds = ((abs - degrees) * 60 - minutes) * 60
+
+  // 丸め処理による繰り上がり対応
+  if (parseFloat(seconds.toFixed(2)) >= 60) {
+    seconds = 0
+    minutes++
+    if (minutes >= 60) {
+      minutes = 0
+      degrees++
+    }
+  }
+
+  if (locale === 'ja') {
+    const direction = isLat ? (decimal >= 0 ? '北緯' : '南緯') : decimal >= 0 ? '東経' : '西経'
+    return `${direction}${degrees}°${minutes}'${seconds.toFixed(2)}"`
+  }
+
+  const direction = isLat ? (decimal >= 0 ? 'N' : 'S') : decimal >= 0 ? 'E' : 'W'
+  return `${degrees}°${minutes}'${seconds.toFixed(2)}"${direction}`
+}
+
+/**
+ * Convert decimal degrees to degrees, minutes, seconds format (DMS)
  * Useful for NOTAM applications that require DMS format
  * Example: 35.681200°, 139.767100° → 35°40'52.32"N, 139°46'01.56"E
  */
-export function formatCoordinatesDMS(lng: number, lat: number): string {
-  const decimalToDMS = (decimal: number, isLat: boolean): string => {
-    const abs = Math.abs(decimal)
-    let degrees = Math.floor(abs)
-    let minutes = Math.floor((abs - degrees) * 60)
-    let seconds = ((abs - degrees) * 60 - minutes) * 60
+export function formatCoordinatesDMS(
+  lng: number,
+  lat: number,
+  options: { locale?: 'en' | 'ja'; separator?: string } = {}
+): string {
+  const { locale = 'en', separator = ', ' } = options
+  const latDMS = convertDecimalToDMS(lat, true, locale)
+  const lngDMS = convertDecimalToDMS(lng, false, locale)
 
-    // 丸め処理による繰り上がり対応
-    if (parseFloat(seconds.toFixed(2)) >= 60) {
-      seconds = 0
-      minutes++
-      if (minutes >= 60) {
-        minutes = 0
-        degrees++
-      }
-    }
-
-    const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : decimal >= 0 ? 'E' : 'W'
-    return `${degrees}°${minutes}'${seconds.toFixed(2)}"${dir}`
-  }
-
-  const latDMS = decimalToDMS(lat, true)
-  const lngDMS = decimalToDMS(lng, false)
-
-  return `${latDMS}, ${lngDMS}`
+  return `${latDMS}${separator}${lngDMS}`
 }
 
 /**

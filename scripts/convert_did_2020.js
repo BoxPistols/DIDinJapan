@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import notifier from 'node-notifier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +39,8 @@ if (files.length === 0) {
 
 console.log(`Found ${files.length} ZIP files. Starting conversion...`);
 
-files.forEach(file => {
+try {
+  files.forEach(file => {
   const zipPath = path.join(RAW_DIR, file);
   // ファイル名から都道府県コードを抽出 (例: 2020_did_ddsw_01-JGD2011.zip -> 01)
   // ファイル名パターン例:
@@ -96,11 +98,27 @@ files.forEach(file => {
     // 掃除
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
-});
+  });
 
-// tempディレクトリ自体の削除
-if (fs.existsSync(path.join(RAW_DIR, 'temp'))) {
-    fs.rmdirSync(path.join(RAW_DIR, 'temp'));
+  // tempディレクトリ自体の削除
+  if (fs.existsSync(path.join(RAW_DIR, 'temp'))) {
+      fs.rmdirSync(path.join(RAW_DIR, 'temp'));
+  }
+
+  console.log('Conversion complete.');
+
+  notifier.notify({
+    title: 'DID 2020データ変換完了',
+    message: 'すべての都道府県データの変換が完了しました',
+    sound: false
+  });
+
+} catch (error) {
+  console.error('Conversion failed:', error);
+  notifier.notify({
+    title: 'DID 2020データ変換失敗',
+    message: 'エラーが発生しました',
+    sound: false
+  });
+  process.exit(1);
 }
-
-console.log('Conversion complete.');

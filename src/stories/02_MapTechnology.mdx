@@ -1,85 +1,664 @@
-{/* MapTechnology.mdx */}
 import { Meta } from '@storybook/blocks'
 
 <Meta title="Learning/02_Map技術基礎" />
 
 # Map技術の理論的基礎
 
-現代のウェブ地図システムの背後にある数学的モデルとデータ構造について解説します。
+現代のウェブ地図システムの背後にある数学的モデル、測地学的基礎、およびデータ構造について、アカデミックな観点から体系的に解説します。
 
-## 1. 空間参照系と投影法
+---
 
-地球という3次元の球体（厳密には回転楕円体）を2次元の平面スクリーンにマッピングするための理論的枠組みです。
+## 1. 測地学的基礎 (Geodetic Fundamentals)
 
-### Web Mercator 投影 (EPSG:3857)
+### 1.1 地球楕円体モデル (Reference Ellipsoid)
 
-Google Maps等の主要なウェブ地図サービスで採用されているデファクトスタンダードです。正角円筒図法の一種であり、以下の特徴を持ちます。
-- **等角生 (Conformality)**: 局所的な角度が保存されるため、建物の形状などが歪みません。
-- **正方形への写像**: 世界全体（緯度約±85.05度まで）を正方形の平面に投影します。計算機上でのタイル管理に適しています。
+地球は完全な球体ではなく、自転による遠心力のため赤道方向に膨らんだ**回転楕円体 (Oblate Spheroid)** として近似されます。
 
-#### 数学的定義
+**GRS80 (Geodetic Reference System 1980)**
 
-経度 $\lambda$、緯度 $\phi$ から平面座標 $(x, y)$ への変換式：
+現代の測地系で採用されている基準楕円体です。
 
-```latex
-x = R \lambda
-y = R \ln \tan \left( \frac{\pi}{4} + \frac{\phi}{2} \right)
+export const TableStyle = {
+  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
+  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
+  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
+  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  td: { padding: '12px' },
+}
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>パラメータ</th>
+      <th style={TableStyle.th}>記号</th>
+      <th style={TableStyle.th}>値</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>長半径（赤道半径）</td>
+      <td style={TableStyle.td}>a</td>
+      <td style={TableStyle.td}>6,378,137.0 m</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>短半径（極半径）</td>
+      <td style={TableStyle.td}>b</td>
+      <td style={TableStyle.td}>6,356,752.314 m</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>扁平率</td>
+      <td style={TableStyle.td}>f</td>
+      <td style={TableStyle.td}>1/298.257222101</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>離心率の二乗</td>
+      <td style={TableStyle.td}>e²</td>
+      <td style={TableStyle.td}>0.00669438002290</td>
+    </tr>
+  </tbody>
+</table>
+
+**扁平率 (Flattening) の定義:**
+
+```
+f = (a - b) / a
 ```
 
-ここで $R$ は地球の半径（通常 6,378,137m）です。
+赤道と極の半径差は約21km（a - b ≈ 21,385m）であり、これが高精度測量において無視できない影響を持ちます。
 
-## 2. タイルピラミッドと四分木 (Quadtree)
+### 1.2 日本測地系 (Japanese Geodetic Datum)
 
-ウェブ地図は、巨大な全体画像を小さな正方形の「タイル」に分割し、ズームレベルに応じて解像度を切り替える **LOD (Level of Detail)** 技術を採用しています。このデータ構造は **四分木 (Quadtree)** としてモデル化されます。
+**JGD2011 (Japan Geodetic Datum 2011)**
 
-### データ構造
+2011年東北地方太平洋沖地震（M9.0）による地殻変動を反映した日本の最新測地系です。
 
-- **ルートノード ($Z=0$)**: 世界全体を1枚のタイルで表現。
-- **子ノード**: ズームレベルが1上がるごとに、各タイルは4つの子タイル（左上、右上、左下、右下）に分割されます。
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>測地系</th>
+      <th style={TableStyle.th}>基準楕円体</th>
+      <th style={TableStyle.th}>適用期間</th>
+      <th style={TableStyle.th}>備考</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>日本測地系 (旧)</td>
+      <td style={TableStyle.td}>Bessel 1841</td>
+      <td style={TableStyle.td}>〜2002年</td>
+      <td style={TableStyle.td}>Tokyo Datum</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>JGD2000</td>
+      <td style={TableStyle.td}>GRS80</td>
+      <td style={TableStyle.td}>2002年〜2011年</td>
+      <td style={TableStyle.td}>ITRF94準拠</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>JGD2011</td>
+      <td style={TableStyle.td}>GRS80</td>
+      <td style={TableStyle.td}>2011年〜現在</td>
+      <td style={TableStyle.td}>地殻変動補正済み</td>
+    </tr>
+  </tbody>
+</table>
 
-任意のズームレベル $Z$ における総タイル数 $N$ は：
+**座標変換の必要性:**
 
-$$ N = 4^Z $$
+旧測地系とJGD2011では、同一地点の座標値が**最大約450m**異なります。古い地図データを利用する際は、測地系変換（Datum Transformation）が必須です。
 
-### 離散空間アドレッシング (XYZスキーム)
+---
 
-各タイルは $(Z, X, Y)$ の3つ組で一意に特定されます。
+## 2. 地図投影法 (Map Projection)
 
-- **Z (Zoom)**: 詳細度。
-- **X (Column)**: 経度方向のインデックス ($0 \le X < 2^Z$)。
-- **Y (Row)**: 緯度方向のインデックス ($0 \le Y < 2^Z$)。
+### 2.1 投影法の数学的分類
 
-## 3. レンダリング技術：ラスタ vs ベクタ
+3次元の地球表面を2次元平面に写像する際、以下の幾何学的特性のうち**すべてを同時に保存することは不可能**です（ガウスの驚異的定理, Theorema Egregium）。
 
-### ラスタ化パイプライン (Server-side Rasterization)
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>特性</th>
+      <th style={TableStyle.th}>数学的定義</th>
+      <th style={TableStyle.th}>保存する投影法</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>等角性 (Conformality)</strong></td>
+      <td style={TableStyle.td}>局所的な角度が保存される</td>
+      <td style={TableStyle.td}>メルカトル、ランベルト正角円錐</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><strong>等積性 (Equal-area)</strong></td>
+      <td style={TableStyle.td}>面積比が保存される</td>
+      <td style={TableStyle.td}>アルベルス正積円錐、モルワイデ</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><strong>等距離性 (Equidistant)</strong></td>
+      <td style={TableStyle.td}>特定方向の距離が保存される</td>
+      <td style={TableStyle.td}>正距円筒、正距方位</td>
+    </tr>
+  </tbody>
+</table>
 
-サーバー側でジオメトリを画像（PNG/JPEG）にレンダリングし、クライアントは画像を並べるだけの方式です。
-- **長所**: クライアントの負荷が低い。
-- **短所**: インタラクションが限定的、フォントの滲み。
+### 2.2 メルカトル図法 (Mercator Projection)
 
-### ベクタタイル (Client-side Rendering)
+1569年にフランドルの地理学者ゲラルドゥス・メルカトル（Gerardus Mercator）により考案された**等角円筒図法**です。
 
-ジオメトリデータ（点、線、面）を構造化データとしてクライアントに送信し、クライアント側 (WebGL/WebGPU) で描画します。
+**数学的定義:**
 
-#### Protocol Buffers (PBF/MVT)
+地理座標 (λ, φ) から平面座標 (x, y) への写像：
 
-効率的な転送のために、**Protocol Buffers** を用いたバイナリ形式（Mapbox Vector Tile - MVT）が標準的に使用されます。
-- **ジグザグ符号化 (ZigZag Encoding)**: 座標値の差分（Delta）を効率的に圧縮。
-- **クリッピング**: タイル境界を超えるジオメトリの適切な切断処理。
-
-## 4. MapLibre GL のアーキテクチャ
-
-MapLibre GL JS は、WebGLを利用したベクタタイルレンダリングエンジンです。
-
-```typescript
-import maplibregl from 'maplibre-gl'
-
-// Mapインスタンスはレンダリングループとイベントシステムを管理する
-const map = new maplibregl.Map({
-  container: 'map', // DOM要素のコンテナ
-  center: [139.69, 35.69], // 初期視点（経緯度）
-  zoom: 12, // 初期ズームレベル
-  style: 'path/to/style.json' // スタイル仕様書（レイヤー定義）
-})
+```
+x = R · λ
+y = R · ln[tan(π/4 + φ/2)]
+  = R · artanh(sin φ)
+  = R · gd⁻¹(φ)
 ```
 
+ここで：
+
+- R: 地球半径（通常 6,378,137 m）
+- λ: 経度（ラジアン）
+- φ: 緯度（ラジアン）
+- gd⁻¹: グーデルマン関数の逆関数
+
+**縮尺係数 (Scale Factor):**
+
+メルカトル図法における縮尺係数 k(φ) は緯度に依存します：
+
+```
+k(φ) = sec(φ) = 1 / cos(φ)
+```
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>緯度</th>
+      <th style={TableStyle.th}>縮尺係数 k</th>
+      <th style={TableStyle.th}>面積拡大率 k²</th>
+      <th style={TableStyle.th}>実例</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>0° (赤道)</td>
+      <td style={TableStyle.td}>1.00</td>
+      <td style={TableStyle.td}>1.00倍</td>
+      <td style={TableStyle.td}>シンガポール</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>35° (東京)</td>
+      <td style={TableStyle.td}>1.22</td>
+      <td style={TableStyle.td}>1.49倍</td>
+      <td style={TableStyle.td}>日本本州</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>60°</td>
+      <td style={TableStyle.td}>2.00</td>
+      <td style={TableStyle.td}>4.00倍</td>
+      <td style={TableStyle.td}>ノルウェー</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>80°</td>
+      <td style={TableStyle.td}>5.76</td>
+      <td style={TableStyle.td}>33.16倍</td>
+      <td style={TableStyle.td}>北極圏</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>85.05°</td>
+      <td style={TableStyle.td}>11.47</td>
+      <td style={TableStyle.td}>131.6倍</td>
+      <td style={TableStyle.td}>Web Mercator限界</td>
+    </tr>
+  </tbody>
+</table>
+
+**グリーンランドの歪み問題:**
+
+メルカトル図法でグリーンランド（緯度60°〜80°）がアフリカ大陸と同程度の大きさに見えるのは、面積拡大率が4〜33倍に達するためです。実際のグリーンランドの面積（216万km²）はアフリカ（3,020万km²）の約1/14に過ぎません。
+
+### 2.3 Web Mercator (EPSG:3857)
+
+Google Maps（2005年）で採用されて以降、事実上のウェブ地図標準となった投影法です。
+
+**正式名称:** WGS 84 / Pseudo-Mercator
+
+**古典的メルカトルとの差異:**
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>特性</th>
+      <th style={TableStyle.th}>古典的メルカトル</th>
+      <th style={TableStyle.th}>Web Mercator</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>楕円体モデル</td>
+      <td style={TableStyle.td}>WGS84楕円体を使用</td>
+      <td style={TableStyle.td}>球体近似（R = 6,378,137m）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>緯度範囲</td>
+      <td style={TableStyle.td}>-90° 〜 +90°</td>
+      <td style={TableStyle.td}>-85.05° 〜 +85.05°</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>投影結果</td>
+      <td style={TableStyle.td}>無限大に発散</td>
+      <td style={TableStyle.td}>正方形（256×256の倍数）</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>測量精度</td>
+      <td style={TableStyle.td}>高い（cm級）</td>
+      <td style={TableStyle.td}>低い（最大40km誤差）</td>
+    </tr>
+  </tbody>
+</table>
+
+**緯度限界 85.05112878° の由来:**
+
+Web Mercatorが緯度±85.05°で切り取られる理由は、この緯度でちょうど正方形になるためです：
+
+```
+y_max = R · ln[tan(π/4 + 85.05°/2)]
+      ≈ R · π
+      = x_max (経度180°相当)
+```
+
+---
+
+## 3. タイルシステムの数学
+
+### 3.1 四分木 (Quadtree) データ構造
+
+ウェブ地図のタイルシステムは、**四分木（Quadtree）**という空間インデックス構造に基づいています。
+
+**再帰的分割:**
+
+```
+ズームレベル Z における：
+  - タイル総数: 4^Z = 2^Z × 2^Z
+  - 各タイルの地理的範囲: 360° / 2^Z (経度方向)
+```
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>Z</th>
+      <th style={TableStyle.th}>タイル総数</th>
+      <th style={TableStyle.th}>1タイルの経度幅</th>
+      <th style={TableStyle.th}>赤道での解像度 (m/px)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>0</td>
+      <td style={TableStyle.td}>1</td>
+      <td style={TableStyle.td}>360°</td>
+      <td style={TableStyle.td}>156,543</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>1</td>
+      <td style={TableStyle.td}>4</td>
+      <td style={TableStyle.td}>180°</td>
+      <td style={TableStyle.td}>78,271</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>8</td>
+      <td style={TableStyle.td}>65,536</td>
+      <td style={TableStyle.td}>1.406°</td>
+      <td style={TableStyle.td}>611</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>14</td>
+      <td style={TableStyle.td}>268M</td>
+      <td style={TableStyle.td}>0.022°</td>
+      <td style={TableStyle.td}>9.55</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>18</td>
+      <td style={TableStyle.td}>69B</td>
+      <td style={TableStyle.td}>0.00137°</td>
+      <td style={TableStyle.td}>0.597</td>
+    </tr>
+  </tbody>
+</table>
+
+### 3.2 座標変換アルゴリズム
+
+**地理座標 → タイル座標:**
+
+```javascript
+function lngLatToTile(lng, lat, zoom) {
+  const n = Math.pow(2, zoom);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n);
+  return { x, y, z: zoom };
+}
+```
+
+**タイル座標 → 地理座標（北西角）:**
+
+```javascript
+function tileToLngLat(x, y, zoom) {
+  const n = Math.pow(2, zoom);
+  const lng = x / n * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
+  const lat = latRad * 180 / Math.PI;
+  return { lng, lat };
+}
+```
+
+---
+
+## 4. 国土地理院 (GSI) タイル仕様
+
+### 4.1 アドレッシングスキーム
+
+国土地理院が提供する地理院タイルは、以下のURL構造を持ちます：
+
+```
+https://cyberjapandata.gsi.go.jp/xyz/{layer}/{z}/{x}/{y}.{ext}
+```
+
+**座標原点の定義:**
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>軸</th>
+      <th style={TableStyle.th}>原点</th>
+      <th style={TableStyle.th}>正方向</th>
+      <th style={TableStyle.th}>範囲</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>X (Column)</td>
+      <td style={TableStyle.td}>経度 -180°</td>
+      <td style={TableStyle.td}>東（右）</td>
+      <td style={TableStyle.td}>[0, 2^Z - 1]</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>Y (Row)</td>
+      <td style={TableStyle.td}>緯度 +85.05°</td>
+      <td style={TableStyle.td}>南（下）</td>
+      <td style={TableStyle.td}>[0, 2^Z - 1]</td>
+    </tr>
+  </tbody>
+</table>
+
+### 4.2 主要レイヤー
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>レイヤーID</th>
+      <th style={TableStyle.th}>形式</th>
+      <th style={TableStyle.th}>ズーム範囲</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>std</code></td>
+      <td style={TableStyle.td}>Raster (PNG)</td>
+      <td style={TableStyle.td}>2-18</td>
+      <td style={TableStyle.td}>標準地図（道路、建物、地形）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>pale</code></td>
+      <td style={TableStyle.td}>Raster (PNG)</td>
+      <td style={TableStyle.td}>2-18</td>
+      <td style={TableStyle.td}>淡色地図（オーバーレイ用）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>seamlessphoto</code></td>
+      <td style={TableStyle.td}>Raster (JPEG)</td>
+      <td style={TableStyle.td}>2-18</td>
+      <td style={TableStyle.td}>全国シームレス航空写真</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>relief</code></td>
+      <td style={TableStyle.td}>Raster (PNG)</td>
+      <td style={TableStyle.td}>5-15</td>
+      <td style={TableStyle.td}>色別標高図</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>kokuarea</code></td>
+      <td style={TableStyle.td}>Vector (GeoJSON)</td>
+      <td style={TableStyle.td}>2-14</td>
+      <td style={TableStyle.td}>航空法制限空域</td>
+    </tr>
+  </tbody>
+</table>
+
+### 4.3 標高API (DEM API)
+
+国土地理院は、任意の座標における標高値を取得するAPIを提供しています。
+
+**エンドポイント:**
+
+```
+https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php
+  ?lon={経度}
+  &lat={緯度}
+  &outtype=JSON
+```
+
+**精度:**
+
+- 10mメッシュ標高（基盤地図情報）
+- 海域は「-----」を返す
+- 測量精度: 水平 ±2.5m、垂直 ±5m
+
+---
+
+## 5. ベクタタイル技術
+
+### 5.1 Mapbox Vector Tile (MVT) 仕様
+
+ベクタタイルは、Protocol Buffers形式でエンコードされた地理空間データです。
+
+**プロトコル定義 (概念):**
+
+```protobuf
+message Tile {
+  repeated Layer layers = 3;
+}
+
+message Layer {
+  required string name = 1;
+  repeated Feature features = 2;
+  required uint32 extent = 5;  // 通常 4096
+}
+
+message Feature {
+  optional uint64 id = 1;
+  repeated uint32 tags = 2;
+  optional GeomType type = 3;
+  repeated uint32 geometry = 4;
+}
+```
+
+### 5.2 ジオメトリエンコーディング
+
+**デルタエンコーディング + ジグザグ符号化:**
+
+```
+座標列: [(10, 20), (13, 22), (15, 19)]
+
+デルタ変換:
+  Δx: [10, 3, 2]
+  Δy: [20, 2, -3]
+
+ジグザグ符号化: n → (n << 1) ^ (n >> 31)
+  (負数を効率的にエンコード)
+  Δx: [20, 6, 4]
+  Δy: [40, 4, 5]
+```
+
+### 5.3 PMTiles
+
+**PMTiles**は、単一ファイルでベクタタイル群を配信するためのクラウドネイティブ形式です。
+
+**特徴:**
+
+- HTTP Range Requestsによる部分取得
+- CDN親和性が高い
+- タイルサーバー不要
+
+```javascript
+import { Protocol } from 'pmtiles';
+
+const protocol = new Protocol();
+maplibregl.addProtocol('pmtiles', protocol.tile);
+
+map.addSource('my-data', {
+  type: 'vector',
+  url: 'pmtiles:///path/to/data.pmtiles'
+});
+```
+
+---
+
+## 6. WebGLレンダリング
+
+### 6.1 MapLibre GL JSのレンダリングパイプライン
+
+```
+[スタイル定義]
+      ↓
+[タイルキュー管理]
+      ↓
+[ジオメトリデコード]
+      ↓
+[バケット生成]  ← 頂点バッファ構築
+      ↓
+[シェーダー実行]
+      ↓
+[フレームバッファ → 画面]
+```
+
+### 6.2 レイヤータイプとシェーダー
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>レイヤータイプ</th>
+      <th style={TableStyle.th}>プリミティブ</th>
+      <th style={TableStyle.th}>主な用途</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>fill</code></td>
+      <td style={TableStyle.td}>三角形 (Triangles)</td>
+      <td style={TableStyle.td}>ポリゴン塗りつぶし</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>line</code></td>
+      <td style={TableStyle.td}>三角形ストリップ</td>
+      <td style={TableStyle.td}>線の描画（幅対応）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>circle</code></td>
+      <td style={TableStyle.td}>点スプライト</td>
+      <td style={TableStyle.td}>点データの可視化</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>symbol</code></td>
+      <td style={TableStyle.td}>テクスチャアトラス</td>
+      <td style={TableStyle.td}>アイコン・ラベル</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>heatmap</code></td>
+      <td style={TableStyle.td}>フレームバッファ</td>
+      <td style={TableStyle.td}>密度可視化</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 7. GeoJSON仕様 (RFC 7946)
+
+### 7.1 座標順序
+
+**重要:** GeoJSONの座標順序は **[経度, 緯度]** であり、一般的な [緯度, 経度] とは逆です。
+
+```json
+{
+  "type": "Point",
+  "coordinates": [139.7671, 35.6812]  // [lng, lat] = 東京駅
+}
+```
+
+### 7.2 ジオメトリタイプ
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>タイプ</th>
+      <th style={TableStyle.th}>coordinates構造</th>
+      <th style={TableStyle.th}>例</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}><code>[lng, lat]</code></td>
+      <td style={TableStyle.td}>POIマーカー</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>LineString</td>
+      <td style={TableStyle.td}><code>[[lng, lat], ...]</code></td>
+      <td style={TableStyle.td}>飛行経路</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>Polygon</td>
+      <td style={TableStyle.td}><code>[[[lng, lat], ...]]</code></td>
+      <td style={TableStyle.td}>DID区域</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}>MultiPolygon</td>
+      <td style={TableStyle.td}><code>[[[[lng, lat], ...]]]</code></td>
+      <td style={TableStyle.td}>複数島嶼</td>
+    </tr>
+  </tbody>
+</table>
+
+### 7.3 Polygon のワインディングルール
+
+GeoJSONでは、**外輪は反時計回り (CCW)**、**穴は時計回り (CW)** で記述します（右手の法則）。
+
+```json
+{
+  "type": "Polygon",
+  "coordinates": [
+    [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]],  // 外輪 (CCW)
+    [[2, 2], [2, 8], [8, 8], [8, 2], [2, 2]]      // 穴 (CW)
+  ]
+}
+```
+
+---
+
+## 8. 参考文献
+
+### 学術文献
+
+- Snyder, J. P. (1987). *Map Projections: A Working Manual*. U.S. Geological Survey Professional Paper 1395.
+- Battersby, S. E., et al. (2014). "Implications of Web Mercator and Its Use in Online Mapping." *Cartographica*, 49(2), 85-101.
+
+### 技術仕様
+
+- [GeoJSON (RFC 7946)](https://datatracker.ietf.org/doc/html/rfc7946)
+- [Mapbox Vector Tile Specification](https://github.com/mapbox/vector-tile-spec)
+- [国土地理院タイル仕様](https://maps.gsi.go.jp/development/siyou.html)
+- [EPSG:3857 定義](https://epsg.io/3857)

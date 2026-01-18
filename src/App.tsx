@@ -48,7 +48,7 @@ import type {
   KokuareaFeatureProperties,
   RestrictionZone
 } from './lib'
-import { CustomLayerManager } from './components/CustomLayerManager'
+import { AppHeader, CustomLayerManager } from './components'
 import {
   DrawingTools,
   type DrawnFeature,
@@ -494,6 +494,11 @@ function App() {
   })
 
   const theme = getAppTheme(darkMode)
+
+  // Sync theme to document for CSS Modules
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+  }, [darkMode])
 
   // 3D mode
   const [is3DMode, setIs3DMode] = useState(false)
@@ -3678,17 +3683,8 @@ function App() {
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         />
 
-        {/* App Title */}
-        <h1
-          style={{
-            margin: '0 0 16px',
-            fontSize: '16px',
-            fontWeight: 700,
-            color: theme.colors.text
-          }}
-        >
-          DID-J26
-        </h1>
+        {/* App Header with Logo and Subtitle */}
+        <AppHeader />
 
         {/* Search */}
         <div style={{ marginBottom: '12px', position: 'relative' }}>

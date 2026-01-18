@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type maplibregl from 'maplibre-gl'
-import { createCirclePolygon } from '../lib/utils/geo'
+import { createCirclePolygon, convertDecimalToDMS } from '../lib/utils/geo'
 import { Modal } from './Modal'
 import { showToast } from '../utils/toast'
 import { showConfirm } from '../utils/dialog'
@@ -44,7 +44,7 @@ const EXPORT_FORMAT_LABELS: Record<ExportFormat, string> = {
   geojson: 'GeoJSON',
   kml: 'KML',
   csv: 'CSV',
-  dms: 'NOTAM'
+  dms: 'DMS'
 }
 
 const IMPORT_ACCEPT = '.geojson,.json,.kml,.csv'
@@ -862,8 +862,8 @@ export function DrawingTools({
             ['!=', 'mode', 'static']
           ],
           paint: {
-            'fill-color': '#3388ff',
-            'fill-outline-color': '#3388ff',
+            'fill-color': '#2563eb',
+            'fill-outline-color': '#2563eb',
             'fill-opacity': 0.25
           }
         },
@@ -873,8 +873,8 @@ export function DrawingTools({
           type: 'fill',
           filter: ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
           paint: {
-            'fill-color': '#3388ff',
-            'fill-outline-color': '#3388ff',
+            'fill-color': '#2563eb',
+            'fill-outline-color': '#2563eb',
             'fill-opacity': 0.25
           }
         },
@@ -893,7 +893,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#3388ff',
+            'line-color': '#2563eb',
             'line-width': 3
           }
         },
@@ -907,7 +907,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#3388ff',
+            'line-color': '#2563eb',
             'line-dasharray': [0.2, 2],
             'line-width': 2
           }
@@ -927,7 +927,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#3388ff',
+            'line-color': '#2563eb',
             'line-width': 3
           }
         },
@@ -941,7 +941,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#3388ff',
+            'line-color': '#2563eb',
             'line-dasharray': [0.2, 2],
             'line-width': 3
           }
@@ -959,7 +959,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 6,
-            'circle-color': '#3388ff'
+            'circle-color': '#2563eb'
           }
         },
         // ポイント - アクティブ（描画中の点）
@@ -974,7 +974,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 8,
-            'circle-color': '#3388ff'
+            'circle-color': '#2563eb'
           }
         },
         // 描画中のポイント
@@ -1020,7 +1020,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 4,
-            'circle-color': '#3388ff'
+            'circle-color': '#2563eb'
           }
         },
         // ミッドポイント（頂点追加用）
@@ -1030,7 +1030,7 @@ export function DrawingTools({
           filter: ['all', ['==', 'meta', 'midpoint'], ['==', '$type', 'Point']],
           paint: {
             'circle-radius': 4,
-            'circle-color': '#3388ff'
+            'circle-color': '#2563eb'
           }
         }
       ]
@@ -1074,7 +1074,7 @@ export function DrawingTools({
         source: 'vertex-labels',
         paint: {
           'circle-radius': ['case', ['get', 'selected'], 14, 12],
-          'circle-color': ['case', ['get', 'selected'], '#ff9800', '#3388ff'],
+          'circle-color': ['case', ['get', 'selected'], '#ff9800', '#2563eb'],
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': '#ffffff'
         }
@@ -1582,7 +1582,10 @@ export function DrawingTools({
         id,
         type,
         name,
-        coordinates: f.geometry.type === 'GeometryCollection' ? [] : (f.geometry as Exclude<GeoJSON.Geometry, GeoJSON.GeometryCollection>).coordinates,
+        coordinates:
+          f.geometry.type === 'GeometryCollection'
+            ? []
+            : (f.geometry as Exclude<GeoJSON.Geometry, GeoJSON.GeometryCollection>).coordinates,
         radius: f.properties?.radiusKm ? (f.properties.radiusKm as number) * 1000 : undefined,
         center: f.properties?.center as [number, number] | undefined,
         properties: f.properties || {},
@@ -2239,19 +2242,6 @@ ${kmlFeatures}
     return rows.join('\n')
   }
 
-  // 10進数座標を度分秒（DMS）に変換
-  const decimalToDMS = (decimal: number, isLatitude: boolean): string => {
-    const absolute = Math.abs(decimal)
-    const degrees = Math.floor(absolute)
-    const minutesDecimal = (absolute - degrees) * 60
-    const minutes = Math.floor(minutesDecimal)
-    const seconds = Math.floor((minutesDecimal - minutes) * 60)
-
-    const direction = isLatitude ? (decimal >= 0 ? '北緯' : '南緯') : decimal >= 0 ? '東経' : '西経'
-
-    return `${direction}${degrees}°${minutes}'${seconds}"`
-  }
-
   // NOTAMフォーマットに変換
   const convertToDMS = (features: GeoJSON.Feature[]): string => {
     const lines: string[] = []
@@ -2288,8 +2278,9 @@ ${kmlFeatures}
       if (coords.length > 0) {
         lines.push(`【${name}】${altitudeStr}`)
         coords.forEach((coord, index) => {
-          const lat = decimalToDMS(coord[1], true)
-          const lng = decimalToDMS(coord[0], false)
+          // 日本語形式で出力 (ja)
+          const lat = convertDecimalToDMS(coord[1], true, 'ja')
+          const lng = convertDecimalToDMS(coord[0], false, 'ja')
           const wpNumber = index + 1
           lines.push(`WP${wpNumber}: ${lat}  ${lng}`)
         })
@@ -2472,20 +2463,25 @@ ${kmlFeatures}
     }
   }
 
-  // 座標をテキスト形式でコピー
+  // 座標をDMS形式（NOTAM対応）でクリップボードにコピー
   const handleCopyCoordinates = async () => {
+    const formatCoordDMS = (lat: number, lng: number): string => {
+      // 標準形式で出力 (en: N/E suffix)
+      return `${convertDecimalToDMS(lat, true, 'en')} ${convertDecimalToDMS(lng, false, 'en')}`
+    }
+
     const coordText = drawnFeatures
       .map((f) => {
         if (f.type === 'point') {
           const coords = f.coordinates as GeoJSON.Position
-          return `${f.name}: ${coords[1].toFixed(6)}, ${coords[0].toFixed(6)}`
+          return `${f.name}: ${formatCoordDMS(coords[1], coords[0])}`
         } else if (f.type === 'circle' && f.center) {
-          return `${f.name}: 中心 ${f.center[1].toFixed(6)}, ${f.center[0].toFixed(6)} / 半径 ${f.radius}m`
+          return `${f.name}: 中心 ${formatCoordDMS(f.center[1], f.center[0])} / 半径 ${f.radius}m`
         } else if (f.type === 'line') {
           const coords = f.coordinates as GeoJSON.Position[]
           return (
             `${f.name}:\n` +
-            coords.map((c, i) => `  WP${i + 1}: ${c[1].toFixed(6)}, ${c[0].toFixed(6)}`).join('\n')
+            coords.map((c, i) => `  WP${i + 1}: ${formatCoordDMS(c[1], c[0])}`).join('\n')
           )
         } else {
           const coords = f.coordinates as GeoJSON.Position[][]
@@ -2494,7 +2490,7 @@ ${kmlFeatures}
               `${f.name} (${f.type}):\n` +
               coords[0]
                 .slice(0, -1)
-                .map((c, i) => `  P${i + 1}: ${c[1].toFixed(6)}, ${c[0].toFixed(6)}`)
+                .map((c, i) => `  P${i + 1}: ${formatCoordDMS(c[1], c[0])}`)
                 .join('\n')
             )
           }
@@ -2510,7 +2506,7 @@ ${kmlFeatures}
 
     try {
       await navigator.clipboard.writeText(coordText)
-      showToast('座標をクリップボードにコピーしました', 'success')
+      showToast('座標（DMS形式）をクリップボードにコピーしました', 'success')
     } catch (error) {
       console.error('Failed to copy to clipboard:', error)
       showToast('クリップボードへのコピーに失敗しました', 'error')
@@ -2607,7 +2603,7 @@ ${kmlFeatures}
   const textColor = darkMode ? '#fff' : '#333'
   const borderColor = darkMode ? '#555' : '#ddd'
   const buttonBg = darkMode ? '#444' : '#f0f0f0'
-  const buttonActiveBg = '#3388ff'
+  const buttonActiveBg = '#2563eb' // Muted indigo-600 (was #2563eb)
 
   // 埋め込み時は折りたたみボタンを表示しない
   if (!isOpen && !embedded) {
@@ -2619,7 +2615,7 @@ ${kmlFeatures}
           top: 120,
           left: 300,
           padding: '10px 16px',
-          backgroundColor: '#3388ff',
+          backgroundColor: '#2563eb',
           color: '#fff',
           border: 'none',
           borderRadius: '8px',
@@ -2643,7 +2639,7 @@ ${kmlFeatures}
           style={{
             width: '100%',
             padding: '10px 12px',
-            backgroundColor: '#3388ff',
+            backgroundColor: '#2563eb',
             color: '#fff',
             border: 'none',
             borderRadius: '4px',
@@ -2656,8 +2652,8 @@ ${kmlFeatures}
             userSelect: 'none',
             transition: 'background-color 0.2s'
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#2a6fc9')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#3388ff')}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1e40af')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2563eb')}
         >
           <span>飛行経路／飛行範囲</span>
           <span style={{ fontSize: '12px' }}>▼</span>
@@ -2698,7 +2694,7 @@ ${kmlFeatures}
           onClick={() => embedded && setIsOpen(false)}
           style={{
             padding: embedded ? '10px 8px' : '12px 16px',
-            backgroundColor: '#3388ff',
+            backgroundColor: '#2563eb',
             color: '#fff',
             display: 'flex',
             justifyContent: 'space-between',
@@ -2707,8 +2703,8 @@ ${kmlFeatures}
             userSelect: 'none',
             transition: 'background-color 0.2s'
           }}
-          onMouseEnter={(e) => embedded && (e.currentTarget.style.backgroundColor = '#2a6fc9')}
-          onMouseLeave={(e) => embedded && (e.currentTarget.style.backgroundColor = '#3388ff')}
+          onMouseEnter={(e) => embedded && (e.currentTarget.style.backgroundColor = '#1e40af')}
+          onMouseLeave={(e) => embedded && (e.currentTarget.style.backgroundColor = '#2563eb')}
         >
           <h3 style={{ margin: 0, fontSize: embedded ? '13px' : '14px', fontWeight: 500 }}>
             飛行経路／飛行範囲
@@ -2828,8 +2824,8 @@ ${kmlFeatures}
               padding: '10px 6px',
               backgroundColor: 'transparent',
               border: 'none',
-              borderBottom: activeTab === 'draw' ? '3px solid #3388ff' : '3px solid transparent',
-              color: activeTab === 'draw' ? '#3388ff' : darkMode ? '#999' : '#666',
+              borderBottom: activeTab === 'draw' ? '3px solid #2563eb' : '3px solid transparent',
+              color: activeTab === 'draw' ? '#2563eb' : darkMode ? '#999' : '#666',
               cursor: 'pointer',
               fontSize: '13px',
               fontWeight: activeTab === 'draw' ? 600 : 400,
@@ -2848,8 +2844,8 @@ ${kmlFeatures}
               padding: '10px 6px',
               backgroundColor: 'transparent',
               border: 'none',
-              borderBottom: activeTab === 'manage' ? '3px solid #3388ff' : '3px solid transparent',
-              color: activeTab === 'manage' ? '#3388ff' : darkMode ? '#999' : '#666',
+              borderBottom: activeTab === 'manage' ? '3px solid #2563eb' : '3px solid transparent',
+              color: activeTab === 'manage' ? '#2563eb' : darkMode ? '#999' : '#666',
               cursor: drawnFeatures.length === 0 ? 'not-allowed' : 'pointer',
               opacity: drawnFeatures.length === 0 ? 0.5 : 1,
               fontSize: '13px',
@@ -2886,8 +2882,8 @@ ${kmlFeatures}
               padding: '10px 6px',
               backgroundColor: 'transparent',
               border: 'none',
-              borderBottom: activeTab === 'export' ? '3px solid #3388ff' : '3px solid transparent',
-              color: activeTab === 'export' ? '#3388ff' : darkMode ? '#999' : '#666',
+              borderBottom: activeTab === 'export' ? '3px solid #2563eb' : '3px solid transparent',
+              color: activeTab === 'export' ? '#2563eb' : darkMode ? '#999' : '#666',
               cursor: 'pointer',
               fontSize: '13px',
               fontWeight: activeTab === 'export' ? 600 : 400,
@@ -3004,13 +3000,13 @@ ${kmlFeatures}
                     padding: '8px',
                     backgroundColor: darkMode ? '#333' : '#f0f8ff',
                     borderRadius: '4px',
-                    border: '1px solid #3388ff'
+                    border: '1px solid #2563eb'
                   }}
                 >
                   <label
                     style={{
                       fontSize: '12px',
-                      color: '#3388ff',
+                      color: '#2563eb',
                       display: 'block',
                       marginBottom: '4px',
                       fontWeight: 'bold'
@@ -3109,7 +3105,7 @@ ${kmlFeatures}
                     padding: '8px',
                     backgroundColor: darkMode ? '#333' : '#f0f8ff',
                     borderRadius: '4px',
-                    border: '1px solid #3388ff'
+                    border: '1px solid #2563eb'
                   }}
                 >
                   <label
@@ -3189,6 +3185,7 @@ ${kmlFeatures}
                       <li>移動: 図形をドラッグ</li>
                       <li>選択: Shift+ドラッグで複数選択</li>
                       <li>削除: 図形選択後、Delete/Backspaceキー（確認あり）</li>
+                      <li style={{ marginTop: '4px' }}>座標名: リスト内の名前をダブルクリックで編集</li>
                     </ul>
                     <div
                       style={{
@@ -3202,7 +3199,7 @@ ${kmlFeatures}
                         style={{
                           width: '100%',
                           padding: '4px 8px',
-                          backgroundColor: darkMode ? '#2563eb' : '#3388ff',
+                          backgroundColor: darkMode ? '#2563eb' : '#2563eb',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '4px',
@@ -3215,7 +3212,7 @@ ${kmlFeatures}
                           (e.currentTarget.style.backgroundColor = darkMode ? '#1d4ed8' : '#2563eb')
                         }
                         onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor = darkMode ? '#2563eb' : '#3388ff')
+                          (e.currentTarget.style.backgroundColor = darkMode ? '#2563eb' : '#2563eb')
                         }
                       >
                         ? ヘルプを開く
@@ -3339,7 +3336,7 @@ ${kmlFeatures}
                                     ? '#9c27b0'
                                     : f.type === 'line'
                                       ? '#4caf50'
-                                      : '#3388ff',
+                                      : '#2563eb',
                               flexShrink: 0
                             }}
                           />
@@ -3399,10 +3396,21 @@ ${kmlFeatures}
                                   cursor: 'pointer',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
+                                  whiteSpace: 'nowrap',
+                                  padding: '2px 4px',
+                                  borderRadius: '3px',
+                                  transition: 'background-color 0.2s, color 0.2s'
                                 }}
                                 onClick={() => handleNameClick(f)}
                                 onDoubleClick={() => handleNameDoubleClick(f)}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = darkMode
+                                    ? 'rgba(144, 202, 249, 0.2)'
+                                    : 'rgba(25, 118, 210, 0.12)'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent'
+                                }}
                                 title={`${f.name}（ダブルクリックで編集）`}
                               >
                                 {f.name}
@@ -3482,7 +3490,7 @@ ${kmlFeatures}
                           borderRadius: '12px',
                           cursor: 'pointer',
                           backgroundColor:
-                            typeFilter === type ? '#3388ff' : darkMode ? '#444' : '#e0e0e0',
+                            typeFilter === type ? '#2563eb' : darkMode ? '#444' : '#e0e0e0',
                           color: typeFilter === type ? '#fff' : darkMode ? '#ccc' : '#666'
                         }}
                       >
@@ -4004,26 +4012,80 @@ ${kmlFeatures}
 
                 {/* エクスポート形式選択 */}
                 <div style={{ marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {(['geojson', 'kml', 'csv', 'dms'] as ExportFormat[]).map((format) => (
+                  {/* Row 1: GeoJSON, KML, CSV */}
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                    {(['geojson', 'kml', 'csv'] as ExportFormat[]).map((format) => (
                       <button
                         key={format}
                         onClick={() => setExportFormat(format)}
                         style={{
-                          flex: '1 0 auto',
+                          flex: 1,
                           padding: '6px 12px',
-                          backgroundColor: exportFormat === format ? '#3388ff' : buttonBg,
-                          color: exportFormat === format ? '#fff' : darkMode ? '#ccc' : '#666',
-                          border: `1px solid ${exportFormat === format ? '#3388ff' : borderColor}`,
+                          backgroundColor:
+                            exportFormat === format
+                              ? darkMode
+                                ? 'rgba(171, 71, 188, 0.2)'
+                                : 'rgba(156, 39, 176, 0.1)'
+                              : buttonBg,
+                          color:
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : darkMode
+                                ? '#ccc'
+                                : '#666',
+                          border: `1px solid ${
+                            exportFormat === format
+                              ? darkMode
+                                ? '#ab47bc'
+                                : '#9c27b0'
+                              : borderColor
+                          }`,
                           borderRadius: '4px',
                           cursor: 'pointer',
                           fontSize: '11px',
-                          fontWeight: exportFormat === format ? 'bold' : 'normal'
+                          fontWeight: exportFormat === format ? '700' : 'normal',
+                          transition: 'all 0.2s'
                         }}
                       >
                         {EXPORT_FORMAT_LABELS[format]}
                       </button>
                     ))}
+                  </div>
+                  {/* Row 2: DMS */}
+                  <div style={{ display: 'flex' }}>
+                    <button
+                      onClick={() => setExportFormat('dms')}
+                      style={{
+                        width: '100%',
+                        padding: '6px 12px',
+                        backgroundColor:
+                          exportFormat === 'dms'
+                            ? darkMode
+                              ? 'rgba(171, 71, 188, 0.2)'
+                              : 'rgba(156, 39, 176, 0.1)'
+                            : buttonBg,
+                        color:
+                          exportFormat === 'dms'
+                            ? darkMode
+                              ? '#ab47bc'
+                              : '#9c27b0'
+                            : darkMode
+                              ? '#ccc'
+                              : '#666',
+                        border: `1px solid ${
+                          exportFormat === 'dms' ? (darkMode ? '#ab47bc' : '#9c27b0') : borderColor
+                        }`,
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: exportFormat === 'dms' ? '700' : 'normal',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {EXPORT_FORMAT_LABELS['dms']}
+                    </button>
                   </div>
                 </div>
 
@@ -4040,14 +4102,29 @@ ${kmlFeatures}
                     style={{
                       width: '100%',
                       padding: '12px 10px',
-                      backgroundColor: drawnFeatures.length > 0 ? '#3388ff' : buttonBg,
-                      color: drawnFeatures.length > 0 ? '#fff' : darkMode ? '#666' : '#999',
-                      border: `1px solid ${drawnFeatures.length > 0 ? '#3388ff' : borderColor}`,
+                      backgroundColor:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? 'rgba(40, 167, 69, 0.2)'
+                            : 'rgba(40, 167, 69, 0.1)'
+                          : buttonBg,
+                      color:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? '#66bb6a'
+                            : '#2e7d32'
+                          : darkMode
+                            ? '#666'
+                            : '#999',
+                      border: `1px solid ${
+                        drawnFeatures.length > 0 ? (darkMode ? '#66bb6a' : '#2e7d32') : borderColor
+                      }`,
                       borderRadius: '6px',
                       cursor: drawnFeatures.length > 0 ? 'pointer' : 'not-allowed',
                       fontSize: '13px',
                       fontWeight: 800,
-                      letterSpacing: '0.2px'
+                      letterSpacing: '0.2px',
+                      transition: 'all 0.2s'
                     }}
                   >
                     データ出力（ダウンロード）
@@ -4070,7 +4147,14 @@ ${kmlFeatures}
                             ? 'rgba(66, 165, 245, 0.14)'
                             : '#e3f2fd'
                           : buttonBg,
-                      color: drawnFeatures.length > 0 ? '#1565c0' : darkMode ? '#666' : '#999',
+                      color:
+                        drawnFeatures.length > 0
+                          ? darkMode
+                            ? '#64b5f6'
+                            : '#1565c0'
+                          : darkMode
+                            ? '#888'
+                            : '#999',
                       border: `1px solid ${borderColor}`,
                       borderRadius: '6px',
                       cursor: drawnFeatures.length > 0 ? 'pointer' : 'not-allowed',
@@ -4091,7 +4175,7 @@ ${kmlFeatures}
                       marginTop: '8px',
                       padding: '6px',
                       backgroundColor: 'transparent',
-                      color: '#c62828',
+                      color: darkMode ? '#ef5350' : '#c62828',
                       border: 'none',
                       borderRadius: '4px',
                       cursor: 'pointer',
@@ -4106,7 +4190,7 @@ ${kmlFeatures}
                 style={{
                   marginBottom: '12px',
                   padding: '10px',
-                  backgroundColor: darkMode ? '#2b2336' : '#f3e5f5',
+                  backgroundColor: darkMode ? 'rgba(255, 193, 7, 0.05)' : '#fffde7',
                   borderRadius: '6px',
                   border: `1px solid ${borderColor}`
                 }}
@@ -4114,13 +4198,13 @@ ${kmlFeatures}
                 <label
                   style={{
                     fontSize: '12px',
-                    color: darkMode ? '#ce93d8' : '#6a1b9a',
+                    color: darkMode ? '#ffd54f' : '#ff8f00',
                     display: 'block',
                     marginBottom: '8px',
                     fontWeight: 600
                   }}
                 >
-                  インポート（GeoJSON/KML/CSV）
+                  ファイル読み込み(GeoJSON/KML/CSV)
                 </label>
                 <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                   <button
@@ -4129,16 +4213,29 @@ ${kmlFeatures}
                     style={{
                       width: '100%',
                       padding: '10px',
-                      backgroundColor: isImporting ? buttonBg : '#7e57c2',
-                      color: isImporting ? (darkMode ? '#666' : '#999') : '#fff',
-                      border: `1px solid ${isImporting ? borderColor : '#7e57c2'}`,
+                      backgroundColor: isImporting
+                        ? buttonBg
+                        : darkMode
+                          ? 'rgba(255, 193, 7, 0.1)'
+                          : 'rgba(255, 193, 7, 0.05)',
+                      color: isImporting
+                        ? darkMode
+                          ? '#666'
+                          : '#999'
+                        : darkMode
+                          ? '#ffd54f'
+                          : '#ff8f00',
+                      border: `1px solid ${
+                        isImporting ? borderColor : darkMode ? '#ffd54f' : '#ff8f00'
+                      }`,
                       borderRadius: '6px',
                       cursor: isImporting ? 'not-allowed' : 'pointer',
                       fontSize: '12px',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      transition: 'all 0.2s'
                     }}
                   >
-                    {isImporting ? 'インポート中...' : 'インポート（GeoJSON/KML/CSV）'}
+                    {isImporting ? '読み込み中...' : 'ファイルを選択'}
                   </button>
                   <div
                     style={{
@@ -4342,7 +4439,7 @@ ${kmlFeatures}
               onClick={handleDownload}
               style={{
                 padding: '8px 16px',
-                backgroundColor: '#3388ff',
+                backgroundColor: '#2563eb',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',

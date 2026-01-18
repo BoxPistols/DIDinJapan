@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import notifier from 'node-notifier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,8 +106,19 @@ try {
 
   console.log(`Success! Created ${OUTPUT_FILE}`);
 
+  notifier.notify({
+    title: '空港データ変換完了',
+    message: 'Shapefileの変換が完了しました',
+    sound: false
+  });
+
 } catch (error) {
   console.error('Conversion failed:', error.message);
+  notifier.notify({
+    title: '空港データ変換失敗',
+    message: 'エラーが発生しました',
+    sound: false
+  });
 } finally {
   // Cleanup
   if (fs.existsSync(tempDir)) {

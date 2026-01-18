@@ -6,6 +6,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
 }
 
 .maplibregl-popup-content {
@@ -66,10 +67,61 @@ body {
   top: 50px !important;
 }
 
+/* Glassmorphism base styles */
+[data-glass] {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 /* チェックボックスを大きく */
 input[type="checkbox"] {
   width: 18px;
   height: 18px;
   cursor: pointer;
   accent-color: #3388ff;
+}
+
+/* Modal and panel content theming - handled by CSS Modules */
+@media (prefers-color-scheme: dark) {
+  [role="dialog"] {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  [role="dialog"] * {
+    color: inherit;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  [role="dialog"] {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  [role="dialog"] * {
+    color: inherit;
+  }
+}
+
+/* Interactive button hover effects for better UX */
+button {
+  transition: all 0.15s ease-out;
+}
+
+/* Button hover effect - subtle glassmorphism-compatible feedback */
+button:not(:disabled):hover {
+  opacity: 0.92;
+  filter: brightness(1.05);
+}
+
+button:not(:disabled):active {
+  opacity: 0.85;
+  filter: brightness(0.98);
+}
+
+/* Tab/button hover state indicator */
+[role="tab"],
+[role="button"] {
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }

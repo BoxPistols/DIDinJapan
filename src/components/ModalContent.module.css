@@ -1,0 +1,149 @@
+/**
+ * Modal Content Styles
+ * Reusable styles for content sections within modals
+ * Ensures consistent theming throughout modal content
+ */
+
+/* Main content container */
+.section {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="light"]) .section {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Section title */
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+:global([data-theme="light"]) .sectionTitle {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Content list */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.listItem {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+:global([data-theme="light"]) .listItem {
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+/* Info box */
+.infoBox {
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(74, 158, 255, 0.08);
+  border-left: 3px solid rgba(74, 158, 255, 0.4);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+:global([data-theme="light"]) .infoBox {
+  background: rgba(37, 99, 235, 0.08);
+  border-left-color: rgba(37, 99, 235, 0.4);
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.infoBox strong {
+  color: rgba(74, 158, 255, 0.95);
+  font-weight: 600;
+}
+
+:global([data-theme="light"]) .infoBox strong {
+  color: rgba(37, 99, 235, 0.95);
+}
+
+/* Warning/highlight text */
+.highlight {
+  color: rgba(255, 193, 7, 0.9);
+  font-weight: 600;
+}
+
+:global([data-theme="light"]) .highlight {
+  color: rgba(230, 124, 0, 0.9);
+}
+
+/* Two column layout for modal content */
+.twoColumn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Checkbox list items */
+.checkboxItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+:global([data-theme="light"]) .checkboxItem {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.checkboxItem:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+:global([data-theme="light"]) .checkboxItem:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.checkboxItem input[type="checkbox"] {
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Label styles */
+.label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+:global([data-theme="light"]) .label {
+  color: rgba(0, 0, 0, 0.5);
+}

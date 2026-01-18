@@ -34,7 +34,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "prepare": "husky",
-    "download:facilities": "node scripts/download_osm_facilities.js"
+    "download:facilities": "node scripts/download_osm_facilities.js",
+    "docs:index": "node scripts/generate-docs-index.cjs"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx,js,jsx}": [
@@ -83,12 +84,12 @@
     "@storybook/react": "^8.6.15",
     "@storybook/react-vite": "^8.6.15",
     "@storybook/test": "^8.6.15",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
     "@types/geojson": "^7946.0.16",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^10.1.8",
@@ -99,6 +100,7 @@
     "jsdom": "^27.4.0",
     "lint-staged": "^16.2.7",
     "mapshaper": "^0.6.113",
+    "node-notifier": "^10.0.1",
     "prettier": "^3.8.0",
     "storybook": "^8.6.15",
     "typescript": "^5.7.2",

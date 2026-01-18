@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import notifier from 'node-notifier';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -187,5 +188,20 @@ function generateElevationDifferenceInfo() {
 }
 
 // メイン実行
-convertDEMToGeoJSON();
-generateElevationDifferenceInfo();
+try {
+  convertDEMToGeoJSON();
+  generateElevationDifferenceInfo();
+  notifier.notify({
+    title: 'GSI 2024データ変換完了',
+    message: '標高データの変換が完了しました',
+    sound: false
+  });
+} catch (error) {
+  console.error('Conversion failed:', error);
+  notifier.notify({
+    title: 'GSI 2024データ変換失敗',
+    message: 'エラーが発生しました',
+    sound: false
+  });
+  process.exit(1);
+}

@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import notifier from 'node-notifier'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -207,9 +208,20 @@ const run = async () => {
       )
     }
   }
+
+  notifier.notify({
+    title: 'OSM施設データダウンロード完了',
+    message: 'すべてのデータ取得が完了しました',
+    sound: false
+  })
 }
 
 run().catch((error) => {
   console.error('Failed to download facilities:', error)
+  notifier.notify({
+    title: 'OSM施設データダウンロード失敗',
+    message: 'エラーが発生しました',
+    sound: false
+  })
   process.exit(1)
 })
