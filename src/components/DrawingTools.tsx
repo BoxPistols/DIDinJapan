@@ -675,6 +675,8 @@ export function DrawingTools({
     canUndo: false,
     canRedo: false
   })
+  // フィーチャーリストアイテムへのref（自動スクロール用）
+  const featureListItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const updateSelectionState = useCallback((ids: string[], primaryId?: string | null) => {
     const nextPrimary =
@@ -830,6 +832,19 @@ export function DrawingTools({
       setActiveTab('draw')
     }
   }, [drawnFeatures.length, activeTab])
+
+  // 選択されたフィーチャーがリスト内で見えるように自動スクロール
+  useEffect(() => {
+    if (activeTab !== 'manage' || !selectedFeatureId) return
+    // 少し遅延させてDOMが更新された後にスクロール
+    const timer = setTimeout(() => {
+      const element = featureListItemRefs.current.get(selectedFeatureId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [selectedFeatureId, activeTab])
 
   useEffect(() => {
     if (!map || !mapLoaded) return
@@ -1175,6 +1190,10 @@ export function DrawingTools({
         // 編集モードではカーソルを変更
         map.getCanvas().style.cursor = e.mode === 'direct_select' ? 'move' : ''
         setIsEditing(e.mode === 'direct_select')
+        // 編集モードに入ったら管理タブに切り替え（描画済みフィーチャーがある場合）
+        if (e.mode === 'direct_select') {
+          setActiveTab('manage')
+        }
         // 選択/編集モードの場合のみ頂点ラベルを更新
         safeSetTimeout(() => {
           debouncedUpdateVertexLabels.current?.()
@@ -3329,6 +3348,13 @@ ${kmlFeatures}
                       return (
                         <div
                           key={f.id}
+                          ref={(el) => {
+                            if (el) {
+                              featureListItemRefs.current.set(f.id, el)
+                            } else {
+                              featureListItemRefs.current.delete(f.id)
+                            }
+                          }}
                           style={{
                             padding: '6px 8px',
                             borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}`,

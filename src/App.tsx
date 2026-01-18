@@ -201,8 +201,33 @@ function App() {
   })
   const previousFeaturesRef = useRef<DrawnFeature[]>([])
   const enableCoordinateDisplayRef = useRef(true)
-  const coordClickTypeRef = useRef<'right' | 'left' | 'both'>('right')
-  const coordDisplayPositionRef = useRef<'click' | 'fixed'>('click')
+  // Initialize refs with localStorage values to match state
+  const getStoredCoordClickType = (): 'right' | 'left' | 'both' => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { coordClickType: saved } = JSON.parse(stored)
+        if (saved === 'right' || saved === 'left' || saved === 'both') return saved
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'right'
+  }
+  const getStoredCoordDisplayPosition = (): 'click' | 'fixed' => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { coordDisplayPosition: saved } = JSON.parse(stored)
+        if (saved === 'click' || saved === 'fixed') return saved
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'click'
+  }
+  const coordClickTypeRef = useRef(getStoredCoordClickType())
+  const coordDisplayPositionRef = useRef(getStoredCoordDisplayPosition())
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
@@ -825,11 +850,7 @@ function App() {
     coordDisplayPositionRef.current = coordDisplayPosition
   }, [coordDisplayPosition])
 
-  // 座標表示をOFFにしたら、表示中の座標パネルも連動して閉じる（UX改善）
-  useEffect(() => {
-    if (enableCoordinateDisplay) return
-    if (displayCoordinates) setDisplayCoordinates(null)
-  }, [enableCoordinateDisplay, displayCoordinates])
+  // Note: enableCoordinateDisplay logic removed - now controlled by coordClickType setting
 
   // ============================================
   // Keyboard shortcuts
@@ -4091,6 +4112,23 @@ function App() {
                   <option value="click">クリック位置</option>
                   <option value="fixed">右下固定</option>
                 </select>
+              </label>
+              <label
+                style={{
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+                title="オフにすると手動で閉じるまで表示し続けます"
+              >
+                <input
+                  type="checkbox"
+                  checked={coordAutoFade}
+                  onChange={(e) => setCoordAutoFade(e.target.checked)}
+                />
+                3秒で消える
               </label>
             </div>
           </div>

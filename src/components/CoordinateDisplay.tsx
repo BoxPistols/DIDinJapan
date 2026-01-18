@@ -34,6 +34,27 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
   const [isDragging, setIsDragging] = useState(false)
   const dragOffsetRef = useRef<{ dx: number; dy: number } | null>(null)
 
+  // 座標が変わったらposをリセット（新しいクリック位置に再配置）
+  const prevCoordsRef = useRef<{
+    lng: number
+    lat: number
+    screenX?: number
+    screenY?: number
+  } | null>(null)
+  useEffect(() => {
+    const prevCoords = prevCoordsRef.current
+    if (
+      prevCoords &&
+      (prevCoords.lng !== lng ||
+        prevCoords.lat !== lat ||
+        prevCoords.screenX !== screenX ||
+        prevCoords.screenY !== screenY)
+    ) {
+      setPos(null) // リセットして再配置をトリガー
+    }
+    prevCoordsRef.current = { lng, lat, screenX, screenY }
+  }, [lng, lat, screenX, screenY])
+
   const clearAutoCloseTimer = useCallback(() => {
     if (autoCloseTimerRef.current !== null) {
       window.clearTimeout(autoCloseTimerRef.current)
@@ -172,7 +193,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
 
   // 矢印のスタイル生成
   const getArrowStyle = (): React.CSSProperties => {
-    const arrowSize = 10
+    const arrowSize = 8
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
       width: 0,
@@ -185,7 +206,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       case 'bottom':
         return {
           ...baseStyle,
-          bottom: -arrowSize * 2,
+          bottom: -arrowSize * 2 + 2, // パネルに密着
           left: '50%',
           transform: 'translateX(-50%)',
           borderTopColor: color,
@@ -194,7 +215,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       case 'top':
         return {
           ...baseStyle,
-          top: -arrowSize * 2,
+          top: -arrowSize * 2 + 2,
           left: '50%',
           transform: 'translateX(-50%)',
           borderBottomColor: color,
@@ -203,7 +224,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       case 'left':
         return {
           ...baseStyle,
-          left: -arrowSize * 2,
+          left: -arrowSize * 2 + 2,
           top: '50%',
           transform: 'translateY(-50%)',
           borderRightColor: color,
@@ -212,7 +233,7 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       case 'right':
         return {
           ...baseStyle,
-          right: -arrowSize * 2,
+          right: -arrowSize * 2 + 2,
           top: '50%',
           transform: 'translateY(-50%)',
           borderLeftColor: color,
