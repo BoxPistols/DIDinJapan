@@ -67,6 +67,51 @@ body {
   top: 50px !important;
 }
 
+/* MapLibre GL Controls - Dark mode support */
+[data-theme="dark"] .maplibregl-ctrl-group {
+  background-color: rgba(35, 35, 35, 0.9) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+
+[data-theme="dark"] .maplibregl-ctrl-group button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .maplibregl-ctrl-group button:active {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.9);
+}
+
+/* Light mode explicit styles for better consistency */
+[data-theme="light"] .maplibregl-ctrl-group {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .maplibregl-ctrl-group button {
+  background-color: transparent !important;
+}
+
+[data-theme="light"] .maplibregl-ctrl-group button:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .maplibregl-ctrl-group button:active {
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
 /* Glassmorphism base styles */
 [data-glass] {
   backdrop-filter: blur(10px);
