@@ -6,28 +6,16 @@
 import React from 'react'
 import styles from './AppHeader.module.css'
 
-export interface AppHeaderProps {
-  darkMode: boolean
-}
+export interface AppHeaderProps {}
 
 /**
  * Application header with title and subtitle
  */
-export const AppHeader: React.FC<AppHeaderProps> = ({ darkMode }) => {
+export const AppHeader: React.FC<AppHeaderProps> = () => {
   return (
     <div className={styles.container}>
-      <h1 
-        className={styles.title}
-        style={{ color: darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.87)' }}
-      >
-        DID-J26
-      </h1>
-      <p 
-        className={styles.subtitle}
-        style={{ color: darkMode ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.54)' }}
-      >
-        ドローン飛行計画ツール
-      </p>
+      <h1 className={styles.title}>DID-J26</h1>
+      <p className={styles.subtitle}>ドローン飛行計画ツール</p>
     </div>
   )
 }

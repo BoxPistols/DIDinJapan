@@ -83,14 +83,16 @@ export const GlassPanel: React.FC<GlassPanelProps> = ({
         <h3 className={styles.title}>{title}</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {headerActions}
-          <button
-            onClick={onClose}
-            className={styles.closeButton}
-            aria-label="Close panel"
-            title="Close"
-          >
-            ×
-          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className={styles.closeButton}
+              aria-label="Close panel"
+              title="Close"
+            >
+              ×
+            </button>
+          )}
         </div>
       </div>
 

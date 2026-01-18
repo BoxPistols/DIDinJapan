@@ -495,6 +495,11 @@ function App() {
 
   const theme = getAppTheme(darkMode)
 
+  // Sync theme to document for CSS Modules
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+  }, [darkMode])
+
   // 3D mode
   const [is3DMode, setIs3DMode] = useState(false)
 
@@ -3679,7 +3684,7 @@ function App() {
         />
 
         {/* App Header with Logo and Subtitle */}
-        <AppHeader darkMode={darkMode} />
+        <AppHeader />
 
         {/* Search */}
         <div style={{ marginBottom: '12px', position: 'relative' }}>

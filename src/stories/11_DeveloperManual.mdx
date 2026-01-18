@@ -370,3 +370,535 @@ if (map.getLayer('my-layer')) {
   map.setLayoutProperty('my-layer', 'visibility', 'none');
 }
 ```
+
+**4. WebGLコンテキスト上限エラー**
+
+ブラウザにはWebGLコンテキストの上限（8〜16個）があります。マップを破棄せずに再作成を繰り返すと発生します。
+
+```javascript
+// ❌ 解放忘れ
+useEffect(() => {
+  const map = new maplibregl.Map({ ... });
+  mapRef.current = map;
+}, []);
+
+// ✅ クリーンアップで解放
+useEffect(() => {
+  const map = new maplibregl.Map({ ... });
+  mapRef.current = map;
+  
+  return () => {
+    map.remove();  // WebGLコンテキストを解放
+  };
+}, []);
+```
+
+**5. Next.js での "window is not defined"**
+
+MapLibreはブラウザAPIに依存するため、SSR時にエラーになります。
+
+```tsx
+// ✅ Dynamic Importで回避
+import dynamic from 'next/dynamic';
+
+const MapComponent = dynamic(() => import('./MapComponent'), {
+  ssr: false,
+  loading: () => <div>Loading map...</div>
+});
+```
+
+---
+
+## レイヤー管理の詳細
+
+### ソースとレイヤーの関係
+
+MapLibreの最も重要な概念は「ソース」と「レイヤー」の分離です。
+
+```text
+[GeoJSON ソース]
+       │
+       ├── fillレイヤー（塗りつぶし）
+       │
+       ├── lineレイヤー（境界線）
+       │
+       └── symbolレイヤー（ラベル）
+```
+
+1つのソースに対して複数のレイヤーを定義でき、それぞれ独立にスタイルを変更できます。
+
+### レイヤータイプ一覧
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>Type</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>対象Geometry</th>
+      <th style={TableStyle.th}>主なプロパティ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>fill</code></td>
+      <td style={TableStyle.td}>ポリゴンの塗りつぶし</td>
+      <td style={TableStyle.td}>Polygon, MultiPolygon</td>
+      <td style={TableStyle.td}>fill-color, fill-opacity</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>line</code></td>
+      <td style={TableStyle.td}>線の描画</td>
+      <td style={TableStyle.td}>LineString, Polygon境界</td>
+      <td style={TableStyle.td}>line-color, line-width</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>circle</code></td>
+      <td style={TableStyle.td}>点を円で表示</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>circle-radius, circle-color</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>symbol</code></td>
+      <td style={TableStyle.td}>アイコン/テキスト</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>text-field, icon-image</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>heatmap</code></td>
+      <td style={TableStyle.td}>ヒートマップ</td>
+      <td style={TableStyle.td}>Point</td>
+      <td style={TableStyle.td}>heatmap-intensity, heatmap-color</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>fill-extrusion</code></td>
+      <td style={TableStyle.td}>3D建物</td>
+      <td style={TableStyle.td}>Polygon</td>
+      <td style={TableStyle.td}>fill-extrusion-height</td>
+    </tr>
+  </tbody>
+</table>
+
+### レイヤーの表示順制御
+
+レイヤーは追加順に重なります。後から追加したものが上に表示されます。
+
+```javascript
+// 特定レイヤーの下に挿入
+map.addLayer({
+  id: 'my-layer',
+  type: 'fill',
+  source: 'my-source',
+  paint: { 'fill-color': '#ff0000' }
+}, 'waterway-label');  // 第2引数で挿入位置を指定
+```
+
+---
+
+## イベントハンドリング
+
+### マップイベント
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>イベント</th>
+      <th style={TableStyle.th}>発火タイミング</th>
+      <th style={TableStyle.th}>主な用途</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>load</code></td>
+      <td style={TableStyle.td}>スタイル読み込み完了時</td>
+      <td style={TableStyle.td}>ソース/レイヤー追加の開始点</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>click</code></td>
+      <td style={TableStyle.td}>マップクリック時</td>
+      <td style={TableStyle.td}>フィーチャー選択、ポップアップ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>mousemove</code></td>
+      <td style={TableStyle.td}>マウス移動時</td>
+      <td style={TableStyle.td}>ホバー表示、座標表示</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>moveend</code></td>
+      <td style={TableStyle.td}>パン/ズーム完了時</td>
+      <td style={TableStyle.td}>表示範囲に応じたデータ読み込み</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>zoom</code></td>
+      <td style={TableStyle.td}>ズーム変更中</td>
+      <td style={TableStyle.td}>ズームレベル表示の更新</td>
+    </tr>
+  </tbody>
+</table>
+
+### レイヤー固有のイベント
+
+```javascript
+// 特定レイヤーでのみ発火
+map.on('click', 'did-layer', (e) => {
+  const feature = e.features[0];
+  console.log(feature.properties);
+});
+
+// ホバー時のカーソル変更
+map.on('mouseenter', 'did-layer', () => {
+  map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'did-layer', () => {
+  map.getCanvas().style.cursor = '';
+});
+```
+
+---
+
+## 描画ツール (MapboxDraw)
+
+### アーキテクチャ
+
+MapboxDrawは独立したコントロールとして動作し、内部で独自のソース/レイヤーを管理します。
+
+```text
+map.addControl(draw)
+     │
+     ├── mapbox-gl-draw-cold-source（確定済み図形）
+     ├── mapbox-gl-draw-hot-source（描画中図形）
+     │
+     └── 約20個のレイヤー（fill, line, 頂点等）
+```
+
+### 主要API
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>メソッド</th>
+      <th style={TableStyle.th}>説明</th>
+      <th style={TableStyle.th}>戻り値</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.getAll()</code></td>
+      <td style={TableStyle.td}>全フィーチャーをGeoJSONで取得</td>
+      <td style={TableStyle.td}>FeatureCollection</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.add(feature)</code></td>
+      <td style={TableStyle.td}>フィーチャーを追加</td>
+      <td style={TableStyle.td}>追加されたID配列</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.delete(id)</code></td>
+      <td style={TableStyle.td}>指定IDのフィーチャーを削除</td>
+      <td style={TableStyle.td}>削除されたフィーチャー</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>draw.set(fc)</code></td>
+      <td style={TableStyle.td}>全フィーチャーを置換</td>
+      <td style={TableStyle.td}>追加されたID配列</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>draw.changeMode(mode)</code></td>
+      <td style={TableStyle.td}>描画モードを変更</td>
+      <td style={TableStyle.td}>void</td>
+    </tr>
+  </tbody>
+</table>
+
+### 描画イベント
+
+```javascript
+map.on('draw.create', (e) => {
+  console.log('Created:', e.features);
+});
+
+map.on('draw.update', (e) => {
+  console.log('Updated:', e.features);
+});
+
+map.on('draw.delete', (e) => {
+  console.log('Deleted:', e.features);
+});
+
+map.on('draw.selectionchange', (e) => {
+  console.log('Selected:', e.features);
+});
+```
+
+### 円の描画（カスタム実装）
+
+GeoJSONには「円」がないため、多角形で近似します。
+
+```typescript
+function createCirclePolygon(
+  center: [number, number],
+  radiusKm: number,
+  points: number = 64
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const [lng, lat] = center;
+  const coords: [number, number][] = [];
+  
+  // 緯度による経度方向の補正
+  const latRad = lat * Math.PI / 180;
+  const lngPerKm = 1 / (111.32 * Math.cos(latRad));
+  const latPerKm = 1 / 110.574;
+
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dx = radiusKm * Math.cos(angle) * lngPerKm;
+    const dy = radiusKm * Math.sin(angle) * latPerKm;
+    coords.push([lng + dx, lat + dy]);
+  }
+
+  return {
+    type: 'Feature',
+    properties: { 
+      isCircle: true, 
+      center, 
+      radiusKm 
+    },
+    geometry: { 
+      type: 'Polygon', 
+      coordinates: [coords] 
+    }
+  };
+}
+```
+
+---
+
+## キャッシュ戦略
+
+### IndexedDB によるGeoJSONキャッシュ
+
+大きなGeoJSONファイルはIndexedDBにキャッシュすることで、2回目以降の読み込みを高速化できます。
+
+```typescript
+const DB_NAME = 'did-map-cache';
+const STORE_NAME = 'geojson';
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日
+
+async function fetchWithCache<T>(url: string): Promise<T> {
+  // 1. キャッシュを確認
+  const cached = await getCachedData(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  // 2. ネットワークから取得
+  const response = await fetch(url);
+  const data = await response.json();
+
+  // 3. キャッシュに保存
+  await setCachedData(url, { data, timestamp: Date.now() });
+
+  return data;
+}
+```
+
+### 遅延読み込みパターン
+
+都道府県単位でデータを分割し、必要な時にのみ読み込みます。
+
+```typescript
+const loadedLayers = new Set<string>();
+
+async function loadLayerIfNeeded(layerId: string, path: string) {
+  if (loadedLayers.has(layerId)) return;
+  
+  const geojson = await fetchWithCache(path);
+  
+  map.addSource(layerId, { type: 'geojson', data: geojson });
+  map.addLayer({
+    id: layerId,
+    type: 'fill',
+    source: layerId,
+    paint: { 'fill-color': '#ff6b6b', 'fill-opacity': 0.5 }
+  });
+  
+  loadedLayers.add(layerId);
+}
+```
+
+---
+
+## 外部API連携
+
+### 標高取得 (GSI DEM API)
+
+国土地理院の標高APIを使用して、任意の座標の標高を取得できます。
+
+```typescript
+async function fetchElevation(lng: number, lat: number): Promise<number | null> {
+  const url = `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`;
+  
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.elevation ?? null;
+  } catch {
+    return null;
+  }
+}
+```
+
+### ジオコーディング (Nominatim)
+
+住所から座標を検索するジオコーディング機能です。
+
+```typescript
+async function geocode(query: string): Promise<GeocodeResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=jp`;
+  
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'DID-J26-App/1.0' }
+  });
+  
+  const data = await response.json();
+  return data.map((item: any) => ({
+    name: item.display_name,
+    lat: parseFloat(item.lat),
+    lng: parseFloat(item.lon)
+  }));
+}
+```
+
+---
+
+## キーボードショートカット
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>キー</th>
+      <th style={TableStyle.th}>機能</th>
+      <th style={TableStyle.th}>スコープ</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>D</code></td>
+      <td style={TableStyle.td}>ダークモード切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>M</code></td>
+      <td style={TableStyle.td}>ベースマップ切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Ctrl+Z</code></td>
+      <td style={TableStyle.td}>Undo</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Ctrl+Shift+Z</code></td>
+      <td style={TableStyle.td}>Redo</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>Delete</code></td>
+      <td style={TableStyle.td}>選択図形の削除</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+    <tr>
+      <td style={TableStyle.td}><code>Escape</code></td>
+      <td style={TableStyle.td}>描画/選択のキャンセル</td>
+      <td style={TableStyle.td}>DrawingTools</td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 型定義
+
+### 主要な型
+
+```typescript
+// ベースマップのキー
+type BaseMapKey = 'osm' | 'gsi' | 'pale' | 'photo';
+
+// レイヤーの状態
+interface LayerState {
+  loaded: boolean;
+  visible: boolean;
+}
+
+// 描画されたフィーチャー
+interface DrawnFeature {
+  id: string;
+  type: 'polygon' | 'circle' | 'point' | 'line';
+  name: string;
+  coordinates: GeoJSON.Position | GeoJSON.Position[] | GeoJSON.Position[][];
+  radius?: number;        // 円の場合
+  center?: [number, number]; // 円の場合
+  elevation?: number;
+  flightHeight?: number;
+  maxAltitude?: number;
+}
+
+// レイヤー設定
+interface LayerConfig {
+  id: string;
+  name: string;
+  path: string;
+  color: string;
+}
+```
+
+---
+
+## デプロイ
+
+### 静的ファイルの配置
+
+GeoJSONファイルは`/public`ディレクトリに配置し、ビルド時にバンドルされないようにします。
+
+```text
+/public
+  └── GeoJSON
+        └── 2020
+              ├── r02_did_01_hokkaido.geojson  (2.1MB)
+              ├── r02_did_13_tokyo.geojson     (1.8MB)
+              └── ...
+```
+
+### 環境変数
+
+```bash
+# .env.local
+VITE_MAPTILER_KEY=your_api_key
+VITE_GSI_TILE_URL=https://cyberjapandata.gsi.go.jp/xyz
+```
+
+### Vercel設定
+
+```json
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/GeoJSON/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 参考リンク
+
+- [MapLibre GL JS Documentation](https://maplibre.org/maplibre-gl-js-docs/)
+- [Mapbox GL Draw](https://github.com/mapbox/mapbox-gl-draw)
+- [国土地理院タイル一覧](https://maps.gsi.go.jp/development/ichiran.html)
+- [GeoJSON RFC 7946](https://datatracker.ietf.org/doc/html/rfc7946)
