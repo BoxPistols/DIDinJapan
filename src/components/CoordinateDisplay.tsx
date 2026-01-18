@@ -6,6 +6,10 @@ export interface CoordinateDisplayProps {
   lat: number
   darkMode: boolean
   onClose?: () => void
+  /** Screen X coordinate where the click occurred (optional, for tooltip positioning) */
+  screenX?: number
+  /** Screen Y coordinate where the click occurred (optional, for tooltip positioning) */
+  screenY?: number
 }
 
 /**
@@ -16,7 +20,9 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
   lng,
   lat,
   darkMode,
-  onClose
+  onClose,
+  screenX,
+  screenY
 }) => {
   const [showModal, setShowModal] = useState(true)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -60,7 +66,11 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
   const decimalFormat = useMemo(() => formatCoordinates(lng, lat), [lng, lat])
   const dmsFormat = useMemo(() => formatCoordinatesDMS(lng, lat), [lng, lat])
 
-  // 初回表示時に右下付近へ配置（計測できない場合は固定bottom/rightのまま）
+  // 初回表示時にクリック位置付近へ配置（screenX/Y指定時はツールチップ風）
+  // 矢印の向き: 'bottom' = パネルの下に矢印（パネルがクリック位置の上）
+  type ArrowDirection = 'bottom' | 'top' | 'left' | 'right' | 'none'
+  const [arrowDir, setArrowDir] = useState<ArrowDirection>('none')
+
   useEffect(() => {
     if (pos) return
     const el = panelRef.current
@@ -68,16 +78,58 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
 
     const place = () => {
       const rect = el.getBoundingClientRect()
-      const margin = 20
-      const left = Math.max(margin, window.innerWidth - rect.width - margin)
-      const top = Math.max(margin, window.innerHeight - rect.height - margin)
-      setPos({ left, top })
+      const margin = 16
+      const arrowSize = 10
+
+      // クリック位置が指定されている場合はその付近に配置
+      if (screenX !== undefined && screenY !== undefined) {
+        const panelWidth = rect.width || 280
+        const panelHeight = rect.height || 180
+
+        // パネルをクリック位置の上に表示（デフォルト）
+        let left = screenX - panelWidth / 2
+        let top = screenY - panelHeight - arrowSize - 8
+        let dir: ArrowDirection = 'bottom'
+
+        // 上に収まらない場合は下に表示
+        if (top < margin) {
+          top = screenY + arrowSize + 8
+          dir = 'top'
+        }
+
+        // 左右の画面外補正
+        if (left < margin) {
+          left = margin
+        } else if (left + panelWidth > window.innerWidth - margin) {
+          left = window.innerWidth - panelWidth - margin
+        }
+
+        // 下にも収まらない場合は右に表示
+        if (top + panelHeight > window.innerHeight - margin) {
+          top = Math.max(margin, screenY - panelHeight / 2)
+          left = screenX + arrowSize + 8
+          dir = 'left'
+          if (left + panelWidth > window.innerWidth - margin) {
+            left = screenX - panelWidth - arrowSize - 8
+            dir = 'right'
+          }
+        }
+
+        setArrowDir(dir)
+        setPos({ left, top })
+      } else {
+        // スクリーン座標なしの場合は右下へ
+        const left = Math.max(margin, window.innerWidth - rect.width - margin)
+        const top = Math.max(margin, window.innerHeight - rect.height - margin)
+        setArrowDir('none')
+        setPos({ left, top })
+      }
     }
 
     // 次フレームでDOMサイズが安定してから配置
     const raf = window.requestAnimationFrame(place)
     return () => window.cancelAnimationFrame(raf)
-  }, [pos])
+  }, [pos, screenX, screenY])
 
   // ドラッグ中の移動（Pointer Events）
   useEffect(() => {
@@ -118,6 +170,59 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
     }
   }, [isDragging])
 
+  // 矢印のスタイル生成
+  const getArrowStyle = (): React.CSSProperties => {
+    const arrowSize = 10
+    const baseStyle: React.CSSProperties = {
+      position: 'absolute',
+      width: 0,
+      height: 0,
+      border: `${arrowSize}px solid transparent`
+    }
+    const color = darkMode ? 'rgba(45,45,45,0.85)' : 'rgba(255,255,255,0.88)'
+
+    switch (arrowDir) {
+      case 'bottom':
+        return {
+          ...baseStyle,
+          bottom: -arrowSize * 2,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          borderTopColor: color,
+          borderBottomWidth: 0
+        }
+      case 'top':
+        return {
+          ...baseStyle,
+          top: -arrowSize * 2,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          borderBottomColor: color,
+          borderTopWidth: 0
+        }
+      case 'left':
+        return {
+          ...baseStyle,
+          left: -arrowSize * 2,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          borderRightColor: color,
+          borderLeftWidth: 0
+        }
+      case 'right':
+        return {
+          ...baseStyle,
+          right: -arrowSize * 2,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          borderLeftColor: color,
+          borderRightWidth: 0
+        }
+      default:
+        return { display: 'none' }
+    }
+  }
+
   return (
     <div
       ref={panelRef}
@@ -139,6 +244,8 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
         fontFamily: 'system-ui, -apple-system, sans-serif'
       }}
     >
+      {/* Arrow pointing to click position */}
+      {arrowDir !== 'none' && <div style={getArrowStyle()} />}
       {/* Drag handle */}
       <div
         onPointerDown={(e) => {
@@ -175,124 +282,135 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       </div>
 
       <div style={{ marginBottom: '12px' }}>
-        <div style={{ marginBottom: '8px' }}>
+        {/* Decimal format with inline copy button */}
+        <div style={{ marginBottom: '10px' }}>
           <div style={{ fontSize: '11px', color: darkMode ? '#aaa' : '#999', marginBottom: '2px' }}>
             <span style={{ fontWeight: 700 }}>10進数表記</span>（Decimal）
           </div>
           <div
             style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              fontFamily: 'monospace',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               backgroundColor: darkMode ? '#1a1a1a' : '#f5f5f5',
-              padding: '8px',
               borderRadius: '4px',
-              wordBreak: 'break-all'
+              padding: '6px 8px'
             }}
           >
-            {decimalFormat}
+            <code
+              style={{
+                flex: 1,
+                fontSize: '13px',
+                fontWeight: '500',
+                fontFamily: 'monospace',
+                wordBreak: 'break-all'
+              }}
+            >
+              {decimalFormat}
+            </code>
+            <button
+              onClick={() => navigator.clipboard.writeText(decimalFormat)}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: darkMode ? '#444' : '#e0e0e0',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: darkMode ? '#e0e0e0' : '#333',
+                fontSize: '11px',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
+              }}
+              title="10進数座標をコピー"
+            >
+              📋 コピー
+            </button>
           </div>
         </div>
+
+        {/* DMS format with inline copy button */}
         <div>
           <div style={{ fontSize: '11px', color: darkMode ? '#aaa' : '#999', marginBottom: '2px' }}>
             <span style={{ fontWeight: 700 }}>度分秒表記</span>（DMS）- NOTAM申請用
           </div>
           <div
             style={{
-              fontSize: '14px',
-              fontWeight: '500',
-              fontFamily: 'monospace',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               backgroundColor: darkMode ? '#1a1a1a' : '#f5f5f5',
-              padding: '8px',
               borderRadius: '4px',
-              wordBreak: 'break-all'
+              padding: '6px 8px'
             }}
           >
-            {dmsFormat}
+            <code
+              style={{
+                flex: 1,
+                fontSize: '13px',
+                fontWeight: '500',
+                fontFamily: 'monospace',
+                wordBreak: 'break-all'
+              }}
+            >
+              {dmsFormat}
+            </code>
+            <button
+              onClick={() => navigator.clipboard.writeText(dmsFormat)}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: darkMode ? '#444' : '#e0e0e0',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: darkMode ? '#e0e0e0' : '#333',
+                fontSize: '11px',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
+              }}
+              title="DMS座標をコピー"
+            >
+              📋 コピー
+            </button>
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '12px' }}>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(decimalFormat)
-          }}
-          style={{
-            flex: '1 1 140px',
-            padding: '6px 8px',
-            backgroundColor: darkMode ? '#444' : '#e0e0e0',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            color: darkMode ? '#e0e0e0' : '#333',
-            fontSize: '12px',
-            transition: 'background-color 0.2s',
-            whiteSpace: 'nowrap',
-            minWidth: 0
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
-          }}
-        >
-          10進数コピー
-        </button>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(dmsFormat)
-          }}
-          style={{
-            flex: '1 1 120px',
-            padding: '6px 8px',
-            backgroundColor: darkMode ? '#444' : '#e0e0e0',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            color: darkMode ? '#e0e0e0' : '#333',
-            fontSize: '12px',
-            transition: 'background-color 0.2s',
-            whiteSpace: 'nowrap',
-            minWidth: 0
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
-          }}
-        >
-          DMSコピー
-        </button>
-        <button
-          onClick={() => {
-            setShowModal(false)
-            onClose?.()
-          }}
-          style={{
-            flex: '1 1 90px',
-            padding: '6px 8px',
-            backgroundColor: darkMode ? '#444' : '#e0e0e0',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            color: darkMode ? '#e0e0e0' : '#333',
-            fontSize: '12px',
-            transition: 'background-color 0.2s',
-            whiteSpace: 'nowrap',
-            minWidth: 0
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
-          }}
-        >
-          閉じる
-        </button>
-      </div>
+
+      {/* Close button */}
+      <button
+        onClick={() => {
+          setShowModal(false)
+          onClose?.()
+        }}
+        style={{
+          width: '100%',
+          padding: '6px 8px',
+          backgroundColor: darkMode ? '#444' : '#e0e0e0',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          color: darkMode ? '#e0e0e0' : '#333',
+          fontSize: '12px',
+          transition: 'background-color 0.2s'
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.backgroundColor = darkMode ? '#555' : '#d0d0d0'
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#e0e0e0'
+        }}
+      >
+        閉じる
+      </button>
     </div>
   )
 }

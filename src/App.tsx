@@ -507,10 +507,13 @@ function App() {
   // Help modal
   const [showHelp, setShowHelp] = useState(false)
 
-  // Coordinate display
-  const [displayCoordinates, setDisplayCoordinates] = useState<{ lng: number; lat: number } | null>(
-    null
-  )
+  // Coordinate display (with optional screen coordinates for tooltip positioning)
+  const [displayCoordinates, setDisplayCoordinates] = useState<{
+    lng: number
+    lat: number
+    screenX?: number
+    screenY?: number
+  } | null>(null)
 
   // Zoom level (always-visible UI)
   const [mapZoom, setMapZoom] = useState<number | null>(null)
@@ -1325,7 +1328,9 @@ function App() {
       e.preventDefault()
       setDisplayCoordinates({
         lng: e.lngLat.lng,
-        lat: e.lngLat.lat
+        lat: e.lngLat.lat,
+        screenX: e.point.x,
+        screenY: e.point.y
       })
     })
 
@@ -5853,6 +5858,8 @@ function App() {
           lat={displayCoordinates.lat}
           darkMode={darkMode}
           onClose={() => setDisplayCoordinates(null)}
+          screenX={displayCoordinates.screenX}
+          screenY={displayCoordinates.screenY}
         />
       )}
 
