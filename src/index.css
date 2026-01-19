@@ -82,9 +82,9 @@ body {
   font-feature-settings: "tnum";
 }
 
-/* NavigationControlを下にずらす（右パネルトグルと被らないように） */
-.maplibregl-ctrl-top-right {
-  top: 50px !important;
+/* NavigationControlを右下に配置 */
+.maplibregl-ctrl-bottom-right {
+  bottom: 120px !important;
 }
 
 /* MapLibre GL Controls - Dark mode support */

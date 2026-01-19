@@ -923,12 +923,13 @@ function App() {
           setShowRightLegend((prev) => !prev)
           break
 
-        // [W] Wind Field (Mock)
+        // [W] Weather click mode toggle
         case 'w':
-          toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
+          setEnableWeatherClick((prev) => !prev)
           break
+        // [C] Rain radar toggle
         case 'c':
-          toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
+          toggleWeatherOverlay('rain-radar')
           break
 
         // [M] Map style toggle (restored)
@@ -1137,7 +1138,7 @@ function App() {
 
     const map = new maplibregl.Map(mapConfig)
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left')
 
     // Keep current zoom in React state (for always-visible Zoom UI)
@@ -3490,12 +3491,12 @@ function App() {
           position: 'fixed',
           left: showLeftLegend ? leftSidebarWidth : 0,
           top: 80,
-          width: 20,
-          height: 40,
+          width: 24,
+          height: 48,
           background: theme.colors.panelBg,
           color: theme.colors.textMuted,
           border: 'none',
-          borderRadius: '0 4px 4px 0',
+          borderRadius: '0 8px 8px 0',
           cursor: 'pointer',
           boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
           zIndex: 11,
@@ -3503,7 +3504,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px'
+          fontSize: '12px'
         }}
         title={showLeftLegend ? 'サイドバーを閉じる' : 'サイドバーを開く'}
       >
@@ -4447,12 +4448,12 @@ function App() {
           position: 'fixed',
           right: showRightLegend ? rightSidebarWidth : 0,
           top: 12,
-          width: 20,
-          height: 30,
+          width: 24,
+          height: 48,
           background: darkMode ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.9)',
           color: darkMode ? '#aaa' : '#666',
           border: 'none',
-          borderRadius: '4px 0 0 4px',
+          borderRadius: '8px 0 0 8px',
           cursor: 'pointer',
           boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
           zIndex: 11,
@@ -4460,7 +4461,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px'
+          fontSize: '12px'
         }}
         title={showRightLegend ? 'サイドバーを閉じる' : 'サイドバーを開く'}
       >
@@ -4590,7 +4591,7 @@ function App() {
           </div>
 
           <label
-            title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）"
+            title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）[C]キーでトグル"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -4605,33 +4606,14 @@ function App() {
               checked={isWeatherVisible('rain-radar')}
               onChange={() => toggleWeatherOverlay('rain-radar')}
             />
-            <span>雨雲</span>
+            <span>雨雲 [C]</span>
             {isWeatherVisible('rain-radar') && radarLastUpdate && (
               <span style={{ fontSize: '9px', color: '#888' }}>{radarLastUpdate}</span>
             )}
           </label>
 
           <label
-            title="風向・風量 * [W]：風の方向と速度（仮設置データ）"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={isOverlayVisible('wind-field')}
-              onChange={() => toggleOverlay({ id: 'wind-field', name: '風向・風量' })}
-            />
-            <span>風向・風量 * [W]</span>
-          </label>
-
-          <label
-            title="地図をクリックすると、その地域の天気予報を表示"
+            title="地図をクリックすると、その地域の天気予報を表示 [W]キーでトグル"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -4646,20 +4628,22 @@ function App() {
               checked={enableWeatherClick}
               onChange={() => setEnableWeatherClick(!enableWeatherClick)}
             />
-            <span>クリックで天気予報</span>
+            <span>クリックで天気予報 [W]</span>
           </label>
 
           {enableWeatherClick && (
-            <div style={{
-              fontSize: '10px',
-              color: darkMode ? '#888' : '#666',
-              marginBottom: '8px',
-              marginLeft: '20px',
-              padding: '6px 8px',
-              backgroundColor: darkMode ? '#2a2a2a' : '#f0f9ff',
-              // borderRadius: '4px',
-              borderLeft: `3px solid ${darkMode ? '#3b82f6' : '#3b82f6'}`
-            }}>
+            <div
+              style={{
+                fontSize: '10px',
+                color: darkMode ? '#888' : '#666',
+                marginBottom: '8px',
+                marginLeft: '20px',
+                padding: '6px 8px',
+                backgroundColor: darkMode ? '#2a2a2a' : '#f0f9ff',
+                // borderRadius: '4px',
+                borderLeft: `3px solid ${darkMode ? '#3b82f6' : '#3b82f6'}`
+              }}
+            >
               地図上をクリックすると、その地域の天気予報がポップアップで表示されます
             </div>
           )}
@@ -4692,7 +4676,7 @@ function App() {
             電波種
           </div>
           <label
-            title="LTE * [C]：携帯電話カバレッジ強度（仮設置データ）"
+            title="LTE：携帯電話カバレッジ強度（仮設置データ）"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -4707,7 +4691,7 @@ function App() {
               checked={isOverlayVisible('lte-coverage')}
               onChange={() => toggleOverlay({ id: 'lte-coverage', name: 'LTE' })}
             />
-            <span>LTE * [C]</span>
+            <span>LTE *</span>
           </label>
           <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
             （仮設置）
@@ -4748,18 +4732,18 @@ function App() {
         onClick={() => setDarkMode(!darkMode)}
         style={{
           position: 'fixed',
-          top: 148,
+          bottom: 78,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: theme.colors.buttonBg,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
           color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '14px',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -4809,19 +4793,19 @@ function App() {
         onClick={toggle3DMode}
         style={{
           position: 'fixed',
-          top: 182,
+          bottom: 44,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: is3DMode ? theme.colors.buttonBgActive : theme.colors.buttonBg,
-          color: is3DMode ? '#fff' : theme.colors.text,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
+          color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '11px',
           fontWeight: 'bold',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -4837,19 +4821,19 @@ function App() {
         onClick={() => setShowHelp(true)}
         style={{
           position: 'fixed',
-          top: 216,
+          bottom: 10,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: theme.colors.buttonBg,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
           color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '14px',
           fontWeight: 'bold',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -5391,6 +5375,32 @@ function App() {
                 2 / 3
               </kbd>
               <span>2D / 3D表示切替</span>
+              <kbd
+                style={{
+                  backgroundColor: darkMode ? '#444' : '#eee',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontSize: '12px'
+                }}
+              >
+                W
+              </kbd>
+              <span>天気予報クリックモード</span>
+              <kbd
+                style={{
+                  backgroundColor: darkMode ? '#444' : '#eee',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontSize: '12px'
+                }}
+              >
+                C
+              </kbd>
+              <span>雨雲レーダー表示</span>
               <kbd
                 style={{
                   backgroundColor: darkMode ? '#444' : '#eee',
