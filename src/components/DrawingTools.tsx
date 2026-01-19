@@ -11,12 +11,7 @@ import { createCirclePolygon, convertDecimalToDMS } from '../lib/utils/geo'
 import type RBush from 'rbush'
 import {
   checkWaypointCollision,
-  checkPathCollision,
-  checkPolygonCollision,
-  createSpatialIndex
-} from '../lib'
-import {
-  checkWaypointCollision,
+  checkWaypointCollisionOptimized,
   checkPathCollision,
   checkPolygonCollision,
   createSpatialIndex
@@ -24,13 +19,6 @@ import {
 import { Modal } from './Modal'
 import { showToast } from '../utils/toast'
 import { showConfirm } from '../utils/dialog'
-import type RBush from 'rbush'
-import {
-  checkWaypointCollision,
-  checkPathCollision,
-  checkPolygonCollision,
-  createSpatialIndex
-} from '../lib'
 
 // デバウンスユーティリティ
 function debounce<Args extends unknown[]>(
@@ -657,7 +645,7 @@ export function DrawingTools({
   const [drawnFeatures, setDrawnFeatures] = useState<DrawnFeature[]>([])
   const [circleRadius, setCircleRadius] = useState(100) // メートル
   const [circlePoints, setCirclePoints] = useState(24) // 円の頂点数
-  const [prohibitedIndex, setProhibitedIndex] = useState<RBush | null>(null)
+  const [prohibitedIndex, setProhibitedIndex] = useState<RBush<any> | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<Set<string>>(new Set())
@@ -700,6 +688,163 @@ export function DrawingTools({
   })
   // フィーチャーリストアイテムへのref（自動スクロール用）
   const featureListItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  // 最新の禁止エリアデータを保持するためのRef（イベントハンドラ内での参照用）
+  const prohibitedIndexRef = useRef<RBush<any> | null>(null)
+  const prohibitedAreasRef = useRef<GeoJSON.FeatureCollection | undefined>(prohibitedAreas)
+
+  useEffect(() => {
+    prohibitedIndexRef.current = prohibitedIndex
+  }, [prohibitedIndex])
+
+  useEffect(() => {
+    prohibitedAreasRef.current = prohibitedAreas
+    // 禁止エリアが変更されたら空間インデックスを再構築
+    if (prohibitedAreas) {
+      setProhibitedIndex(createSpatialIndex(prohibitedAreas))
+    } else {
+      setProhibitedIndex(null)
+    }
+  }, [prohibitedAreas])
+
+  const normalizeDrawnFeatures = useCallback(
+    (features: GeoJSON.Feature[], _points: number): DrawnFeature[] => {
+      return features.map((f) => {
+        let type: DrawnFeature['type'] = 'polygon'
+        if (f.geometry.type === 'Point') type = 'point'
+        else if (f.geometry.type === 'LineString') type = 'line'
+        else if (f.properties?.isCircle) type = 'circle'
+
+        const id = typeof f.id === 'string' ? f.id : String(f.id)
+        const name = f.properties?.name || `${type}-${id.slice(0, 6)}`
+
+        // Ensure coordinates are properly typed/structured
+        let coordinates = (f.geometry as any).coordinates
+        if (type === 'polygon' && f.geometry.type === 'Polygon') {
+          // Polygon coordinates are Position[][]
+          coordinates = (f.geometry as GeoJSON.Polygon).coordinates
+        }
+
+        return {
+          id,
+          type,
+          name,
+          coordinates,
+          radius: f.properties?.radiusKm ? (f.properties.radiusKm as number) * 1000 : undefined,
+          center: f.properties?.center as [number, number] | undefined,
+          properties: f.properties || {},
+          elevation: f.properties?.elevation,
+          flightHeight: f.properties?.flightHeight,
+          maxAltitude: f.properties?.maxAltitude
+        }
+      })
+    },
+    []
+  )
+
+  const annotateCollisions = useCallback(
+    (features: DrawnFeature[]) => {
+      const index = prohibitedIndexRef.current
+      const areas = prohibitedAreasRef.current
+
+      if (!index || !areas) return
+
+      features.forEach((feature) => {
+        let result = null
+
+        if (feature.type === 'point') {
+          const coords = feature.coordinates as [number, number]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          result = checkWaypointCollisionOptimized(coords, index as any)
+        } else if (feature.type === 'line') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const coords = feature.coordinates as any
+          result = checkPathCollision(coords, areas)
+        } else if (feature.type === 'polygon' || feature.type === 'circle') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const coords = feature.coordinates as any
+          // wrap in array for MultiPolygon compatibility
+          result = checkPolygonCollision([coords], areas)
+        }
+
+        if (result) {
+          const displayColor = result.isColliding
+            ? result.severity === 'DANGER'
+              ? '#f44336'
+              : '#ff9800'
+            : '#2563eb'
+
+          feature.properties = {
+            ...feature.properties,
+            collision: result,
+            _displayColor: displayColor
+          }
+
+          if (drawRef.current) {
+            // DrawnFeatureからGeoJSON.Featureに変換して更新
+            const geoJsonFeature: GeoJSON.Feature = {
+              type: 'Feature',
+              id: feature.id,
+              properties: feature.properties,
+              geometry:
+                feature.type === 'point'
+                  ? { type: 'Point', coordinates: feature.coordinates as GeoJSON.Position }
+                  : feature.type === 'line'
+                    ? { type: 'LineString', coordinates: feature.coordinates as GeoJSON.Position[] }
+                    : { type: 'Polygon', coordinates: feature.coordinates as GeoJSON.Position[][] }
+            }
+            drawRef.current.add(geoJsonFeature)
+          }
+        }
+      })
+    },
+    []
+  )
+
+  // 禁止エリアが変更されたら既存フィーチャーの衝突判定を再実行
+  useEffect(() => {
+    if (!prohibitedIndex || !prohibitedAreas || !drawRef.current) return
+
+    const allFeatures = drawRef.current.getAll()
+    if (!allFeatures.features.length) return
+
+    const normalized = normalizeDrawnFeatures(allFeatures.features, circlePoints)
+    annotateCollisions(normalized)
+  }, [prohibitedIndex, prohibitedAreas, circlePoints, normalizeDrawnFeatures, annotateCollisions])
+
+  const mergeDrawnFeatures = useCallback(
+    (newFeatures: DrawnFeature[], shouldUpdateMap: boolean) => {
+      setDrawnFeatures((prev) => {
+        const next = [...prev]
+        newFeatures.forEach((nf) => {
+          const idx = next.findIndex((existing) => existing.id === nf.id)
+          if (idx >= 0) {
+            next[idx] = nf
+          } else {
+            next.push(nf)
+          }
+        })
+        return next
+      })
+    },
+    []
+  )
+
+  // 禁止エリアデータが更新されたら、既存のフィーチャーを全件再チェック
+  useEffect(() => {
+    if (!drawRef.current || !prohibitedIndex) return
+
+    // 現在の全てのフィーチャーを取得
+    const allFeatures = drawRef.current.getAll()
+    if (allFeatures.features.length === 0) return
+
+    // 正規化してチェック実行
+    const normalized = normalizeDrawnFeatures(allFeatures.features, circlePoints)
+    annotateCollisions(normalized)
+
+    // 状態も更新
+    mergeDrawnFeatures(normalized, true)
+  }, [prohibitedIndex, normalizeDrawnFeatures, annotateCollisions, mergeDrawnFeatures, circlePoints])
 
   const updateSelectionState = useCallback((ids: string[], primaryId?: string | null) => {
     const nextPrimary =
@@ -885,6 +1030,7 @@ export function DrawingTools({
 
     const draw = new MapboxDraw({
       displayControlsDefault: false,
+      userProperties: true,
       controls: {},
       // 基本設定
       defaultMode: 'simple_select',
@@ -905,8 +1051,8 @@ export function DrawingTools({
             ['!=', 'mode', 'static']
           ],
           paint: {
-            'fill-color': '#2563eb',
-            'fill-outline-color': '#2563eb',
+            'fill-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
+            'fill-outline-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'fill-opacity': 0.25
           }
         },
@@ -916,8 +1062,8 @@ export function DrawingTools({
           type: 'fill',
           filter: ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
           paint: {
-            'fill-color': '#2563eb',
-            'fill-outline-color': '#2563eb',
+            'fill-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
+            'fill-outline-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'fill-opacity': 0.25
           }
         },
@@ -936,7 +1082,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-width': 3
           }
         },
@@ -950,7 +1096,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-dasharray': [0.2, 2],
             'line-width': 2
           }
@@ -970,7 +1116,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-width': 3
           }
         },
@@ -984,7 +1130,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-dasharray': [0.2, 2],
             'line-width': 3
           }
@@ -1002,7 +1148,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 6,
-            'circle-color': '#2563eb'
+            'circle-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb']
           }
         },
         // ポイント - アクティブ（描画中の点）
@@ -1017,7 +1163,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 8,
-            'circle-color': '#2563eb'
+            'circle-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb']
           }
         },
         // 描画中のポイント
@@ -3452,6 +3598,36 @@ ${kmlFeatures}
                               gap: '2px'
                             }}
                           >
+                            {/* @ts-expect-error collision check */}
+                            {f.properties?.collision?.isColliding && (
+                              <div
+                                style={{
+                                  fontSize: '10px',
+                                  color: '#f44336',
+                                  fontWeight: 'bold',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '2px'
+                                }}
+                              >
+                                <span>⚠️</span>
+                                <span
+                                  style={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                  // @ts-expect-error collision check
+                                  title={f.properties.collision.message}
+                                >
+                                  {/* @ts-expect-error collision check */}
+                                  {f.properties.collision.areaName
+                                    ? // @ts-expect-error collision check
+                                      `禁止エリア: ${f.properties.collision.areaName}`
+                                    : '禁止エリア内です'}
+                                </span>
+                              </div>
+                            )}
                             {editingNameId === f.id ? (
                               <input
                                 ref={editingNameInputRef}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as turf from '@turf/turf'
+import type { Feature, Polygon } from 'geojson'
 import {
   checkWaypointCollision,
   checkPathCollision,
@@ -8,7 +9,7 @@ import {
   checkWaypointCollisionOptimized
 } from './collision'
 
-const square: turf.Feature<turf.Polygon> = turf.polygon([
+const square: Feature<Polygon> = turf.polygon([
   [
     [0, 0],
     [1, 0],

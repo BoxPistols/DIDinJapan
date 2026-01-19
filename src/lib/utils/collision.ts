@@ -1,5 +1,6 @@
 import * as turf from '@turf/turf'
 import RBush from 'rbush'
+import type { Feature, Polygon, MultiPolygon, FeatureCollection, Position } from 'geojson'
 
 export type CollisionType = 'DID' | 'AIRPORT' | 'MILITARY' | 'PARK' | string
 
@@ -14,7 +15,7 @@ export interface WaypointCollisionResult {
 
 export interface PathCollisionResult {
   isColliding: boolean
-  intersectionPoints: turf.Position[]
+  intersectionPoints: Position[]
   severity: 'DANGER' | 'WARNING' | 'SAFE'
   message: string
 }
@@ -32,13 +33,13 @@ type RBushItem = {
   minY: number
   maxX: number
   maxY: number
-  feature: turf.Feature<turf.Polygon | turf.MultiPolygon>
+  feature: Feature<Polygon | MultiPolygon>
 }
 
-export const createSpatialIndex = (prohibitedAreas: turf.FeatureCollection): RBush<RBushItem> => {
+export const createSpatialIndex = (prohibitedAreas: FeatureCollection): RBush<RBushItem> => {
   const tree = new RBush<RBushItem>()
   const items = prohibitedAreas.features
-    .filter((feature): feature is turf.Feature<turf.Polygon | turf.MultiPolygon> =>
+    .filter((feature): feature is Feature<Polygon | MultiPolygon> =>
       ['Polygon', 'MultiPolygon'].includes(feature.geometry?.type ?? '')
     )
     .map((feature) => {
@@ -58,13 +59,13 @@ export const createSpatialIndex = (prohibitedAreas: turf.FeatureCollection): RBu
 
 export const checkWaypointCollision = (
   waypointCoords: [number, number],
-  prohibitedAreas: turf.FeatureCollection
+  prohibitedAreas: FeatureCollection
 ): WaypointCollisionResult => {
   const point = turf.point(waypointCoords)
 
   for (const feature of prohibitedAreas.features) {
     if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-      const isInside = turf.booleanPointInPolygon(point, feature)
+      const isInside = turf.booleanPointInPolygon(point, feature as Feature<Polygon | MultiPolygon>)
 
       if (isInside) {
         return {
@@ -121,15 +122,15 @@ export const checkWaypointCollisionOptimized = (
 }
 
 export const checkPathCollision = (
-  pathCoords: turf.Position[],
-  prohibitedAreas: turf.FeatureCollection
+  pathCoords: Position[],
+  prohibitedAreas: FeatureCollection
 ): PathCollisionResult => {
   const line = turf.lineString(pathCoords)
-  const intersectionPoints: turf.Position[] = []
+  const intersectionPoints: Position[] = []
 
   for (const feature of prohibitedAreas.features) {
     if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-      const intersections = turf.lineIntersect(line, feature)
+      const intersections = turf.lineIntersect(line, feature as Feature<Polygon | MultiPolygon>)
 
       if (intersections.features.length > 0) {
         intersections.features.forEach((point) => {
@@ -157,8 +158,8 @@ export const checkPathCollision = (
 }
 
 export const checkPolygonCollision = (
-  polygonCoords: turf.Position[][][],
-  prohibitedAreas: turf.FeatureCollection
+  polygonCoords: Position[][],
+  prohibitedAreas: FeatureCollection
 ): PolygonCollisionResult => {
   const polygon = turf.polygon(polygonCoords)
 
@@ -169,16 +170,16 @@ export const checkPolygonCollision = (
   for (const feature of prohibitedAreas.features) {
     if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
       try {
-        if (turf.booleanIntersects(polygon, feature)) {
+        const polyFeature = feature as Feature<Polygon | MultiPolygon>
+        if (turf.booleanIntersects(polygon, polyFeature)) {
           intersects = true
-          const intersection = turf.intersection(
-            polygon,
-            feature as turf.Feature<turf.Polygon | turf.MultiPolygon>
+          const intersection = turf.intersect(
+            turf.featureCollection([polygon, polyFeature])
           )
           const areaEstimate =
-            intersection && intersection.geometry.type !== 'GeometryCollection'
+            intersection
               ? turf.area(intersection)
-              : Math.min(polygonArea, turf.area(feature)) * 0.01
+              : Math.min(polygonArea, turf.area(polyFeature)) * 0.01
           overlapArea += areaEstimate
         }
       } catch {

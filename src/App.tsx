@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import styles from './App.module.css'
@@ -233,6 +233,8 @@ function App() {
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
+  // DID GeoJSONキャッシュ（衝突検出用）
+  const didGeoJSONCacheRef = useRef<Map<string, GeoJSON.FeatureCollection>>(new Map())
   const debugRunIdRef = useRef<string>('')
   const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
@@ -258,7 +260,18 @@ function App() {
     () => new Map()
   )
   const [mapLoaded, setMapLoaded] = useState(false)
-  const [opacity, setOpacity] = useState(0.5)
+  const [opacity, setOpacity] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { opacity: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 0.5
+  })
   const [baseMap] = useState<BaseMapKey>(() => {
     // localStorageから保存されたベースマップを読み込み
     try {
@@ -298,18 +311,73 @@ function App() {
   const [isGeoSearching, setIsGeoSearching] = useState(false)
 
   // Legend visibility
-  const [showLeftLegend, setShowLeftLegend] = useState(true)
-  const [showRightLegend, setShowRightLegend] = useState(true)
+  const [showLeftLegend, setShowLeftLegend] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showLeftLegend: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true
+  })
+  const [showRightLegend, setShowRightLegend] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showRightLegend: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true
+  })
 
   // Coordinate Info Panel
   // Sidebar Resizing
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState(280)
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(220) // 初期幅は少し狭め（右余白の無駄を削減）
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { leftSidebarWidth: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 280
+  })
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { rightSidebarWidth: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 220
+  }) // 初期幅は少し狭め（右余白の無駄を削減）
   const [isResizingLeft, setIsResizingLeft] = useState(false)
   const [isResizingRight, setIsResizingRight] = useState(false)
 
   // Tooltip visibility
-  const [showTooltip, setShowTooltip] = useState(true)
+  const [showTooltip, setShowTooltip] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showTooltip: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true
+  })
   const [tooltipAutoFade, setTooltipAutoFade] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('ui-settings')
@@ -325,6 +393,31 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  // 衝突検出用: 表示中のDIDレイヤーのGeoJSONを結合
+  const prohibitedAreas = useMemo<GeoJSON.FeatureCollection | undefined>(() => {
+    const visibleLayerIds = Array.from(layerStates.entries())
+      .filter(([, state]) => state.visible)
+      .map(([id]) => id)
+      .filter((id) => id.startsWith('did-')) // DIDレイヤーのみ
+
+    if (visibleLayerIds.length === 0) return undefined
+
+    const features: GeoJSON.Feature[] = []
+    for (const layerId of visibleLayerIds) {
+      const cached = didGeoJSONCacheRef.current.get(layerId)
+      if (cached) {
+        features.push(...cached.features)
+      }
+    }
+
+    if (features.length === 0) return undefined
+
+    return {
+      type: 'FeatureCollection',
+      features
+    }
+  }, [layerStates])
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -758,6 +851,20 @@ function App() {
           darkMode,
           baseMap: newBaseMap,
           enableCoordinateDisplay,
+          showFocusCrosshair,
+          crosshairDesign,
+          coordClickType,
+          coordDisplayPosition,
+          crosshairClickCapture,
+          coordAutoFade,
+          tooltipAutoFade,
+          crosshairColor,
+          opacity,
+          showTooltip,
+          showLeftLegend,
+          showRightLegend,
+          leftSidebarWidth,
+          rightSidebarWidth,
           timestamp: Date.now()
         }
         localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -805,6 +912,12 @@ function App() {
         coordAutoFade,
         tooltipAutoFade,
         crosshairColor,
+        opacity,
+        showTooltip,
+        showLeftLegend,
+        showRightLegend,
+        leftSidebarWidth,
+        rightSidebarWidth,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -822,7 +935,13 @@ function App() {
     crosshairClickCapture,
     coordAutoFade,
     tooltipAutoFade,
-    crosshairColor
+    crosshairColor,
+    opacity,
+    showTooltip,
+    showLeftLegend,
+    showRightLegend,
+    leftSidebarWidth,
+    rightSidebarWidth
   ])
 
   // ============================================
@@ -1645,6 +1764,9 @@ function App() {
         type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
 
         const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
+
+        // DID GeoJSONをキャッシュに保存（衝突検出用）
+        didGeoJSONCacheRef.current.set(layer.id, data as GeoJSON.FeatureCollection)
 
         const newItems: SearchIndexItem[] = []
         data.features.forEach((feature) => {
@@ -4314,6 +4436,7 @@ function App() {
         <DrawingTools
           map={mapRef.current}
           mapLoaded={mapLoaded}
+          prohibitedAreas={prohibitedAreas}
           darkMode={darkMode}
           embedded={true}
           onOpenHelp={() => setShowHelp(true)}
