@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback } from 'react'
+import { ChevronLeftIcon, ChevronRightIcon } from '../icons'
 import styles from './WeatherTimeSlider.module.css'
 
 export interface WeatherTimeSliderProps {
@@ -118,7 +119,7 @@ export const WeatherTimeSlider: React.FC<WeatherTimeSliderProps> = ({
           title="5分前"
           aria-label="5分前の予報を表示"
         >
-          ◀
+          <ChevronLeftIcon size={20} />
         </button>
 
         <div className={styles.sliderWrapper}>
@@ -130,7 +131,7 @@ export const WeatherTimeSlider: React.FC<WeatherTimeSliderProps> = ({
             step={1}
             value={currentStep}
             onChange={handleSliderChange}
-            aria-label="予報時刻の選択"
+            aria-label="予報時刻 of the selection"
             aria-labelledby="weather-time-display"
           />
           <div className={styles.sliderProgress} style={{ width: `${percentage}%` }} />
@@ -156,7 +157,7 @@ export const WeatherTimeSlider: React.FC<WeatherTimeSliderProps> = ({
           title="5分後"
           aria-label="5分後の予報を表示"
         >
-          ▶
+          <ChevronRightIcon size={20} />
         </button>
       </div>
 

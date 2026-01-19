@@ -27,7 +27,6 @@ import {
   generateBuildingsGeoJSON,
   generateWindFieldGeoJSON,
   generateLTECoverageGeoJSON,
-  generateWeatherIconsGeoJSON,
   calculateBBox,
   mergeBBoxes,
   getCustomLayers,
@@ -50,7 +49,6 @@ import type {
   RestrictionZone
 } from './lib'
 import { AppHeader, CustomLayerManager } from './components'
-import { DroneOperationDashboard } from './components/drone'
 import {
   DrawingTools,
   type DrawnFeature,
@@ -66,7 +64,12 @@ import { DialogContainer } from './components/Dialog'
 import { fetchGeoJSONWithCache, clearOldCaches } from './lib/cache'
 import { toast } from './utils/toast'
 import { getAppTheme } from './styles/theme'
-import { generateRealWeatherGeoJSON } from './lib/services/weatherApi'
+import {
+  findNearestPrefecture,
+  getPrefectureForecast,
+  getWeatherDescription,
+  formatDailyDate
+} from './lib/services/weatherApi'
 import { WeatherForecastPanel } from './components/weather/WeatherForecastPanel'
 
 // ============================================
@@ -207,8 +210,6 @@ function App() {
   })
   const previousFeaturesRef = useRef<DrawnFeature[]>([])
   const enableCoordinateDisplayRef = useRef(true)
-  const showDroneDashboardRef = useRef(false)
-  const setDroneSelectedPointRef = useRef<(point: { lat: number; lng: number } | undefined) => void>(() => {})
   // Initialize refs with localStorage values to match state
   const getStoredCoordClickType = (): 'right' | 'left' | 'both' => {
     try {
@@ -330,13 +331,11 @@ function App() {
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
 
-  // Drone Operation Dashboard
-  const [showDroneDashboard, setShowDroneDashboard] = useState(false)
-  const [droneSelectedPoint, setDroneSelectedPoint] = useState<{ lat: number; lng: number } | undefined>()
-
   // Weather Forecast Panel
   const [showWeatherForecast, setShowWeatherForecast] = useState(false)
   const [selectedPrefectureId, setSelectedPrefectureId] = useState<string | undefined>()
+  const [enableWeatherClick, setEnableWeatherClick] = useState(false)
+  const enableWeatherClickRef = useRef(false)
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -815,20 +814,26 @@ function App() {
     coordDisplayPositionRef.current = coordDisplayPosition
   }, [coordDisplayPosition])
 
-  // Drone dashboard ref sync
-  useEffect(() => {
-    showDroneDashboardRef.current = showDroneDashboard
-  }, [showDroneDashboard])
-
-  useEffect(() => {
-    setDroneSelectedPointRef.current = setDroneSelectedPoint
-  }, [setDroneSelectedPoint])
-
+  // Ref syncs
   useEffect(() => {
     tooltipAutoFadeRef.current = tooltipAutoFade
   }, [tooltipAutoFade])
 
+  useEffect(() => {
+    enableWeatherClickRef.current = enableWeatherClick
+  }, [enableWeatherClick])
+
   // Note: enableCoordinateDisplay logic removed - now controlled by coordClickType setting
+
+  // Listen for weather panel open event from popup
+  useEffect(() => {
+    const handleOpenWeatherPanel = (e: CustomEvent<string>) => {
+      setSelectedPrefectureId(e.detail)
+      setShowWeatherForecast(true)
+    }
+    window.addEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
+    return () => window.removeEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
+  }, [])
 
   // ============================================
   // Keyboard shortcuts
@@ -1377,9 +1382,96 @@ function App() {
       if (clickType === 'left' || clickType === 'both') {
         showCoordinatesAtPosition(e.lngLat, e.point)
       }
-      // Update drone dashboard selected point
-      if (showDroneDashboardRef.current) {
-        setDroneSelectedPointRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+
+      // Weather click mode - show weather popup for clicked location
+      if (enableWeatherClickRef.current) {
+        const { lat, lng } = e.lngLat
+        const prefecture = findNearestPrefecture(lat, lng)
+
+        if (prefecture) {
+          // Show loading popup
+          const loadingPopup = new maplibregl.Popup({ closeOnClick: true })
+            .setLngLat([lng, lat])
+            .setHTML(`
+              <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 200px;">
+                <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                <div style="color: #666;">天気データを取得中...</div>
+              </div>
+            `)
+            .addTo(map)
+
+          // Fetch weather data
+          getPrefectureForecast(prefecture.id).then((result) => {
+            if (result && result.weather) {
+              const currentWeather = getWeatherDescription(result.weather.current.weatherCode)
+              const daily = result.weather.daily.slice(0, 3) // Next 3 days
+
+              loadingPopup.setHTML(`
+                <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 250px;">
+                  <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+                    ${prefecture.name} (${prefecture.capital})
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 36px;">${currentWeather.icon}</span>
+                    <div>
+                      <div style="font-size: 24px; font-weight: bold;">${result.weather.current.temperature}°C</div>
+                      <div style="color: #666;">${currentWeather.label}</div>
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px; margin-bottom: 12px;">
+                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
+                      <div style="color: #888;">湿度</div>
+                      <div style="font-weight: bold;">${result.weather.current.humidity}%</div>
+                    </div>
+                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
+                      <div style="color: #888;">風速</div>
+                      <div style="font-weight: bold;">${result.weather.current.windSpeed}km/h</div>
+                    </div>
+                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
+                      <div style="color: #888;">降水</div>
+                      <div style="font-weight: bold;">${result.weather.current.precipitation}mm</div>
+                    </div>
+                  </div>
+                  <div style="border-top: 1px solid #ddd; padding-top: 8px;">
+                    <div style="font-size: 12px; color: #888; margin-bottom: 6px;">週間予報</div>
+                    ${daily.map((day, i) => {
+                      const dayWeather = getWeatherDescription(day.weatherCode)
+                      return `
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0;">
+                          <span style="width: 60px;">${i === 0 ? '今日' : formatDailyDate(day.date)}</span>
+                          <span style="font-size: 18px;">${dayWeather.icon}</span>
+                          <span style="color: #e53935; font-weight: bold;">${day.temperatureMax}°</span>
+                          <span style="color: #888;">/</span>
+                          <span style="color: #1e88e5;">${day.temperatureMin}°</span>
+                        </div>
+                      `
+                    }).join('')}
+                  </div>
+                  <div style="margin-top: 8px; text-align: center;">
+                    <button onclick="window.dispatchEvent(new CustomEvent('openWeatherPanel', {detail: '${prefecture.id}'}))"
+                            style="padding: 6px 12px; font-size: 11px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                      詳細予報を見る
+                    </button>
+                  </div>
+                </div>
+              `)
+            } else {
+              loadingPopup.setHTML(`
+                <div style="padding: 12px; font-family: system-ui, sans-serif;">
+                  <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                  <div style="color: #e53935;">天気データの取得に失敗しました</div>
+                </div>
+              `)
+            }
+          }).catch(() => {
+            loadingPopup.setHTML(`
+              <div style="padding: 12px; font-family: system-ui, sans-serif;">
+                <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                <div style="color: #e53935;">天気データの取得に失敗しました</div>
+              </div>
+            `)
+          })
+        }
       }
     })
 
@@ -2113,88 +2205,6 @@ function App() {
             source: overlay.id,
             paint: { 'line-color': '#00CED1', 'line-width': 1.5 }
           })
-        } else if (overlay.id === 'weather-icons') {
-          // First show loading state with mock data
-          const initialGeojson = generateWeatherIconsGeoJSON()
-          map.addSource(overlay.id, { type: 'geojson', data: initialGeojson })
-
-          // Weather type to color mapping
-          const weatherColors: Record<string, string> = {
-            sunny: '#FFD700',
-            partly_cloudy: '#87CEEB',
-            cloudy: '#A9A9A9',
-            rainy: '#4169E1',
-            snowy: '#E0FFFF',
-            stormy: '#8B008B'
-          }
-
-          // Add colored circles based on weather type
-          map.addLayer({
-            id: `${overlay.id}-bg`,
-            type: 'circle',
-            source: overlay.id,
-            paint: {
-              'circle-radius': 22,
-              'circle-color': [
-                'match',
-                ['get', 'weather'],
-                'sunny', weatherColors.sunny,
-                'partly_cloudy', weatherColors.partly_cloudy,
-                'cloudy', weatherColors.cloudy,
-                'rainy', weatherColors.rainy,
-                'snowy', weatherColors.snowy,
-                'stormy', weatherColors.stormy,
-                '#CCCCCC' // default
-              ],
-              'circle-stroke-color': '#FFFFFF',
-              'circle-stroke-width': 3,
-              'circle-opacity': 0.9
-            }
-          })
-
-          // Add inner circle with temperature indicator
-          map.addLayer({
-            id: overlay.id,
-            type: 'circle',
-            source: overlay.id,
-            paint: {
-              'circle-radius': 10,
-              'circle-color': '#FFFFFF',
-              'circle-stroke-color': '#333333',
-              'circle-stroke-width': 1
-            }
-          })
-
-          // Add click handler to open weather forecast panel
-          map.on('click', overlay.id, (e) => {
-            if (!e.features || e.features.length === 0) return
-            const props = e.features[0].properties
-            // Open forecast panel with selected prefecture
-            setSelectedPrefectureId(props.id as string)
-            setShowWeatherForecast(true)
-          })
-
-          // Cursor change on hover
-          map.on('mouseenter', overlay.id, () => {
-            map.getCanvas().style.cursor = 'pointer'
-          })
-          map.on('mouseleave', overlay.id, () => {
-            map.getCanvas().style.cursor = ''
-          })
-
-          // Then fetch real weather data asynchronously
-          generateRealWeatherGeoJSON()
-            .then((realGeojson) => {
-              const source = map.getSource(overlay.id) as maplibregl.GeoJSONSource
-              if (source) {
-                source.setData(realGeojson)
-                toast.success('天気データを取得しました')
-              }
-            })
-            .catch((err) => {
-              console.error('Failed to fetch real weather data:', err)
-              toast.error('天気データの取得に失敗しました')
-            })
         } else if ('tiles' in overlay) {
           // Handle raster tile overlays
           map.addSource(overlay.id, {
@@ -4600,23 +4610,38 @@ function App() {
           </label>
 
           <label
-            title="天気アイコン：各都道府県の天気を地図上に表示"
+            title="地図をクリックすると、その地域の天気予報を表示"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              marginBottom: '4px',
+              marginBottom: '8px',
               cursor: 'pointer',
               fontSize: '12px'
             }}
           >
             <input
               type="checkbox"
-              checked={isOverlayVisible('weather-icons')}
-              onChange={() => toggleOverlay({ id: 'weather-icons', name: '天気アイコン' })}
+              checked={enableWeatherClick}
+              onChange={() => setEnableWeatherClick(!enableWeatherClick)}
             />
-            <span>☀️ 天気マップ</span>
+            <span>クリックで天気予報</span>
           </label>
+
+          {enableWeatherClick && (
+            <div style={{
+              fontSize: '10px',
+              color: darkMode ? '#888' : '#666',
+              marginBottom: '8px',
+              marginLeft: '20px',
+              padding: '6px 8px',
+              backgroundColor: darkMode ? '#2a2a2a' : '#f0f9ff',
+              borderRadius: '4px',
+              borderLeft: `3px solid ${darkMode ? '#3b82f6' : '#3b82f6'}`
+            }}>
+              地図上をクリックすると、その地域の天気予報がポップアップで表示されます
+            </div>
+          )}
 
           <button
             onClick={() => setShowWeatherForecast(true)}
@@ -4625,29 +4650,19 @@ function App() {
               alignItems: 'center',
               gap: '6px',
               marginBottom: '4px',
-              marginLeft: '20px',
-              padding: '4px 8px',
+              padding: '6px 10px',
               fontSize: '11px',
               backgroundColor: darkMode ? '#2563eb' : '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              width: '100%',
+              justifyContent: 'center'
             }}
           >
-            📊 詳細予報パネル（7日間）
+            都道府県別 詳細予報パネル
           </button>
-
-          <div
-            style={{
-              fontSize: '10px',
-              color: darkMode ? '#666' : '#aaa',
-              marginBottom: '12px',
-              paddingLeft: '20px'
-            }}
-          >
-            （見本データ）
-          </div>
         </div>
 
         {/* Signal Info */}
@@ -4675,34 +4690,6 @@ function App() {
           </label>
           <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
             （仮設置）
-          </div>
-        </div>
-
-        {/* Drone Operation Safety */}
-        <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
-            飛行安全
-          </div>
-          <label
-            title="ドローン運用安全ダッシュボード：地点をクリックして飛行可否を確認"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '4px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={showDroneDashboard}
-              onChange={() => setShowDroneDashboard(!showDroneDashboard)}
-            />
-            <span>🚁 安全評価パネル *</span>
-          </label>
-          <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
-            （見本データ）
           </div>
         </div>
 
@@ -5743,18 +5730,6 @@ function App() {
             : undefined
         }
       />
-
-      {/* Drone Operation Dashboard */}
-      {showDroneDashboard && (
-        <DroneOperationDashboard
-          map={mapRef.current ?? undefined}
-          selectedPoint={droneSelectedPoint}
-          onClose={() => {
-            setShowDroneDashboard(false)
-            setDroneSelectedPoint(undefined)
-          }}
-        />
-      )}
 
       {/* Weather Forecast Panel */}
       {showWeatherForecast && (

@@ -332,3 +332,29 @@ export function formatDailyDate(isoDate: string): string {
   const weekdays = ['日', '月', '火', '水', '木', '金', '土']
   return `${date.getMonth() + 1}/${date.getDate()}(${weekdays[date.getDay()]})`
 }
+
+/**
+ * Find the nearest prefecture from given coordinates
+ */
+export function findNearestPrefecture(lat: number, lng: number): typeof JAPAN_PREFECTURES[0] | null {
+  // Check if coordinates are roughly in Japan's bounding box
+  if (lat < 24 || lat > 46 || lng < 122 || lng > 154) {
+    return null
+  }
+
+  let nearest = JAPAN_PREFECTURES[0]
+  let minDistance = Infinity
+
+  for (const pref of JAPAN_PREFECTURES) {
+    // Simple Euclidean distance (good enough for this use case)
+    const distance = Math.sqrt(
+      Math.pow(lat - pref.lat, 2) + Math.pow(lng - pref.lng, 2)
+    )
+    if (distance < minDistance) {
+      minDistance = distance
+      nearest = pref
+    }
+  }
+
+  return nearest
+}
