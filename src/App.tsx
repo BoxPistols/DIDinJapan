@@ -314,7 +314,7 @@ function App() {
   const [isResizingRight, setIsResizingRight] = useState(false)
 
   // Tooltip visibility
-  const [showTooltip, setShowTooltip] = useState(true)
+  const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipAutoFade, setTooltipAutoFade] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('ui-settings')
@@ -336,6 +336,7 @@ function App() {
   const [selectedPrefectureId, setSelectedPrefectureId] = useState<string | undefined>()
   const [enableWeatherClick, setEnableWeatherClick] = useState(false)
   const enableWeatherClickRef = useRef(false)
+  const weatherPopupRef = useRef<maplibregl.Popup | null>(null)
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -602,7 +603,7 @@ function App() {
     } catch {
       // ignore
     }
-    return '#00bcd4' // デフォルト: シアン
+    return '#e53935' // デフォルト: 赤
   })
 
   // Flexible coordinate settings
@@ -964,14 +965,23 @@ function App() {
           setShowHelp((prev) => !prev)
           break
         case 'escape':
-          setShowHelp(false)
+          // Close weather popup first, then panel, then help
+          if (weatherPopupRef.current) {
+            weatherPopupRef.current.remove()
+            weatherPopupRef.current = null
+          } else if (showWeatherForecast) {
+            setShowWeatherForecast(false)
+            setSelectedPrefectureId(undefined)
+          } else {
+            setShowHelp(false)
+          }
           break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mapLoaded, baseMap, handleBaseMapChange])
+  }, [mapLoaded, baseMap, handleBaseMapChange, showWeatherForecast])
 
   // ============================================
   // Search functionality (DID + Geocoding)
@@ -1389,6 +1399,11 @@ function App() {
         const prefecture = findNearestPrefecture(lat, lng)
 
         if (prefecture) {
+          // Close existing popup if any
+          if (weatherPopupRef.current) {
+            weatherPopupRef.current.remove()
+          }
+
           // Show loading popup
           const loadingPopup = new maplibregl.Popup({ closeOnClick: true })
             .setLngLat([lng, lat])
@@ -1400,6 +1415,12 @@ function App() {
             `)
             .addTo(map)
 
+          // Store popup reference for ESC key handling
+          weatherPopupRef.current = loadingPopup
+          loadingPopup.on('close', () => {
+            weatherPopupRef.current = null
+          })
+
           // Fetch weather data
           getPrefectureForecast(prefecture.id).then((result) => {
             if (result && result.weather) {
@@ -1407,49 +1428,49 @@ function App() {
               const daily = result.weather.daily.slice(0, 3) // Next 3 days
 
               loadingPopup.setHTML(`
-                <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 250px;">
-                  <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+                <div style="padding: 16px; font-family: system-ui, sans-serif; min-width: auto; background: rgba(20, 20, 30, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e5e5e5;">
+                  <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px;">
                     ${prefecture.name} (${prefecture.capital})
                   </div>
                   <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                     <span style="font-size: 36px;">${currentWeather.icon}</span>
                     <div>
                       <div style="font-size: 24px; font-weight: bold;">${result.weather.current.temperature}°C</div>
-                      <div style="color: #666;">${currentWeather.label}</div>
+                      <div style="color: #9ca3af;">${currentWeather.label}</div>
                     </div>
                   </div>
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px; margin-bottom: 12px;">
-                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
-                      <div style="color: #888;">湿度</div>
-                      <div style="font-weight: bold;">${result.weather.current.humidity}%</div>
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">湿度</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.humidity}%</div>
                     </div>
-                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
-                      <div style="color: #888;">風速</div>
-                      <div style="font-weight: bold;">${result.weather.current.windSpeed}km/h</div>
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">風速</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.windSpeed}km/h</div>
                     </div>
-                    <div style="text-align: center; padding: 4px; background: #f5f5f5; border-radius: 4px;">
-                      <div style="color: #888;">降水</div>
-                      <div style="font-weight: bold;">${result.weather.current.precipitation}mm</div>
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">降水</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.precipitation}mm</div>
                     </div>
                   </div>
-                  <div style="border-top: 1px solid #ddd; padding-top: 8px;">
-                    <div style="font-size: 12px; color: #888; margin-bottom: 6px;">週間予報</div>
+                  <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">週間予報</div>
                     ${daily.map((day, i) => {
                       const dayWeather = getWeatherDescription(day.weatherCode)
                       return `
-                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0;">
-                          <span style="width: 60px;">${i === 0 ? '今日' : formatDailyDate(day.date)}</span>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 8px; margin-bottom: 4px; background: ${i === 0 ? 'rgba(30, 58, 95, 0.5)' : 'rgba(255, 255, 255, 0.05)'}; border-radius: 8px;">
+                          <span style="width: 60px; font-weight: ${i === 0 ? 'bold' : 'normal'};">${i === 0 ? '今日' : formatDailyDate(day.date)}</span>
                           <span style="font-size: 18px;">${dayWeather.icon}</span>
-                          <span style="color: #e53935; font-weight: bold;">${day.temperatureMax}°</span>
-                          <span style="color: #888;">/</span>
-                          <span style="color: #1e88e5;">${day.temperatureMin}°</span>
+                          <span style="color: #ef4444; font-weight: bold;">${day.temperatureMax}°</span>
+                          <span style="color: #6b7280;">/</span>
+                          <span style="color: #3b82f6;">${day.temperatureMin}°</span>
                         </div>
                       `
                     }).join('')}
                   </div>
-                  <div style="margin-top: 8px; text-align: center;">
+                  <div style="margin-top: 12px; text-align: center;">
                     <button onclick="window.dispatchEvent(new CustomEvent('openWeatherPanel', {detail: '${prefecture.id}'}))"
-                            style="padding: 6px 12px; font-size: 11px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            style="padding: 8px 16px; font-size: 12px; background: rgba(59, 130, 246, 0.9); color: white; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; cursor: pointer; backdrop-filter: blur(4px);">
                       詳細予報を見る
                     </button>
                   </div>
@@ -4636,7 +4657,7 @@ function App() {
               marginLeft: '20px',
               padding: '6px 8px',
               backgroundColor: darkMode ? '#2a2a2a' : '#f0f9ff',
-              borderRadius: '4px',
+              // borderRadius: '4px',
               borderLeft: `3px solid ${darkMode ? '#3b82f6' : '#3b82f6'}`
             }}>
               地図上をクリックすると、その地域の天気予報がポップアップで表示されます

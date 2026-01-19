@@ -25,18 +25,19 @@ export function WeatherForecastPanel({ selectedPrefectureId, onClose, darkMode =
 
   const regions = getAllRegions()
 
-  // Dark mode color scheme
+  // Dark mode color scheme - Glassmorphism style
   const colors = {
-    bg: darkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    bg: darkMode ? 'rgba(20, 20, 30, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+    glassBorder: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.5)',
     text: darkMode ? '#e5e5e5' : '#1f2937',
     textMuted: darkMode ? '#9ca3af' : '#6b7280',
-    border: darkMode ? '#404040' : '#e5e7eb',
-    cardBg: darkMode ? '#2d2d2d' : '#f9fafb',
-    cardBgAlt: darkMode ? '#363636' : '#f3f4f6',
-    todayBg: darkMode ? '#1e3a5f' : '#eff6ff',
-    selectBg: darkMode ? '#2d2d2d' : 'white',
-    selectBorder: darkMode ? '#505050' : '#d1d5db',
-    header: darkMode ? '#1e40af' : '#3b82f6'
+    border: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+    cardBg: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+    cardBgAlt: darkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+    todayBg: darkMode ? 'rgba(30, 58, 95, 0.7)' : 'rgba(239, 246, 255, 0.8)',
+    selectBg: darkMode ? 'rgba(45, 45, 55, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+    selectBorder: darkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+    header: darkMode ? 'rgba(30, 64, 175, 0.9)' : 'rgba(59, 130, 246, 0.95)'
   }
 
   useEffect(() => {
@@ -76,16 +77,21 @@ export function WeatherForecastPanel({ selectedPrefectureId, onClose, darkMode =
       width: '380px',
       maxHeight: 'calc(100vh - 100px)',
       backgroundColor: colors.bg,
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
       color: colors.text,
-      borderRadius: '8px',
-      boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.15)',
+      borderRadius: '16px',
+      border: `1px solid ${colors.glassBorder}`,
+      boxShadow: darkMode
+        ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)'
+        : '0 8px 32px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.5)',
       overflow: 'hidden',
       zIndex: 1000,
       fontFamily: 'system-ui, sans-serif'
     }}>
       {/* Header */}
       <div style={{
-        padding: '12px 16px',
+        padding: '8px 4px 8px 16px',
         backgroundColor: colors.header,
         color: 'white',
         display: 'flex',
@@ -101,8 +107,9 @@ export function WeatherForecastPanel({ selectedPrefectureId, onClose, darkMode =
               border: 'none',
               color: 'white',
               cursor: 'pointer',
-              fontSize: '20px',
-              padding: '0 4px'
+              fontSize: '28px',
+              padding: '0 8px',
+              lineHeight: 1
             }}
           >
             ×
