@@ -588,8 +588,28 @@ describe('実座標テスト', () => {
 
 ---
 
-## 11. 関連ドキュメント
+## 11. 参考文献・外部リソース
 
-- [docs/specifications/COLLISION_DETECTION_SPEC.md](../../docs/specifications/COLLISION_DETECTION_SPEC.md) - 詳細技術仕様書
-- [API/Utilities](./UTILITIES.mdx) - 他の地理計算ユーティリティ
-- [飛行経路/飛行範囲](./11_DrawingToolsSpec.mdx) - 描画ツール仕様
+### ライブラリ公式ドキュメント
+
+- [Turf.js 公式ドキュメント](https://turfjs.org/) - GeoJSON空間演算ライブラリ
+- [Turf.js booleanPointInPolygon](https://turfjs.org/docs/#booleanPointInPolygon) - 点の包含判定
+- [Turf.js lineIntersect](https://turfjs.org/docs/#lineIntersect) - ライン交差判定
+- [Turf.js intersect](https://turfjs.org/docs/#intersect) - ポリゴン交差計算
+- [RBush GitHub](https://github.com/mourner/rbush) - 高速R-tree空間インデックス
+
+### GeoJSON仕様
+
+- [RFC 7946 - The GeoJSON Format](https://datatracker.ietf.org/doc/html/rfc7946) - GeoJSON公式仕様
+- [GeoJSON.io](https://geojson.io/) - GeoJSONエディタ・ビューア
+
+### 空間インデックス・アルゴリズム
+
+- [R-tree (Wikipedia)](https://en.wikipedia.org/wiki/R-tree) - R-treeデータ構造の解説
+- [Point in Polygon Algorithm](https://en.wikipedia.org/wiki/Point_in_polygon) - Ray Casting法の解説
+
+### ドローン飛行規制関連
+
+- [国土交通省 無人航空機の飛行ルール](https://www.mlit.go.jp/koku/koku_tk10_000003.html) - 航空法に基づく飛行ルール
+- [DIPS 2.0（ドローン情報基盤システム）](https://www.ossportal.dips.mlit.go.jp/) - 飛行許可申請システム
+- [国土地理院 地理院タイル](https://maps.gsi.go.jp/development/ichiran.html) - 空港周辺空域タイル等
