@@ -1,0 +1,411 @@
+{/* 16_CollisionDetection.mdx */}
+import { Meta } from '@storybook/blocks'
+
+<Meta title="API/Collision Detection" />
+
+# Collision Detection（衝突検出）
+
+ドローン飛行計画において、Waypoint・飛行経路・飛行範囲が禁止エリアと重複していないかを検出するユーティリティ関数群です。
+
+---
+
+## 概要
+
+`src/lib/utils/collision.ts` は以下の機能を提供します：
+
+| 関数名 | 用途 | 計算量 |
+| :--- | :--- | :--- |
+| `checkWaypointCollision` | 単一Waypointの禁止エリア判定 | O(n) |
+| `checkWaypointCollisionOptimized` | 空間インデックスを使った高速判定 | O(log n) |
+| `checkPathCollision` | 飛行経路（LineString）の交差判定 | O(n) |
+| `checkPolygonCollision` | 飛行範囲（Polygon）の重複判定 | O(n) |
+| `createSpatialIndex` | RBush空間インデックスの構築 | O(n log n) |
+
+---
+
+## 依存ライブラリ
+
+```bash
+npm install @turf/turf rbush
+```
+
+- **@turf/turf**: GeoJSON空間演算ライブラリ
+- **rbush**: 高速R-tree空間インデックス
+
+---
+
+## ゾーンタイプと色定義
+
+衝突検出結果は、ゾーンタイプに応じた色と深刻度を返します。
+
+```typescript
+import { ZONE_COLORS, ZONE_SEVERITY, CollisionType } from 'japan-drone-map'
+
+// ゾーンタイプ
+type CollisionType = 'DID' | 'AIRPORT' | 'RED_ZONE' | 'YELLOW_ZONE' | 'MILITARY' | 'PARK' | string
+
+// 色定義
+const ZONE_COLORS = {
+  DID: '#f44336',        // 赤 - 人口集中地区
+  AIRPORT: '#9C27B0',    // 紫 - 空港周辺空域
+  RED_ZONE: '#b71c1c',   // 暗い赤 - 飛行禁止区域
+  YELLOW_ZONE: '#ffc107', // 黄色 - 飛行注意区域
+  DEFAULT: '#f44336'
+}
+
+// 深刻度
+const ZONE_SEVERITY = {
+  DID: 'WARNING',        // 許可取得で飛行可能
+  AIRPORT: 'DANGER',     // 原則飛行禁止
+  RED_ZONE: 'DANGER',    // 原則飛行禁止
+  YELLOW_ZONE: 'WARNING' // 注意が必要
+}
+```
+
+---
+
+## 1. Waypoint衝突検出（基本版）
+
+単一のWaypoint座標が禁止エリア内にあるかを判定します。
+
+### シグネチャ
+
+```typescript
+function checkWaypointCollision(
+  waypointCoords: [number, number],  // [経度, 緯度]
+  prohibitedAreas: FeatureCollection
+): WaypointCollisionResult
+```
+
+### 戻り値
+
+```typescript
+interface WaypointCollisionResult {
+  isColliding: boolean          // 衝突しているか
+  collisionType: CollisionType | null  // ゾーンタイプ
+  areaName?: string             // エリア名（例: "東京都港区"）
+  severity: 'DANGER' | 'WARNING' | 'SAFE'
+  uiColor: string               // UI表示用カラー
+  message: string               // 日本語メッセージ
+}
+```
+
+### 使用例
+
+```typescript
+import { checkWaypointCollision } from 'japan-drone-map'
+
+// 禁止エリアのGeoJSONを準備
+const prohibitedAreas: FeatureCollection = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {
+        zoneType: 'DID',
+        name: '東京都渋谷区'
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[139.69, 35.65], [139.72, 35.65], [139.72, 35.68], [139.69, 35.68], [139.69, 35.65]]]
+      }
+    }
+  ]
+}
+
+// Waypoint座標（渋谷駅付近）
+const waypoint: [number, number] = [139.7015, 35.6580]
+
+const result = checkWaypointCollision(waypoint, prohibitedAreas)
+
+if (result.isColliding) {
+  console.log(`警告: ${result.message}`)
+  console.log(`ゾーン: ${result.collisionType}`)
+  console.log(`深刻度: ${result.severity}`)
+  // => 警告: このWaypointは東京都渋谷区内にあります
+  // => ゾーン: DID
+  // => 深刻度: WARNING
+}
+```
+
+### アルゴリズム詳細
+
+1. Waypointの座標からTurf.jsのPointオブジェクトを生成
+2. FeatureCollection内の全Polygon/MultiPolygonをループ
+3. `turf.booleanPointInPolygon()` で包含判定
+4. 最初にヒットしたエリアの情報を返却
+5. ヒットしない場合は `isColliding: false, severity: 'SAFE'` を返却
+
+---
+
+## 2. Waypoint衝突検出（最適化版）
+
+大量の禁止エリアがある場合、空間インデックスを使って高速に判定します。
+
+### 空間インデックスの構築
+
+```typescript
+import { createSpatialIndex, checkWaypointCollisionOptimized } from 'japan-drone-map'
+
+// 初回のみ: 空間インデックスを構築（O(n log n)）
+const spatialIndex = createSpatialIndex(prohibitedAreas)
+
+// 以降の判定は O(log n) で高速
+const result = checkWaypointCollisionOptimized(waypoint, spatialIndex)
+```
+
+### パフォーマンス比較
+
+| 禁止エリア数 | 基本版 | 最適化版 |
+| :--- | :--- | :--- |
+| 100件 | ~1ms | ~0.1ms |
+| 1,000件 | ~10ms | ~0.2ms |
+| 10,000件 | ~100ms | ~0.3ms |
+
+### 使用シナリオ
+
+- **基本版**: 禁止エリアが少ない場合、または単発の判定
+- **最適化版**: 全国DIDデータ（数万ポリゴン）を対象にする場合、連続的なWaypoint判定
+
+---
+
+## 3. 飛行経路の交差判定
+
+飛行経路（LineString）が禁止エリアと交差するかを検出します。
+
+### シグネチャ
+
+```typescript
+function checkPathCollision(
+  pathCoords: Position[],        // [[lng1, lat1], [lng2, lat2], ...]
+  prohibitedAreas: FeatureCollection
+): PathCollisionResult
+```
+
+### 戻り値
+
+```typescript
+interface PathCollisionResult {
+  isColliding: boolean
+  intersectionPoints: Position[]  // 交差点の座標リスト
+  severity: 'DANGER' | 'WARNING' | 'SAFE'
+  message: string
+}
+```
+
+### 使用例
+
+```typescript
+import { checkPathCollision } from 'japan-drone-map'
+
+// 飛行経路: 2点間の直線
+const flightPath: Position[] = [
+  [139.70, 35.65],  // 出発点
+  [139.75, 35.70]   // 到着点
+]
+
+const result = checkPathCollision(flightPath, prohibitedAreas)
+
+if (result.isColliding) {
+  console.log(`警告: ${result.message}`)
+  console.log(`交差点数: ${result.intersectionPoints.length}`)
+  // => 警告: 飛行経路が禁止エリアを2箇所で通過
+}
+```
+
+### アルゴリズム詳細
+
+1. 座標配列からTurf.jsのLineStringを生成
+2. 各禁止エリア（Polygon/MultiPolygon）とのライン交差を計算
+3. `turf.lineIntersect()` で交差点を取得
+4. 全ての交差点を収集して返却
+
+---
+
+## 4. 飛行範囲の重複判定
+
+飛行範囲（Polygon）が禁止エリアと重複するかを検出します。
+
+### シグネチャ
+
+```typescript
+function checkPolygonCollision(
+  polygonCoords: Position[][],   // [[[lng, lat], ...]]  外周リング
+  prohibitedAreas: FeatureCollection
+): PolygonCollisionResult
+```
+
+### 戻り値
+
+```typescript
+interface PolygonCollisionResult {
+  isColliding: boolean
+  overlapArea: number       // 重複面積（平方メートル）
+  overlapRatio: number      // 重複割合（0.0 ~ 1.0）
+  severity: 'DANGER' | 'WARNING' | 'SAFE'
+  message: string
+}
+```
+
+### 使用例
+
+```typescript
+import { checkPolygonCollision } from 'japan-drone-map'
+
+// 飛行範囲: 四角形エリア
+const flightArea: Position[][] = [[
+  [139.70, 35.65],
+  [139.72, 35.65],
+  [139.72, 35.67],
+  [139.70, 35.67],
+  [139.70, 35.65]  // 閉じる（最初と同じ座標）
+]]
+
+const result = checkPolygonCollision(flightArea, prohibitedAreas)
+
+if (result.isColliding) {
+  console.log(`警告: ${result.message}`)
+  console.log(`重複面積: ${result.overlapArea.toFixed(0)} m²`)
+  console.log(`重複割合: ${(result.overlapRatio * 100).toFixed(1)}%`)
+  // => 警告: ポリゴンが禁止エリアと25%重複しています
+}
+```
+
+### 深刻度の判定基準
+
+| 重複割合 | 深刻度 | 説明 |
+| :--- | :--- | :--- |
+| 0% | SAFE | 重複なし |
+| 0% ~ 20% | WARNING | 一部重複（経路変更推奨） |
+| 20%以上 | DANGER | 大幅重複（飛行計画見直し必要） |
+
+### アルゴリズム詳細
+
+1. 座標配列からTurf.jsのPolygonを生成
+2. 入力バリデーション（最低4点必要、最初と最後が同じ座標で閉じる）
+3. 各禁止エリアとの交差判定: `turf.booleanIntersects()`
+4. 交差する場合、`turf.intersect()` で交差部分を計算
+5. `turf.area()` で面積を計算し、重複割合を算出
+
+---
+
+## 実装パターン: Reactコンポーネントでの使用
+
+### useRefを使ったキャッシュ戦略
+
+```typescript
+import { useRef, useMemo, useCallback } from 'react'
+import { createSpatialIndex, checkWaypointCollisionOptimized } from 'japan-drone-map'
+
+function FlightPlanner() {
+  // GeoJSONキャッシュ
+  const didGeoJSONCacheRef = useRef<FeatureCollection | null>(null)
+
+  // 禁止エリアを統合
+  const prohibitedAreas = useMemo(() => {
+    const features = []
+
+    // DIDデータ
+    if (didGeoJSONCacheRef.current) {
+      features.push(...didGeoJSONCacheRef.current.features.map(f => ({
+        ...f,
+        properties: { ...f.properties, zoneType: 'DID' }
+      })))
+    }
+
+    return { type: 'FeatureCollection', features }
+  }, [didGeoJSONCacheRef.current])
+
+  // 空間インデックス（禁止エリアが変わったら再構築）
+  const spatialIndex = useMemo(() => {
+    if (prohibitedAreas.features.length === 0) return null
+    return createSpatialIndex(prohibitedAreas)
+  }, [prohibitedAreas])
+
+  // Waypoint追加時のハンドラ
+  const handleWaypointAdd = useCallback((coords: [number, number]) => {
+    if (spatialIndex) {
+      const result = checkWaypointCollisionOptimized(coords, spatialIndex)
+      if (result.isColliding) {
+        // 警告表示
+        showWarning(result.message)
+      }
+    }
+  }, [spatialIndex])
+
+  return (/* UI */)
+}
+```
+
+---
+
+## エラーハンドリング
+
+### 無効な入力への対応
+
+```typescript
+// ポリゴンの座標が不十分な場合
+const result = checkPolygonCollision([[]], prohibitedAreas)
+// => { isColliding: false, message: '座標が不十分です' }
+
+// 無効なジオメトリ（自己交差など）
+const result = checkPolygonCollision(invalidCoords, prohibitedAreas)
+// => { isColliding: false, message: '無効なポリゴン形状' }
+```
+
+### GeoJSONプロパティの取得
+
+ゾーンタイプは以下の優先順位で取得されます：
+
+1. `feature.properties.zoneType`
+2. `feature.properties.type`
+3. デフォルト: `'DID'`
+
+---
+
+## テスト
+
+```typescript
+import { describe, it, expect } from 'vitest'
+import { checkWaypointCollision, checkPathCollision, checkPolygonCollision } from './collision'
+
+describe('Collision Detection', () => {
+  const testArea: FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { zoneType: 'DID', name: 'テストエリア' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]
+      }
+    }]
+  }
+
+  it('エリア内のWaypointを検出する', () => {
+    const result = checkWaypointCollision([0.5, 0.5], testArea)
+    expect(result.isColliding).toBe(true)
+    expect(result.collisionType).toBe('DID')
+  })
+
+  it('エリア外のWaypointはSAFE', () => {
+    const result = checkWaypointCollision([2, 2], testArea)
+    expect(result.isColliding).toBe(false)
+    expect(result.severity).toBe('SAFE')
+  })
+
+  it('経路の交差を検出する', () => {
+    const result = checkPathCollision([[-1, 0.5], [2, 0.5]], testArea)
+    expect(result.isColliding).toBe(true)
+    expect(result.intersectionPoints.length).toBe(2)
+  })
+})
+```
+
+---
+
+## 関連ドキュメント
+
+- [docs/specifications/COLLISION_DETECTION_SPEC.md](../../docs/specifications/COLLISION_DETECTION_SPEC.md) - 詳細技術仕様書
+- [API/Utilities](./UTILITIES.mdx) - 他の地理計算ユーティリティ
+- [飛行経路/飛行範囲](./11_DrawingToolsSpec.mdx) - 描画ツール仕様

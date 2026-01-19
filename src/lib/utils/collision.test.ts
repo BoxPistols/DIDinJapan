@@ -179,3 +179,186 @@ describe('ZONE_COLORS定数', () => {
     expect(ZONE_COLORS.DID).not.toBe(ZONE_COLORS.RED_ZONE)
   })
 })
+
+describe('エッジケース: checkPolygonCollision', () => {
+  it('座標が不十分な場合はSAFEを返す', () => {
+    const result = checkPolygonCollision([[]], prohibited)
+    expect(result.isColliding).toBe(false)
+    expect(result.message).toBe('座標が不十分です')
+  })
+
+  it('3点未満のポリゴンはSAFEを返す', () => {
+    const result = checkPolygonCollision([[[0, 0], [1, 1]]], prohibited)
+    expect(result.isColliding).toBe(false)
+    expect(result.message).toBe('座標が不十分です')
+  })
+
+  it('空の配列はSAFEを返す', () => {
+    const result = checkPolygonCollision([], prohibited)
+    expect(result.isColliding).toBe(false)
+  })
+
+  it('禁止エリアと重複しないポリゴンはSAFE', () => {
+    const outsidePolygon = [
+      [
+        [10, 10],
+        [11, 10],
+        [11, 11],
+        [10, 11],
+        [10, 10]
+      ]
+    ]
+    const result = checkPolygonCollision(outsidePolygon, prohibited)
+    expect(result.isColliding).toBe(false)
+    expect(result.overlapArea).toBe(0)
+    expect(result.overlapRatio).toBe(0)
+  })
+
+  it('重複割合が20%超えるとDANGERを返す', () => {
+    // 禁止エリアの80%を覆うポリゴン
+    const largeOverlapPolygon = [
+      [
+        [0.1, 0.1],
+        [0.9, 0.1],
+        [0.9, 0.9],
+        [0.1, 0.9],
+        [0.1, 0.1]
+      ]
+    ]
+    const result = checkPolygonCollision(largeOverlapPolygon, prohibited)
+    expect(result.isColliding).toBe(true)
+    expect(result.overlapRatio).toBeGreaterThan(0.2)
+    expect(result.severity).toBe('DANGER')
+  })
+})
+
+describe('エッジケース: checkPathCollision', () => {
+  it('禁止エリアと交差しない経路はSAFE', () => {
+    const result = checkPathCollision(
+      [
+        [10, 10],
+        [11, 11]
+      ],
+      prohibited
+    )
+    expect(result.isColliding).toBe(false)
+    expect(result.intersectionPoints.length).toBe(0)
+    expect(result.severity).toBe('SAFE')
+  })
+
+  it('経路が禁止エリアを完全に通過する場合は2つの交差点を検出', () => {
+    const result = checkPathCollision(
+      [
+        [-1, 0.5],
+        [2, 0.5]
+      ],
+      prohibited
+    )
+    expect(result.isColliding).toBe(true)
+    expect(result.intersectionPoints.length).toBe(2) // 入る点と出る点
+  })
+
+  it('経路が禁止エリアの角をかする場合は1つの交差点を検出', () => {
+    const result = checkPathCollision(
+      [
+        [-1, 0],
+        [2, 0]
+      ],
+      prohibited
+    )
+    expect(result.isColliding).toBe(true)
+    expect(result.intersectionPoints.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('エッジケース: checkWaypointCollision', () => {
+  it('禁止エリアが空の場合はSAFE', () => {
+    const emptyProhibited = turf.featureCollection([])
+    const result = checkWaypointCollision([0.5, 0.5], emptyProhibited)
+    expect(result.isColliding).toBe(false)
+    expect(result.severity).toBe('SAFE')
+  })
+
+  it('zoneTypeプロパティがない場合はDIDとして扱う', () => {
+    const noZoneType = turf.featureCollection([
+      {
+        ...square,
+        properties: { name: 'NoType' }
+      }
+    ])
+    const result = checkWaypointCollision([0.5, 0.5], noZoneType)
+    expect(result.isColliding).toBe(true)
+    expect(result.collisionType).toBe('DID') // デフォルト
+  })
+
+  it('typeプロパティがzoneTypeの代わりに使用される', () => {
+    const withType = turf.featureCollection([
+      {
+        ...square,
+        properties: { name: 'WithType', type: 'AIRPORT' }
+      }
+    ])
+    const result = checkWaypointCollision([0.5, 0.5], withType)
+    expect(result.isColliding).toBe(true)
+    expect(result.collisionType).toBe('AIRPORT')
+  })
+
+  it('未知のゾーンタイプはデフォルト色を使用', () => {
+    const unknownZone = turf.featureCollection([
+      {
+        ...square,
+        properties: { name: 'Unknown', zoneType: 'CUSTOM_ZONE' }
+      }
+    ])
+    const result = checkWaypointCollision([0.5, 0.5], unknownZone)
+    expect(result.isColliding).toBe(true)
+    expect(result.collisionType).toBe('CUSTOM_ZONE')
+    expect(result.uiColor).toBe(ZONE_COLORS.DEFAULT)
+  })
+})
+
+describe('再現性テスト: 実際の座標を使用', () => {
+  // 東京駅周辺のDIDエリア（簡略化）
+  const tokyoStationArea = turf.featureCollection([
+    {
+      ...turf.polygon([
+        [
+          [139.76, 35.67],
+          [139.78, 35.67],
+          [139.78, 35.69],
+          [139.76, 35.69],
+          [139.76, 35.67]
+        ]
+      ]),
+      properties: { name: '東京駅周辺DID', zoneType: 'DID' }
+    }
+  ])
+
+  it('東京駅付近のWaypointはDID内と判定', () => {
+    // 東京駅の座標（概算）
+    const tokyoStation: [number, number] = [139.7671, 35.6812]
+    const result = checkWaypointCollision(tokyoStation, tokyoStationArea)
+    expect(result.isColliding).toBe(true)
+    expect(result.collisionType).toBe('DID')
+    expect(result.areaName).toBe('東京駅周辺DID')
+  })
+
+  it('皇居付近のWaypointはDID外と判定', () => {
+    // 皇居の座標（概算）- テストエリア外
+    const imperialPalace: [number, number] = [139.7528, 35.6852]
+    const result = checkWaypointCollision(imperialPalace, tokyoStationArea)
+    expect(result.isColliding).toBe(false)
+    expect(result.severity).toBe('SAFE')
+  })
+
+  it('飛行経路がDIDを横断する場合を検出', () => {
+    const flightPath = [
+      [139.75, 35.68], // DID外
+      [139.77, 35.68], // DID内を通過
+      [139.79, 35.68] // DID外
+    ]
+    const result = checkPathCollision(flightPath, tokyoStationArea)
+    expect(result.isColliding).toBe(true)
+    expect(result.intersectionPoints.length).toBeGreaterThanOrEqual(2)
+  })
+})
