@@ -1,0 +1,404 @@
+{/* 15_WeatherApi.mdx */}
+import { Meta } from '@storybook/blocks'
+
+<Meta title="API/15_天気予報API仕様" />
+
+# 天気予報API仕様書
+
+本ライブラリには**2つの天気関連システム**が実装されています。
+
+| システム | 用途 | API | ファイル |
+|----------|------|-----|----------|
+| **天気予報表示** | 都道府県別天気予報UI | Open-Meteo | `weatherApi.ts` |
+| **ドローン運用安全** | 飛行可否判定 | JMA Mesh | `jmaMesh.ts` |
+
+---
+
+## 1. 天気予報表示システム (Open-Meteo)
+
+地図クリックで都道府県の天気予報を表示する機能。
+
+### 1-1. 概要
+
+```
+API: Open-Meteo API
+URL: https://api.open-meteo.com/v1/forecast
+料金: 完全無料
+認証: 不要
+制限: 10,000リクエスト/日（非商用）
+```
+
+### 1-2. キーボードショートカット
+
+| キー | 機能 |
+|:---:|:---|
+| `W` | 天気予報クリックモードのトグル |
+| `C` | 雨雲レーダーのトグル |
+| `ESC` | ポップアップ・パネルを順番に閉じる |
+
+### 1-3. ファイル構成
+
+```
+src/
+├── lib/services/
+│   ├── weatherApi.ts      # Open-Meteo API連携
+│   └── rainViewer.ts      # RainViewer API連携（雨雲レーダー）
+└── components/weather/
+    └── WeatherForecastPanel.tsx  # 詳細予報パネル
+```
+
+### 1-4. weatherApi.ts 主要関数
+
+| 関数 | 説明 |
+|------|------|
+| `fetchPrefectureWeather(lat, lng)` | 座標から天気データ取得 |
+| `getPrefectureForecast(prefectureId)` | 都道府県IDから天気取得 |
+| `findNearestPrefecture(lat, lng)` | 最寄りの都道府県を検索 |
+| `getWeatherDescription(code)` | 天気コードをラベル・アイコンに変換 |
+| `formatHourlyTime(time)` | 時刻フォーマット |
+| `formatDailyDate(date)` | 日付フォーマット |
+| `getAllRegions()` | 全地方名リスト取得 |
+| `getPrefecturesByRegion(region)` | 地方別都道府県リスト |
+
+### 1-5. 都道府県データ
+
+全47都道府県の県庁所在地座標を `JAPAN_PREFECTURES` 配列で管理。
+
+```typescript
+export const JAPAN_PREFECTURES = [
+  { id: 'hokkaido', name: '北海道', capital: '札幌', lat: 43.06, lng: 141.35, region: '北海道' },
+  { id: 'aomori', name: '青森県', capital: '青森', lat: 40.82, lng: 140.74, region: '東北' },
+  { id: 'iwate', name: '岩手県', capital: '盛岡', lat: 39.70, lng: 141.15, region: '東北' },
+  // ... 全47都道府県
+]
+
+// 地方区分
+const REGIONS = ['北海道', '東北', '関東', '中部', '近畿', '中国', '四国', '九州・沖縄']
+```
+
+### 1-6. APIリクエスト
+
+```typescript
+// リクエストURL構築
+const url = `https://api.open-meteo.com/v1/forecast?` +
+  `latitude=${lat}&longitude=${lng}` +
+  `&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m` +
+  `&hourly=temperature_2m,weather_code,precipitation` +
+  `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum` +
+  `&timezone=Asia%2FTokyo`
+```
+
+### 1-7. APIレスポンス
+
+```json
+{
+  "current": {
+    "temperature_2m": 5.2,
+    "relative_humidity_2m": 72,
+    "precipitation": 0,
+    "weather_code": 3,
+    "wind_speed_10m": 7.4
+  },
+  "hourly": {
+    "time": ["2026-01-20T00:00", "2026-01-20T01:00", "..."],
+    "temperature_2m": [5.2, 4.8, "..."],
+    "weather_code": [3, 3, "..."],
+    "precipitation": [0, 0.1, "..."]
+  },
+  "daily": {
+    "time": ["2026-01-20", "2026-01-21", "..."],
+    "weather_code": [3, 71, "..."],
+    "temperature_2m_max": [8, 5, "..."],
+    "temperature_2m_min": [-2, -3, "..."],
+    "precipitation_sum": [0.1, 2.5, "..."]
+  }
+}
+```
+
+### 1-8. WMO天気コード対応表
+
+| コード | 天気 | アイコン |
+|:------:|------|:--------:|
+| 0 | 快晴 | ☀️ |
+| 1 | 晴れ | 🌤️ |
+| 2 | 一部曇り | ⛅ |
+| 3 | 曇り | 🌥️ |
+| 45, 48 | 霧 | 🌫️ |
+| 51, 53, 55 | 霧雨 | 🌦️ |
+| 61, 63, 65 | 雨 | 🌧️ |
+| 66, 67 | 凍雨 | 🌧️ |
+| 71, 73, 75 | 雪 | ❄️ |
+| 77 | 霧雪 | 🌨️ |
+| 80, 81, 82 | にわか雨 | 🌧️ |
+| 85, 86 | にわか雪 | 🌨️ |
+| 95, 96, 99 | 雷雨 | ⛈️ |
+
+### 1-9. 使用例
+
+```tsx
+import {
+  fetchPrefectureWeather,
+  findNearestPrefecture,
+  getWeatherDescription
+} from 'japan-drone-map'
+
+// 地図クリック時
+async function handleMapClick(lat: number, lng: number) {
+  // 最寄りの都道府県を検索
+  const prefecture = findNearestPrefecture(lat, lng)
+
+  // 天気データ取得
+  const weather = await fetchPrefectureWeather(prefecture.lat, prefecture.lng)
+
+  // 天気アイコン・ラベル取得
+  const { icon, label } = getWeatherDescription(weather.current.weather_code)
+
+  console.log(`${prefecture.name}: ${icon} ${weather.current.temperature_2m}°C ${label}`)
+}
+```
+
+---
+
+## 2. 雨雲レーダー (RainViewer)
+
+### 2-1. 概要
+
+```
+API: RainViewer API
+URL: https://api.rainviewer.com/public/weather-maps.json
+料金: 完全無料
+認証: 不要
+更新: 5分ごと
+```
+
+### 2-2. rainViewer.ts 主要関数
+
+| 関数 | 説明 |
+|------|------|
+| `getAvailableFrames()` | 利用可能なタイムスタンプ取得 |
+| `buildTileUrl(path)` | XYZタイルURL生成 |
+
+### 2-3. 使用例
+
+```tsx
+import { RainViewerService } from 'japan-drone-map'
+
+// 雨雲レーダーフレーム取得
+const data = await RainViewerService.getAvailableFrames()
+const latestPath = data.radar.past[data.radar.past.length - 1].path
+
+// MapLibreレイヤー用URL
+const tileUrl = RainViewerService.buildTileUrl(latestPath)
+// => "https://tilecache.rainviewer.com/v2/radar/{path}/256/{z}/{x}/{y}/2/1_1.png"
+```
+
+---
+
+## 3. ドローン運用安全システム (JMA Mesh)
+
+飛行可否を判定するための気象・通信・時間データを統合したシステム。
+
+### 3-1. 概要
+
+```
+目的: ドローン飛行の安全性判定
+データソース:
+  - 気象庁メッシュAPI（風速・降水確率）
+  - Sunrise-Sunset.org（民間薄明時間）
+  - LTEカバレッジ（通信確保）
+```
+
+### 3-2. ファイル構成
+
+```
+src/lib/
+├── services/
+│   ├── jmaMesh.ts           # 気象庁メッシュAPI
+│   ├── sunriseSunset.ts     # 日没時刻API
+│   └── networkCoverage.ts   # LTEカバレッジ
+├── hooks/
+│   ├── useWeatherMesh.ts    # 気象データフック
+│   ├── useFlightWindow.ts   # 飛行可能時間帯
+│   ├── useNetworkCoverage.ts # 通信状況
+│   └── useOperationSafety.ts # 統合安全判定
+└── utils/
+    └── meshCodeConverter.ts  # メッシュコード変換
+```
+
+### 3-3. 飛行安全判定ルール
+
+```typescript
+// useOperationSafety の判定ロジック
+canFly = true
+  && windSpeed < 10      // 風速10m/s未満
+  && precipitation <= 50 // 降水確率50%以下
+  && hasLTE              // LTE通信圏内
+  && isDaylight          // 民間薄明時間内
+```
+
+### 3-4. 安全レベル定義
+
+| レベル | 色 | 説明 |
+|--------|-----|------|
+| `safe` | 🟢 緑 | 安全に飛行可能 |
+| `caution` | 🟡 黄 | 注意が必要 |
+| `warning` | 🟠 橙 | 警告（条件悪化） |
+| `danger` | 🔴 赤 | 危険（飛行非推奨） |
+| `prohibited` | ⛔ 濃赤 | 飛行禁止 |
+
+### 3-5. 風速基準
+
+| 風速 (m/s) | レベル | 判定 |
+|:---:|:---:|:---|
+| 0 - 2 | `safe` | 安全（良好） |
+| 2 - 5 | `caution` | 注意（飛行可能） |
+| 5 - 10 | `warning` | 警告（操縦難化） |
+| 10+ | `danger` | 危険（飛行不可） |
+
+### 3-6. useOperationSafety フック
+
+```typescript
+import { useOperationSafety, getSafetyLevelColor } from 'japan-drone-map'
+
+function FlightSafetyCheck({ lat, lng, meshCode }) {
+  const safety = useOperationSafety(lat, lng, meshCode)
+
+  if (safety.loading) return <div>安全確認中...</div>
+
+  return (
+    <div style={{ backgroundColor: getSafetyLevelColor(safety.safetyLevel) }}>
+      {safety.canFly ? (
+        <span>✓ 飛行可能</span>
+      ) : (
+        <div>
+          <span>✗ 飛行不可</span>
+          <ul>
+            {safety.reasons.map((r, i) => (
+              <li key={i}>{r.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+### 3-7. OperationSafetyResult 型
+
+```typescript
+interface OperationSafetyResult {
+  canFly: boolean
+  reasons: SafetyReason[]
+  safetyLevel: SafetyLevel
+  nextSafeWindow: Date | null
+  loading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+
+  // 生データアクセス
+  weatherData?: {
+    windSpeed?: number
+    windDirection?: number
+    precipitationProbability?: number
+    temperature?: number
+  }
+  networkData?: {
+    hasLTE: boolean
+    signalStrength: string
+  }
+  flightWindowData?: {
+    flightAllowedNow: boolean
+    minutesRemaining: number | null
+  }
+}
+```
+
+---
+
+## 4. メッシュコード変換
+
+気象庁データは「メッシュコード」で地域を識別します。
+
+### 4-1. meshCodeConverter.ts
+
+```typescript
+import {
+  latLngToMeshCode,
+  meshCodeToLatLng,
+  getSurroundingMeshCodes
+} from 'japan-drone-map'
+
+// 座標 → メッシュコード
+const meshCode = latLngToMeshCode(35.6895, 139.6917)
+// => "53393599"
+
+// メッシュコード → 座標（中心点）
+const center = meshCodeToLatLng("53393599")
+// => { lat: 35.6895833, lng: 139.6916666 }
+
+// 周辺メッシュコード取得
+const surrounding = getSurroundingMeshCodes("53393599")
+// => ["53393589", "53393598", "53393599", ...]
+```
+
+---
+
+## 5. 日没時刻・民間薄明 (Sunrise-Sunset)
+
+### 5-1. API仕様
+
+```
+API: Sunrise-Sunset.org
+URL: https://api.sunrise-sunset.org/json
+料金: 完全無料
+認証: 不要
+```
+
+### 5-2. useFlightWindow フック
+
+```typescript
+import { useFlightWindow } from 'japan-drone-map'
+
+function DaylightInfo({ lat, lng }) {
+  const flight = useFlightWindow(lat, lng)
+
+  return (
+    <div>
+      <p>日の出: {flight.sunrise?.toLocaleTimeString()}</p>
+      <p>日没: {flight.sunset?.toLocaleTimeString()}</p>
+      <p>民間薄明終了: {flight.civilTwilightEnd?.toLocaleTimeString()}</p>
+      <p>飛行可能: {flight.flightAllowedNow ? 'はい' : 'いいえ'}</p>
+      {flight.minutesRemaining && (
+        <p>残り時間: {flight.minutesRemaining}分</p>
+      )}
+    </div>
+  )
+}
+```
+
+### 5-3. MLIT規制
+
+```
+■ 無人航空機の飛行禁止時間帯
+- 民間薄明時間終了後（夜間）のドローン飛行禁止
+- 例外: 照明設備のあるエリアで許可申請された場合のみ
+
+■ 民間薄明時間（Civil Twilight）とは
+- 日没後、太陽の中心が地平線下6°に達するまでの時間
+- この間は自然光で十分な視認性がある
+```
+
+---
+
+## 6. 参考リンク
+
+### 公式ドキュメント
+- [Open-Meteo API](https://open-meteo.com/en/docs)
+- [RainViewer API](https://www.rainviewer.com/api.html)
+- [Sunrise-Sunset API](https://sunrise-sunset.org/api)
+- [気象庁メッシュ情報](https://www.jma.go.jp/bosai/mesh/)
+
+### 法規制
+- [国土交通省 無人航空機の飛行許可](https://www.mlit.go.jp/koku/koku_tk10_000003.html)
+- [WMO Weather Codes](https://open-meteo.com/en/docs#weathervariables)
