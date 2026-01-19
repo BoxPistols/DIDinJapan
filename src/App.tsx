@@ -238,8 +238,6 @@ function App() {
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
-  const debugRunIdRef = useRef<string>('')
-  const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
 
   // State
@@ -444,23 +442,7 @@ function App() {
         .map((s) => s.trim())
         .filter(Boolean)
       const filtered = parts.filter((id) => COMPARISON_ALLOWED_IDS.has(id))
-      const set = new Set<string>(filtered)
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:readComparisonVisibilityFromUrl',
-          message: 'read',
-          data: { hasParam: true, count: set.size, values: Array.from(set.values()) },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'K'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-      return set
+      const set = new Set<string>(filtered)      return set
     } catch {
       return new Set<string>()
     }
@@ -500,23 +482,7 @@ function App() {
       const url = new URL(window.location.href)
       if (!url.searchParams.has(COMPARISON_VIS_URL_PARAM)) return
       url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
-      window.history.replaceState({}, '', url.toString())
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:clearCmpvParam',
-          message: 'cleared',
-          data: {},
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'K'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-    } catch {
+      window.history.replaceState({}, '', url.toString())    } catch {
       // ignore
     }
   }, [])
@@ -713,27 +679,6 @@ function App() {
   const handleBaseMapChange = useCallback(
     (newBaseMap: BaseMapKey) => {
       if (newBaseMap === baseMap) return
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleBaseMapChange',
-          message: 'before-reload',
-          data: {
-            from: baseMap,
-            to: newBaseMap,
-            comparisonVisible: Array.from(comparisonLayerVisibilityRef.current.values())
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'I'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
       const url = new URL(window.location.href)
       if (currentVisible.length > 0) {
@@ -741,26 +686,6 @@ function App() {
       } else {
         url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
       }
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleBaseMapChange',
-          message: 'set-cmpv-param',
-          data: {
-            to: newBaseMap,
-            currentVisibleCount: currentVisible.length,
-            hasParam: url.searchParams.has(COMPARISON_VIS_URL_PARAM)
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'I'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       // 設定を保存
       try {
         const settings = {
@@ -843,28 +768,7 @@ function App() {
         opacity: Object.fromEntries(Array.from(comparisonLayerOpacity.entries())),
         timestamp: Date.now()
       }
-      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:saveComparisonSettings',
-          message: 'saved',
-          data: {
-            visibleCount: comparisonLayerVisibility.size,
-            opacityKeys: Object.keys(payload.opacity),
-            visibleStorage: 'none',
-            opacityStorage: 'local'
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'post-fix',
-          hypothesisId: 'G'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-    } catch {
+      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))    } catch {
       // ignore
     }
   }, [comparisonLayerVisibility, comparisonLayerOpacity])
@@ -1169,30 +1073,6 @@ function App() {
   // Cache cleanup on app initialization
   // ============================================
   useEffect(() => {
-    // #region agent log (debug)
-    if (!debugRunIdRef.current) {
-      debugRunIdRef.current = `run-${Date.now()}`
-      try {
-        sessionStorage.setItem('debug-run-id', debugRunIdRef.current)
-      } catch {
-        // ignore
-      }
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:boot',
-          message: 'run-start',
-          data: { runId: debugRunIdRef.current, baseMap },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current,
-          hypothesisId: 'Z'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-
     clearOldCaches().catch((err) => {
       console.warn('Failed to clear old caches:', err)
     })
@@ -1257,33 +1137,7 @@ function App() {
       maxWidth: '300px'
     })
 
-    map.on('load', () => {
-      // #region agent log (debug)
-      try {
-        const style = map.getStyle()
-        fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'src/App.tsx:map.on(load)',
-            message: 'style-loaded',
-            data: {
-              baseMap,
-              hasGlyphs: !!style.glyphs,
-              layerCount: Array.isArray(style.layers) ? style.layers.length : 0,
-              sourceCount: style.sources ? Object.keys(style.sources).length : 0
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'pre-fix',
-            hypothesisId: 'H'
-          })
-        }).catch(() => {})
-      } catch {
-        // ignore
-      }
-      // #endregion agent log (debug)
-      // スタイルにglyphsプロパティが存在しない場合は追加
+    map.on('load', () => {      // スタイルにglyphsプロパティが存在しない場合は追加
       const style = map.getStyle()
       if (!style.glyphs) {
         style.glyphs = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
@@ -1829,146 +1683,15 @@ function App() {
         if (map.getLayer(`${layerId}-outline`)) {
           map.setPaintProperty(`${layerId}-outline`, 'line-opacity', Math.min(1, opacity * 0.9))
         }
-      }
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:applyComparisonLayerState',
-          message: 'applied',
-          data: {
-            baseMap,
-            layerId,
-            isVisible,
-            visibility,
-            opacity,
-            hasLayer: !!map.getLayer(layerId),
-            hasHeat: !!map.getLayer(`${layerId}-heat`)
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'J'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
-      // #region agent log (debug)
-      // 反映直後はまだ描画フレームが回っていない可能性があるため、idle後に「本当に描画できているか」を検証する
-      if (isVisible) {
-        const runKey = debugRunIdRef.current || 'unknown'
-        const key = `${runKey}:${baseMap}:${layerId}`
-        if (!comparisonIdleDebugKeysRef.current.has(key)) {
-          comparisonIdleDebugKeysRef.current.add(key)
-          map.once('idle', () => {
-            const safeRendered = (layers: string[]): number => {
-              try {
-                return map.queryRenderedFeatures(undefined, { layers }).length
-              } catch {
-                return -1
-              }
-            }
-            const safeSource = (sourceId: string): number => {
-              try {
-                // GeoJSON sourceの場合も0以上が返ることがある。失敗時は -1 にする
-                return map.querySourceFeatures(sourceId).length
-              } catch {
-                return -1
-              }
-            }
-            const layerIds = [layerId, `${layerId}-heat`, `${layerId}-label`, `${layerId}-outline`]
-            const styleLayers = map.getStyle().layers ?? []
-            const idx = (id: string): number => styleLayers.findIndex((l) => l.id === id)
-            const rasterMaxIndex = styleLayers.reduce((acc, l, i) => {
-              if ((l.type as string) === 'raster') return Math.max(acc, i)
-              return acc
-            }, -1)
-
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:applyComparisonLayerState',
-                message: 'idle-render-check',
-                data: {
-                  baseMap,
-                  layerId,
-                  sourceFeatureCount: safeSource(layerId),
-                  renderedMain: safeRendered([layerId]),
-                  renderedHeat: safeRendered([`${layerId}-heat`]),
-                  renderedLabel: safeRendered([`${layerId}-label`]),
-                  layerOrder: {
-                    rasterMaxIndex,
-                    indices: Object.fromEntries(layerIds.map((id) => [id, idx(id)]))
-                  }
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: runKey,
-                hypothesisId: 'M'
-              })
-            }).catch(() => {})
-          })
-        }
-      }
-      // #endregion agent log (debug)
-    }
+      }    }
 
     async function initComparisonLayers() {
-      if (!map) return
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:initComparisonLayers',
-          message: 'enter',
-          data: { mapLoaded, layerCount: ISHIKAWA_NOTO_COMPARISON_LAYERS.length },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-      for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
+      if (!map) return      for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
         const hasSource = !!map.getSource(layerConfig.id)
 
         try {
           if (!hasSource) {
             const geojson = await fetchGeoJSONWithCache(layerConfig.path)
-            // #region agent log (debug)
-            {
-              const sampleTypes = geojson.features
-                .slice(0, 50)
-                .map((f) => f.geometry?.type ?? 'null')
-              const typeCounts = sampleTypes.reduce<Record<string, number>>((acc, t) => {
-                acc[t] = (acc[t] ?? 0) + 1
-                return acc
-              }, {})
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'geojson-loaded',
-                  data: {
-                    layerId: layerConfig.id,
-                    path: layerConfig.path,
-                    features: geojson.features.length,
-                    sampleTypeCounts: typeCounts
-                  },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'pre-fix',
-                  hypothesisId: 'A'
-                })
-              }).catch(() => {})
-            }
-            // #endregion agent log (debug)
-
             map.addSource(layerConfig.id, {
               type: 'geojson',
               data: geojson
@@ -1976,23 +1699,7 @@ function App() {
 
             const bounds = computeCollectionBounds(geojson)
             if (bounds) {
-              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)
-              // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'bounds-computed',
-                  data: { layerId: layerConfig.id, bounds },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'post-fix',
-                  hypothesisId: 'F'
-                })
-              }).catch(() => {})
-              // #endregion agent log (debug)
-            }
+              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)            }
 
             const primaryType = getPrimaryGeometryType(geojson)
             const layerOpacity = comparisonLayerOpacity.get(layerConfig.id) ?? 0.5
@@ -2042,22 +1749,6 @@ function App() {
                   visibility: 'none'
                 }
               })
-              // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'heatmap-added',
-                  data: { layerId: layerConfig.id, heatId, elevationRange: elevRange },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'pre-fix',
-                  hypothesisId: 'E'
-                })
-              }).catch(() => {})
-              // #endregion agent log (debug)
-
               // Circle レイヤー（ポイントデータ用）
               map.addLayer({
                 id: layerConfig.id,
@@ -2123,30 +1814,6 @@ function App() {
                 'text-halo-width': 1
               }
             })
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:initComparisonLayers',
-                message: 'layer-added',
-                data: {
-                  layerId: layerConfig.id,
-                  primaryType,
-                  renderAsCircle,
-                  addedType: renderAsCircle ? 'circle' : 'fill',
-                  hasLayer: !!map.getLayer(layerConfig.id),
-                  hasOutline: !!map.getLayer(`${layerConfig.id}-outline`),
-                  hasLabel: !!map.getLayer(`${layerConfig.id}-label`)
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'A'
-              })
-            }).catch(() => {})
-            // #endregion agent log (debug)
-
             // 非同期ロード後に、現在のON/OFFを即反映（初期表示の空振り防止）
             applyComparisonLayerState(layerConfig.id)
           } else {
@@ -2385,40 +2052,6 @@ function App() {
     if (!map || !mapLoaded) return
 
     const isVisible = overlayStates.get(overlay.id) ?? false
-
-    // #region agent log (debug)
-    {
-      const hasTiles = 'tiles' in overlay
-      const hasGeojson = 'geojson' in overlay
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:toggleOverlay',
-          message: 'toggle-click',
-          data: {
-            id: overlay.id,
-            name: overlay.name,
-            isVisibleBefore: isVisible,
-            hasTiles,
-            tilesLen: hasTiles
-              ? ((overlay as (typeof GEO_OVERLAYS)[0]).tiles?.length ?? null)
-              : null,
-            hasGeojson,
-            geojsonPath: hasGeojson
-              ? ((overlay as (typeof GEO_OVERLAYS)[0]).geojson ?? null)
-              : null,
-            mapLoaded
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current || 'unknown',
-          hypothesisId: 'N'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-
     if (!isVisible) {
       if (!map.getSource(overlay.id)) {
         // Handle mock GeoJSON overlays
@@ -2512,29 +2145,7 @@ function App() {
             type: 'raster',
             source: overlay.id,
             paint: { 'raster-opacity': overlay.opacity }
-          })
-          // #region agent log (debug)
-          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'src/App.tsx:toggleOverlay',
-              message: 'raster-added',
-              data: {
-                id: overlay.id,
-                tilesLen: overlay.tiles.length,
-                opacity: overlay.opacity,
-                hasLayer: !!map.getLayer(overlay.id),
-                hasSource: !!map.getSource(overlay.id)
-              },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              runId: debugRunIdRef.current || 'unknown',
-              hypothesisId: 'N'
-            })
-          }).catch(() => {})
-          // #endregion agent log (debug)
-        }
+          })        }
       } else {
         map.setLayoutProperty(overlay.id, 'visibility', 'visible')
         if (map.getLayer(`${overlay.id}-outline`)) {
@@ -3621,96 +3232,7 @@ function App() {
       if (map.getLayer(`${layerConfig.id}-label`)) {
         map.setLayoutProperty(`${layerConfig.id}-label`, 'visibility', visibility)
       }
-    })
-    // #region agent log (debug)
-    {
-      const states = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => {
-        const l = map.getLayer(cfg.id)
-        const heat = map.getLayer(`${cfg.id}-heat`)
-        const outline = map.getLayer(`${cfg.id}-outline`)
-        const label = map.getLayer(`${cfg.id}-label`)
-        const safeVis = (id: string): string | null => {
-          try {
-            return map.getLayoutProperty(id, 'visibility') as string
-          } catch {
-            return null
-          }
-        }
-        return {
-          id: cfg.id,
-          targetVisible: comparisonLayerVisibility.has(cfg.id),
-          layerType: l?.type ?? null,
-          layerVis: l ? safeVis(cfg.id) : null,
-          heatType: heat?.type ?? null,
-          heatVis: heat ? safeVis(`${cfg.id}-heat`) : null,
-          outlineType: outline?.type ?? null,
-          outlineVis: outline ? safeVis(`${cfg.id}-outline`) : null,
-          labelType: label?.type ?? null,
-          labelVis: label ? safeVis(`${cfg.id}-label`) : null
-        }
-      })
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:comparison-visibility-effect',
-          message: 'applied',
-          data: { baseMap, visible: Array.from(comparisonLayerVisibility.values()), states },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'H'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-
-    // #region agent log (debug)
-    {
-      const safeRenderedCount = (layers: string[]): number => {
-        try {
-          const existingLayers = layers.filter((layerId) => map.getLayer(layerId))
-          if (existingLayers.length === 0) return 0
-          return map.queryRenderedFeatures(undefined, { layers: existingLayers }).length
-        } catch {
-          return -1
-        }
-      }
-      const center = map.getCenter()
-      const b = map.getBounds()
-      const bounds: [[number, number], [number, number]] = [
-        [b.getWest(), b.getSouth()],
-        [b.getEast(), b.getNorth()]
-      ]
-      const rendered = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => ({
-        id: cfg.id,
-        targetVisible: comparisonLayerVisibility.has(cfg.id),
-        renderedMain: safeRenderedCount([cfg.id]),
-        renderedHeat: safeRenderedCount([`${cfg.id}-heat`]),
-        renderedLabel: safeRenderedCount([`${cfg.id}-label`])
-      }))
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:comparison-visibility-effect',
-          message: 'render-check',
-          data: {
-            baseMap,
-            zoom: map.getZoom(),
-            center: [center.lng, center.lat],
-            bounds,
-            rendered
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current || 'unknown',
-          hypothesisId: 'L'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-  }, [comparisonLayerVisibility, mapLoaded])
+    })  }, [comparisonLayerVisibility, mapLoaded])
 
   // ============================================
   // Comparison Layer Opacity Control
@@ -3785,44 +3307,11 @@ function App() {
       const map = mapRef.current
       if (!map || !mapLoaded) return
       if (baseMap !== 'osm') return
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleComparisonLayerToggle',
-          message: 'toggle',
-          data: { layerId, visible, mapLoaded, hasLayer: !!map.getLayer(layerId) },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'C'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       if (visible) {
         const bounds = comparisonLayerBoundsRef.current.get(layerId)
         if (bounds) {
           try {
-            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:handleComparisonLayerToggle',
-                message: 'fitBounds',
-                data: { layerId, bounds },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'post-fix',
-                hypothesisId: 'F'
-              })
-            }).catch(() => {})
-            // #endregion agent log (debug)
-          } catch {
+            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })          } catch {
             // ignore
           }
         }
