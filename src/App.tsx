@@ -442,7 +442,8 @@ function App() {
         .map((s) => s.trim())
         .filter(Boolean)
       const filtered = parts.filter((id) => COMPARISON_ALLOWED_IDS.has(id))
-      const set = new Set<string>(filtered)      return set
+      const set = new Set<string>(filtered)
+      return set
     } catch {
       return new Set<string>()
     }
@@ -1683,10 +1684,12 @@ function App() {
         if (map.getLayer(`${layerId}-outline`)) {
           map.setPaintProperty(`${layerId}-outline`, 'line-opacity', Math.min(1, opacity * 0.9))
         }
-      }    }
+      }
+    }
 
     async function initComparisonLayers() {
-      if (!map) return      for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
+      if (!map) return
+      for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
         const hasSource = !!map.getSource(layerConfig.id)
 
         try {
