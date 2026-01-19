@@ -1285,7 +1285,8 @@ export function DrawingTools({
         }
       })
 
-      // 円形の背景（禁止エリア内の頂点は赤、選択状態でオレンジ枠）
+      // 円形の背景（禁止エリア内の頂点はゾーンタイプに応じた色、選択状態でオレンジ枠）
+      // ゾーンタイプ別色: DID=赤, AIRPORT=紫, RED_ZONE=暗い赤, YELLOW_ZONE=黄
       map.addLayer({
         id: 'vertex-labels-background',
         type: 'circle',
@@ -1294,7 +1295,8 @@ export function DrawingTools({
           'circle-radius': ['case', ['get', 'selected'], 14, 12],
           'circle-color': [
             'case',
-            ['get', 'isInProhibited'], '#f44336',  // 禁止エリア内 → 赤
+            ['get', 'isInProhibited'],
+            ['coalesce', ['get', 'collisionColor'], '#f44336'],  // 禁止エリア内 → ゾーン色
             '#2563eb'  // それ以外 → 青
           ],
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
@@ -1667,12 +1669,18 @@ export function DrawingTools({
 
         // この頂点が禁止エリア内にあるかチェック
         let isInProhibited = false
+        let collisionType: string | null = null
+        let collisionColor = '#2563eb' // デフォルト青
         if (prohibitedIndexRef.current && prohibitedAreasRef.current) {
           const result = checkWaypointCollisionOptimized(
             coord,
             prohibitedIndexRef.current as any
           )
           isInProhibited = result.isColliding
+          if (result.isColliding) {
+            collisionType = result.collisionType
+            collisionColor = result.uiColor
+          }
         }
 
         labelFeatures.push({
@@ -1684,7 +1692,9 @@ export function DrawingTools({
           properties: {
             label: `${index + 1}`,
             selected: isSelected,
-            isInProhibited
+            isInProhibited,
+            collisionType,
+            collisionColor
           }
         })
       })

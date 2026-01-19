@@ -397,7 +397,7 @@ function App() {
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
 
-  // 衝突検出用: 表示中のDIDレイヤーのGeoJSONを結合
+  // 衝突検出用: 表示中のDIDレイヤーおよび禁止ゾーンのGeoJSONを結合
   const prohibitedAreas = useMemo<GeoJSON.FeatureCollection | undefined>(() => {
     // 個別の都道府県DIDレイヤー
     const visibleLayerIds = Array.from(layerStates.entries())
@@ -410,11 +410,16 @@ function App() {
 
     const features: GeoJSON.Feature[] = []
 
+    // DIDレイヤー（zoneType: 'DID'を付与）
     if (isDIDAllJapanVisible) {
       // 全国DIDが有効な場合、キャッシュ内の全DIDを使用
       for (const [layerId, cached] of didGeoJSONCacheRef.current.entries()) {
         if (layerId.startsWith('did-')) {
-          features.push(...cached.features)
+          const taggedFeatures = cached.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'DID' }
+          }))
+          features.push(...taggedFeatures)
         }
       }
     } else {
@@ -422,9 +427,19 @@ function App() {
       for (const layerId of visibleLayerIds) {
         const cached = didGeoJSONCacheRef.current.get(layerId)
         if (cached) {
-          features.push(...cached.features)
+          const taggedFeatures = cached.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'DID' }
+          }))
+          features.push(...taggedFeatures)
         }
       }
+    }
+
+    // 禁止ゾーン（空港、レッドゾーン、イエローゾーン）
+    // キャッシュ済みの禁止ゾーンを追加（すでにzoneTypeが設定済み）
+    for (const [, cached] of restrictionGeoJSONCacheRef.current.entries()) {
+      features.push(...cached.features)
     }
 
     if (features.length === 0) return undefined
@@ -1164,7 +1179,7 @@ function App() {
         case '?':
         case '/':
           e.preventDefault()
-          setShowHelp((prev) => !prev)
+          setShowHelp((prev: boolean) => !prev)
           break
         case 'escape':
           setShowHelp(false)
@@ -1275,7 +1290,7 @@ function App() {
         map.setLayoutProperty(item.layerId, 'visibility', 'visible')
         map.setLayoutProperty(`${item.layerId}-outline`, 'visibility', 'visible')
       }
-      setLayerStates((prev) => {
+      setLayerStates((prev: Map<string, LayerState>) => {
         const next = new Map(prev)
         next.set(item.layerId, { id: item.layerId, visible: true })
         return next
@@ -1798,7 +1813,7 @@ function App() {
             })
           }
         })
-        setSearchIndex((prev) => [...prev, ...newItems])
+        setSearchIndex((prev: SearchIndexItem[]) => [...prev, ...newItems])
 
         // ソースの存在を再確認（非同期処理中に追加された可能性がある）
         if (map.getSource(layer.id)) {
@@ -1831,7 +1846,7 @@ function App() {
           layout: { visibility: initialVisible ? 'visible' : 'none' }
         })
 
-        setLayerStates((prev) => {
+        setLayerStates((prev: Map<string, LayerState>) => {
           const next = new Map(prev)
           next.set(layer.id, { id: layer.id, visible: initialVisible })
           return next
@@ -2390,7 +2405,7 @@ function App() {
       applyDidLayerColor(layer.id, groupMode === 'red' ? '#ff0000' : layer.color)
     }
 
-    setLayerStates((prev) => {
+    setLayerStates((prev: Map<string, LayerState>) => {
       const next = new Map(prev)
       next.set(layer.id, { ...state, visible: newVisibility })
       return next
@@ -2398,7 +2413,7 @@ function App() {
   }
 
   const toggleGroup = (groupName: string) => {
-    setExpandedGroups((prev) => {
+    setExpandedGroups((prev: Set<string>) => {
       const next = new Set(prev)
       if (next.has(groupName)) {
         next.delete(groupName)
@@ -2426,7 +2441,7 @@ function App() {
   const enableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2435,7 +2450,7 @@ function App() {
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates((prev) => {
+          setLayerStates((prev: Map<string, LayerState>) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -2452,7 +2467,7 @@ function App() {
   const enableAllInGroupRed = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'red'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'red'))
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2460,7 +2475,7 @@ function App() {
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates((prev) => {
+          setLayerStates((prev: Map<string, LayerState>) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -2478,7 +2493,7 @@ function App() {
   const disableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
     applyDidGroupColors(group, 'default')
 
     group.layers.forEach((layer) => {
@@ -2486,7 +2501,7 @@ function App() {
       if (state?.visible) {
         map.setLayoutProperty(layer.id, 'visibility', 'none')
         map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'none')
-        setLayerStates((prev) => {
+        setLayerStates((prev: Map<string, LayerState>) => {
           const next = new Map(prev)
           next.set(layer.id, { ...state, visible: false })
           return next
@@ -2625,7 +2640,7 @@ function App() {
           map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'visible')
         }
       }
-      setOverlayStates((prev) => new Map(prev).set(overlay.id, true))
+      setOverlayStates((prev: Map<string, boolean>) => new Map(prev).set(overlay.id, true))
     } else {
       if (map.getLayer(overlay.id)) {
         map.setLayoutProperty(overlay.id, 'visibility', 'none')
@@ -2633,7 +2648,7 @@ function App() {
       if (map.getLayer(`${overlay.id}-outline`)) {
         map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'none')
       }
-      setOverlayStates((prev) => new Map(prev).set(overlay.id, false))
+      setOverlayStates((prev: Map<string, boolean>) => new Map(prev).set(overlay.id, false))
     }
   }
 
@@ -2688,12 +2703,12 @@ function App() {
           paint: { 'raster-opacity': 0.6 }
         })
       }
-      setWeatherStates((prev) => new Map(prev).set(overlayId, true))
+      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, true))
     } else {
       if (map.getLayer(overlayId)) {
         map.setLayoutProperty(overlayId, 'visibility', 'none')
       }
-      setWeatherStates((prev) => new Map(prev).set(overlayId, false))
+      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, false))
     }
   }
 
@@ -3217,7 +3232,7 @@ function App() {
         }
 
         if (syncState) {
-          setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
         }
         return
       }
@@ -3231,7 +3246,7 @@ function App() {
           try {
             enableKokuarea(map, zone.geojsonTileTemplate)
             if (syncState) {
-              setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+              setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
             }
             return
           } catch (e) {
@@ -3335,7 +3350,7 @@ function App() {
           setDidCacheVersion((v) => v + 1)
         }
         if (syncState) {
-          setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
         }
         return
       }
@@ -3380,7 +3395,7 @@ function App() {
         }
       }
       if (syncState) {
-        setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+        setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
       }
     },
     [mapLoaded, opacity]
@@ -3428,7 +3443,7 @@ function App() {
         }
       }
       if (syncState) {
-        setRestrictionStates((prev) => new Map(prev).set(restrictionId, false))
+        setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, false))
       }
     },
     [mapLoaded]
@@ -3481,7 +3496,7 @@ function App() {
     }
 
     // Batch update state
-    setRestrictionStates((prev) => {
+    setRestrictionStates((prev: Map<string, boolean>) => {
       const next = new Map(prev)
       ids.forEach((id) => next.set(id, shouldShow))
       return next
@@ -3681,7 +3696,7 @@ function App() {
           }
         })
       }
-      setCustomLayerVisibility((prev) => new Set(prev).add(layer.id))
+      setCustomLayerVisibility((prev: Set<string>) => new Set(prev).add(layer.id))
 
       if (options?.focus) {
         const bounds = getGeoJSONBounds(layer.data)
@@ -3706,7 +3721,7 @@ function App() {
     if (map.getSource(layerId)) {
       map.removeSource(layerId)
     }
-    setCustomLayerVisibility((prev) => {
+    setCustomLayerVisibility((prev: Set<string>) => {
       const next = new Set(prev)
       next.delete(layerId)
       return next
@@ -3896,7 +3911,7 @@ function App() {
         }
       })
 
-      setCustomLayerVisibility((prev) => {
+      setCustomLayerVisibility((prev: Set<string>) => {
         const next = new Set(prev)
         if (visible) {
           next.add(layerId)
@@ -3960,7 +3975,7 @@ function App() {
         }
       }
 
-      setComparisonLayerVisibility((prev) => {
+      setComparisonLayerVisibility((prev: Set<string>) => {
         const next = new Set(prev)
         if (visible) next.add(layerId)
         else next.delete(layerId)
@@ -3972,7 +3987,7 @@ function App() {
   )
 
   const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
-    setComparisonLayerOpacity((prev) => new Map(prev).set(layerId, opacity))
+    setComparisonLayerOpacity((prev: Map<string, number>) => new Map(prev).set(layerId, opacity))
   }, [])
 
   // ============================================

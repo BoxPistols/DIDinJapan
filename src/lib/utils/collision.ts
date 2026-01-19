@@ -2,7 +2,24 @@ import * as turf from '@turf/turf'
 import RBush from 'rbush'
 import type { Feature, Polygon, MultiPolygon, FeatureCollection, Position } from 'geojson'
 
-export type CollisionType = 'DID' | 'AIRPORT' | 'MILITARY' | 'PARK' | string
+export type CollisionType = 'DID' | 'AIRPORT' | 'RED_ZONE' | 'YELLOW_ZONE' | 'MILITARY' | 'PARK' | string
+
+// ゾーンタイプに基づく色定義
+export const ZONE_COLORS: Record<string, string> = {
+  DID: '#f44336', // 赤
+  AIRPORT: '#9C27B0', // 紫
+  RED_ZONE: '#b71c1c', // 暗い赤（DIDと区別するため）
+  YELLOW_ZONE: '#ffc107', // 黄色
+  DEFAULT: '#f44336' // デフォルト赤
+}
+
+// ゾーンタイプに基づく深刻度
+export const ZONE_SEVERITY: Record<string, 'DANGER' | 'WARNING'> = {
+  DID: 'WARNING',
+  AIRPORT: 'DANGER',
+  RED_ZONE: 'DANGER',
+  YELLOW_ZONE: 'WARNING'
+}
 
 export interface WaypointCollisionResult {
   isColliding: boolean
@@ -68,12 +85,17 @@ export const checkWaypointCollision = (
       const isInside = turf.booleanPointInPolygon(point, feature as Feature<Polygon | MultiPolygon>)
 
       if (isInside) {
+        const zoneType = (feature.properties?.zoneType as CollisionType | undefined) ??
+          (feature.properties?.type as CollisionType | undefined) ?? 'DID'
+        const uiColor = ZONE_COLORS[zoneType] ?? ZONE_COLORS.DEFAULT
+        const severity = ZONE_SEVERITY[zoneType] ?? 'DANGER'
+
         return {
           isColliding: true,
-          collisionType: (feature.properties?.type as CollisionType | undefined) ?? 'DID',
+          collisionType: zoneType,
           areaName: (feature.properties?.name as string | undefined) ?? '不明なエリア',
-          severity: 'DANGER',
-          uiColor: '#FF0000',
+          severity,
+          uiColor,
           message: `このWaypointは${feature.properties?.name ?? '禁止エリア'}内にあります`
         }
       }
@@ -101,12 +123,17 @@ export const checkWaypointCollisionOptimized = (
   for (const candidate of candidates) {
     const isInside = turf.booleanPointInPolygon(point, candidate.feature)
     if (isInside) {
+      const zoneType = (candidate.feature.properties?.zoneType as CollisionType | undefined) ??
+        (candidate.feature.properties?.type as CollisionType | undefined) ?? 'DID'
+      const uiColor = ZONE_COLORS[zoneType] ?? ZONE_COLORS.DEFAULT
+      const severity = ZONE_SEVERITY[zoneType] ?? 'DANGER'
+
       return {
         isColliding: true,
-        collisionType: (candidate.feature.properties?.type as CollisionType | undefined) ?? 'DID',
+        collisionType: zoneType,
         areaName: (candidate.feature.properties?.name as string | undefined) ?? '不明',
-        severity: 'DANGER',
-        uiColor: '#FF0000',
+        severity,
+        uiColor,
         message: '禁止エリア内です'
       }
     }
