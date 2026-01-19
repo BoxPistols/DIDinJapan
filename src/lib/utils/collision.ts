@@ -161,7 +161,35 @@ export const checkPolygonCollision = (
   polygonCoords: Position[][],
   prohibitedAreas: FeatureCollection
 ): PolygonCollisionResult => {
-  const polygon = turf.polygon(polygonCoords)
+  // 座標の検証: ポリゴンには最低4点必要（最初と最後が同じ点で閉じる）
+  if (
+    !polygonCoords ||
+    !Array.isArray(polygonCoords) ||
+    polygonCoords.length === 0 ||
+    !polygonCoords[0] ||
+    polygonCoords[0].length < 4
+  ) {
+    return {
+      isColliding: false,
+      overlapArea: 0,
+      overlapRatio: 0,
+      severity: 'SAFE',
+      message: '座標が不十分です'
+    }
+  }
+
+  let polygon
+  try {
+    polygon = turf.polygon(polygonCoords)
+  } catch {
+    return {
+      isColliding: false,
+      overlapArea: 0,
+      overlapRatio: 0,
+      severity: 'SAFE',
+      message: '無効なポリゴン形状'
+    }
+  }
 
   let overlapArea = 0
   const polygonArea = turf.area(polygon)

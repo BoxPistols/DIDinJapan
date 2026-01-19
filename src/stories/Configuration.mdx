@@ -14,46 +14,21 @@ import { BASE_MAPS } from 'japan-drone-map'
 
 // 利用可能なベースマップ
 const availableMaps = {
-  osm: BASE_MAPS.osm,       // OpenStreetMap
+  osm: BASE_MAPS.osm,       // 標準 (OSM Bright)
   gsi: BASE_MAPS.gsi,       // 国土地理院標準地図
   pale: BASE_MAPS.pale,     // 国土地理院淡色地図
   photo: BASE_MAPS.photo    // 国土地理院航空写真
 }
 ```
 
-### ベースマップ設定
+### ベースマップ設定構造
 
-<table>
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>名称</th>
-      <th>ソース</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>osm</td>
-      <td>OpenStreetMap</td>
-      <td>openstreetmap.org</td>
-    </tr>
-    <tr>
-      <td>gsi</td>
-      <td>国土地理院標準</td>
-      <td>cyberjapandata.gsi.go.jp</td>
-    </tr>
-    <tr>
-      <td>pale</td>
-      <td>国土地理院淡色</td>
-      <td>cyberjapandata.gsi.go.jp</td>
-    </tr>
-    <tr>
-      <td>photo</td>
-      <td>航空写真</td>
-      <td>cyberjapandata.gsi.go.jp</td>
-    </tr>
-  </tbody>
-</table>
+```typescript
+interface BaseMapConfig {
+  name: string
+  style: string | maplibregl.StyleSpecification
+}
+```
 
 ### 使用例
 
@@ -61,24 +36,14 @@ const availableMaps = {
 import { BASE_MAPS } from 'japan-drone-map'
 import maplibregl from 'maplibre-gl'
 
+// スタイルを直接指定して初期化
 const map = new maplibregl.Map({
   container: 'map',
-  style: {
-    version: 8,
-    sources: {
-      base: {
-        type: 'raster',
-        tiles: [BASE_MAPS.gsi.url],
-        tileSize: 256
-      }
-    },
-    layers: [{
-      id: 'base-layer',
-      type: 'raster',
-      source: 'base'
-    }]
-  }
+  style: BASE_MAPS.gsi.style
 })
+
+// または動的に変更
+map.setStyle(BASE_MAPS.photo.style)
 ```
 
 ---
@@ -103,6 +68,14 @@ const colors = {
 
 ### カラーマップ
 
+※ `emergency` (緊急用務空域), `manned` (有人機発着), `remote_id` (リモートID特定区域) は現在定義のみで、デフォルトの地図表示には含まれていません。
+
+※ 空港周辺空域 (`airport`) は、詳細な進入表面ごとに以下の色分けが適用される場合があります（`KOKUAREA_STYLE` 参照）。
+- 進入表面: #4CAF50 (緑)
+- 転移表面: #FFC107 (琥珀)
+- 水平表面: #9C27B0 (紫)
+- 円錐表面: #2196F3 (青)
+
 <table>
   <thead>
     <tr>
@@ -117,7 +90,7 @@ const colors = {
       <td>空港周辺空域</td>
       <td style={{backgroundColor: '#90EE90', width: '40px', height: '30px', borderRadius: '4px'}}></td>
       <td>#90EE90</td>
-      <td>航空法による制限</td>
+      <td>航空法による制限 (デフォルト)</td>
     </tr>
     <tr>
       <td>DID</td>
@@ -643,12 +616,8 @@ type RestrictionType =
 
 ```typescript
 interface BaseMapConfig {
-  id: string
   name: string
-  url: string
-  attribution: string
-  maxZoom: number
-  tileSize?: number
+  style: string | maplibregl.StyleSpecification
 }
 ```
 

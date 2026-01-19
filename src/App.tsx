@@ -235,6 +235,7 @@ function App() {
   )
   // DID GeoJSONキャッシュ（衝突検出用）
   const didGeoJSONCacheRef = useRef<Map<string, GeoJSON.FeatureCollection>>(new Map())
+  const [didCacheVersion, setDidCacheVersion] = useState(0) // キャッシュ更新検知用
   const debugRunIdRef = useRef<string>('')
   const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
@@ -396,18 +397,31 @@ function App() {
 
   // 衝突検出用: 表示中のDIDレイヤーのGeoJSONを結合
   const prohibitedAreas = useMemo<GeoJSON.FeatureCollection | undefined>(() => {
+    // 個別の都道府県DIDレイヤー
     const visibleLayerIds = Array.from(layerStates.entries())
       .filter(([, state]) => state.visible)
       .map(([id]) => id)
-      .filter((id) => id.startsWith('did-')) // DIDレイヤーのみ
+      .filter((id) => id.startsWith('did-'))
 
-    if (visibleLayerIds.length === 0) return undefined
+    // 「人口集中地区（全国）」が有効な場合、キャッシュ内の全てのDIDを使用
+    const isDIDAllJapanVisible = restrictionStates.get(ZONE_IDS.DID_ALL_JAPAN) ?? false
 
     const features: GeoJSON.Feature[] = []
-    for (const layerId of visibleLayerIds) {
-      const cached = didGeoJSONCacheRef.current.get(layerId)
-      if (cached) {
-        features.push(...cached.features)
+
+    if (isDIDAllJapanVisible) {
+      // 全国DIDが有効な場合、キャッシュ内の全DIDを使用
+      for (const [layerId, cached] of didGeoJSONCacheRef.current.entries()) {
+        if (layerId.startsWith('did-')) {
+          features.push(...cached.features)
+        }
+      }
+    } else {
+      // 個別レイヤーのみ
+      for (const layerId of visibleLayerIds) {
+        const cached = didGeoJSONCacheRef.current.get(layerId)
+        if (cached) {
+          features.push(...cached.features)
+        }
       }
     }
 
@@ -417,7 +431,8 @@ function App() {
       type: 'FeatureCollection',
       features
     }
-  }, [layerStates])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerStates, restrictionStates, didCacheVersion])
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -1767,6 +1782,7 @@ function App() {
 
         // DID GeoJSONをキャッシュに保存（衝突検出用）
         didGeoJSONCacheRef.current.set(layer.id, data as GeoJSON.FeatureCollection)
+        setDidCacheVersion((v) => v + 1)
 
         const newItems: SearchIndexItem[] = []
         data.features.forEach((feature) => {
@@ -3241,11 +3257,15 @@ function App() {
         // DID全国一括表示モード - 全47都道府県を赤色で表示
         const allLayers = getAllLayers()
         color = '#FF0000'
+        let cacheUpdated = false
 
         for (const layer of allLayers) {
           if (!map.getSource(`${restrictionId}-${layer.id}`)) {
             try {
               const data = await fetchGeoJSONWithCache(layer.path)
+              // 衝突検出用にキャッシュに保存（stateは後でまとめて更新）
+              didGeoJSONCacheRef.current.set(layer.id, data as GeoJSON.FeatureCollection)
+              cacheUpdated = true
               const sourceId = `${restrictionId}-${layer.id}`
 
               map.addSource(sourceId, { type: 'geojson', data })
@@ -3277,6 +3297,10 @@ function App() {
             map.setLayoutProperty(`${restrictionId}-${layer.id}`, 'visibility', 'visible')
             map.setLayoutProperty(`${restrictionId}-${layer.id}-outline`, 'visibility', 'visible')
           }
+        }
+        // キャッシュが更新された場合、1回だけstate更新
+        if (cacheUpdated) {
+          setDidCacheVersion((v) => v + 1)
         }
         if (syncState) {
           setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))

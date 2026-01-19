@@ -763,8 +763,12 @@ export function DrawingTools({
         } else if (feature.type === 'polygon' || feature.type === 'circle') {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const coords = feature.coordinates as any
-          // wrap in array for MultiPolygon compatibility
-          result = checkPolygonCollision([coords], areas)
+          // ポリゴン座標が既にPosition[][]形式か確認
+          // Polygon.coordinates = Position[][] (外側リング + 穴のリング)
+          const polygonCoords = Array.isArray(coords) && Array.isArray(coords[0]) && Array.isArray(coords[0][0])
+            ? coords  // 既にPosition[][]形式
+            : [coords] // Position[]の場合、配列で包む
+          result = checkPolygonCollision(polygonCoords, areas)
         }
 
         if (result) {
@@ -810,6 +814,11 @@ export function DrawingTools({
 
     const normalized = normalizeDrawnFeatures(allFeatures.features, circlePoints)
     annotateCollisions(normalized)
+
+    // 衝突情報を反映するために頂点ラベルを更新
+    setTimeout(() => {
+      debouncedUpdateVertexLabels.current?.()
+    }, 50)
   }, [prohibitedIndex, prohibitedAreas, circlePoints, normalizeDrawnFeatures, annotateCollisions])
 
   const mergeDrawnFeatures = useCallback(
@@ -1256,14 +1265,20 @@ export function DrawingTools({
         }
       })
 
-      // 円形の背景（選択状態でオレンジに変化）
+      // 円形の背景（選択状態でオレンジに変化、衝突状態で赤/オレンジに変化）
       map.addLayer({
         id: 'vertex-labels-background',
         type: 'circle',
         source: 'vertex-labels',
         paint: {
           'circle-radius': ['case', ['get', 'selected'], 14, 12],
-          'circle-color': ['case', ['get', 'selected'], '#ff9800', '#2563eb'],
+          'circle-color': [
+            'case',
+            ['==', ['get', 'collisionSeverity'], 'DANGER'], '#f44336',
+            ['==', ['get', 'collisionSeverity'], 'WARNING'], '#ff9800',
+            ['get', 'selected'], '#ff9800',
+            '#2563eb'
+          ],
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
           'circle-stroke-color': '#ffffff'
         }
@@ -1617,6 +1632,10 @@ export function DrawingTools({
         coords = outerRing.slice(0, -1)
       }
 
+      // 衝突情報を取得（mapbox-gl-drawはuser_プレフィックスを付ける）
+      const collision = (feature.properties?.user_collision || feature.properties?.collision) as { severity?: string } | undefined
+      const collisionSeverity = collision?.severity || null
+
       // 各頂点にラベルを追加
       coords.forEach((coord, index) => {
         // 選択状態をチェック（座標が一致するか）
@@ -1633,7 +1652,8 @@ export function DrawingTools({
           },
           properties: {
             label: `${index + 1}`,
-            selected: isSelected
+            selected: isSelected,
+            collisionSeverity
           }
         })
       })
