@@ -49,6 +49,7 @@ import type {
   RestrictionZone
 } from './lib'
 import { AppHeader, CustomLayerManager } from './components'
+import { DroneOperationDashboard } from './components/drone'
 import {
   DrawingTools,
   type DrawnFeature,
@@ -203,6 +204,8 @@ function App() {
   })
   const previousFeaturesRef = useRef<DrawnFeature[]>([])
   const enableCoordinateDisplayRef = useRef(true)
+  const showDroneDashboardRef = useRef(false)
+  const setDroneSelectedPointRef = useRef<(point: { lat: number; lng: number } | undefined) => void>(() => {})
   // Initialize refs with localStorage values to match state
   const getStoredCoordClickType = (): 'right' | 'left' | 'both' => {
     try {
@@ -325,6 +328,10 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  // Drone Operation Dashboard
+  const [showDroneDashboard, setShowDroneDashboard] = useState(false)
+  const [droneSelectedPoint, setDroneSelectedPoint] = useState<{ lat: number; lng: number } | undefined>()
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -895,6 +902,15 @@ function App() {
   useEffect(() => {
     coordDisplayPositionRef.current = coordDisplayPosition
   }, [coordDisplayPosition])
+
+  // Drone dashboard ref sync
+  useEffect(() => {
+    showDroneDashboardRef.current = showDroneDashboard
+  }, [showDroneDashboard])
+
+  useEffect(() => {
+    setDroneSelectedPointRef.current = setDroneSelectedPoint
+  }, [setDroneSelectedPoint])
 
   useEffect(() => {
     tooltipAutoFadeRef.current = tooltipAutoFade
@@ -1498,6 +1514,10 @@ function App() {
       // Left-click only works if setting is 'left' or 'both'
       if (clickType === 'left' || clickType === 'both') {
         showCoordinatesAtPosition(e.lngLat, e.point)
+      }
+      // Update drone dashboard selected point
+      if (showDroneDashboardRef.current) {
+        setDroneSelectedPointRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
       }
     })
 
@@ -5172,6 +5192,34 @@ function App() {
         ?
       </button>
 
+      {/* Drone Operation Dashboard Toggle */}
+      <button
+        onClick={() => setShowDroneDashboard(!showDroneDashboard)}
+        style={{
+          position: 'fixed',
+          top: 252,
+          right: 10,
+          padding: '6px',
+          width: 29,
+          height: 29,
+          backgroundColor: showDroneDashboard ? theme.colors.primary : theme.colors.buttonBg,
+          color: showDroneDashboard ? '#fff' : theme.colors.text,
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          boxShadow: theme.shadows.outline,
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+        title="ドローン運用安全ダッシュボード"
+      >
+        🚁
+      </button>
+
       {/* Undo / Zoom / Redo (always visible) */}
       <div
         style={{
@@ -6063,6 +6111,18 @@ function App() {
             : undefined
         }
       />
+
+      {/* Drone Operation Dashboard */}
+      {showDroneDashboard && (
+        <DroneOperationDashboard
+          map={mapRef.current ?? undefined}
+          selectedPoint={droneSelectedPoint}
+          onClose={() => {
+            setShowDroneDashboard(false)
+            setDroneSelectedPoint(undefined)
+          }}
+        />
+      )}
     </div>
   )
 }
