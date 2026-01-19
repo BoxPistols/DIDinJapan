@@ -64,6 +64,13 @@ import { DialogContainer } from './components/Dialog'
 import { fetchGeoJSONWithCache, clearOldCaches } from './lib/cache'
 import { toast } from './utils/toast'
 import { getAppTheme } from './styles/theme'
+import {
+  findNearestPrefecture,
+  getPrefectureForecast,
+  getWeatherDescription,
+  formatDailyDate
+} from './lib/services/weatherApi'
+import { WeatherForecastPanel } from './components/weather/WeatherForecastPanel'
 
 // ============================================
 // Zone ID Constants
@@ -233,8 +240,6 @@ function App() {
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
-  const debugRunIdRef = useRef<string>('')
-  const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
 
   // State
@@ -309,7 +314,7 @@ function App() {
   const [isResizingRight, setIsResizingRight] = useState(false)
 
   // Tooltip visibility
-  const [showTooltip, setShowTooltip] = useState(true)
+  const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipAutoFade, setTooltipAutoFade] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('ui-settings')
@@ -325,6 +330,13 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+  // Weather Forecast Panel
+  const [showWeatherForecast, setShowWeatherForecast] = useState(false)
+  const [selectedPrefectureId, setSelectedPrefectureId] = useState<string | undefined>()
+  const [enableWeatherClick, setEnableWeatherClick] = useState(false)
+  const enableWeatherClickRef = useRef(false)
+  const weatherPopupRef = useRef<maplibregl.Popup | null>(null)
 
   const getGeoJSONBounds = (
     geojson: GeoJSON.FeatureCollection
@@ -436,21 +448,6 @@ function App() {
         .filter(Boolean)
       const filtered = parts.filter((id) => COMPARISON_ALLOWED_IDS.has(id))
       const set = new Set<string>(filtered)
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:readComparisonVisibilityFromUrl',
-          message: 'read',
-          data: { hasParam: true, count: set.size, values: Array.from(set.values()) },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'K'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
       return set
     } catch {
       return new Set<string>()
@@ -491,23 +488,7 @@ function App() {
       const url = new URL(window.location.href)
       if (!url.searchParams.has(COMPARISON_VIS_URL_PARAM)) return
       url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
-      window.history.replaceState({}, '', url.toString())
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:clearCmpvParam',
-          message: 'cleared',
-          data: {},
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'K'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-    } catch {
+      window.history.replaceState({}, '', url.toString())    } catch {
       // ignore
     }
   }, [])
@@ -622,7 +603,7 @@ function App() {
     } catch {
       // ignore
     }
-    return '#00bcd4' // デフォルト: シアン
+    return '#e53935' // デフォルト: 赤
   })
 
   // Flexible coordinate settings
@@ -704,27 +685,6 @@ function App() {
   const handleBaseMapChange = useCallback(
     (newBaseMap: BaseMapKey) => {
       if (newBaseMap === baseMap) return
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleBaseMapChange',
-          message: 'before-reload',
-          data: {
-            from: baseMap,
-            to: newBaseMap,
-            comparisonVisible: Array.from(comparisonLayerVisibilityRef.current.values())
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'I'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       const currentVisible = Array.from(comparisonLayerVisibilityRef.current.values())
       const url = new URL(window.location.href)
       if (currentVisible.length > 0) {
@@ -732,26 +692,6 @@ function App() {
       } else {
         url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
       }
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleBaseMapChange',
-          message: 'set-cmpv-param',
-          data: {
-            to: newBaseMap,
-            currentVisibleCount: currentVisible.length,
-            hasParam: url.searchParams.has(COMPARISON_VIS_URL_PARAM)
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'I'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       // 設定を保存
       try {
         const settings = {
@@ -834,28 +774,7 @@ function App() {
         opacity: Object.fromEntries(Array.from(comparisonLayerOpacity.entries())),
         timestamp: Date.now()
       }
-      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:saveComparisonSettings',
-          message: 'saved',
-          data: {
-            visibleCount: comparisonLayerVisibility.size,
-            opacityKeys: Object.keys(payload.opacity),
-            visibleStorage: 'none',
-            opacityStorage: 'local'
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'post-fix',
-          hypothesisId: 'G'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-    } catch {
+      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))    } catch {
       // ignore
     }
   }, [comparisonLayerVisibility, comparisonLayerOpacity])
@@ -896,11 +815,26 @@ function App() {
     coordDisplayPositionRef.current = coordDisplayPosition
   }, [coordDisplayPosition])
 
+  // Ref syncs
   useEffect(() => {
     tooltipAutoFadeRef.current = tooltipAutoFade
   }, [tooltipAutoFade])
 
+  useEffect(() => {
+    enableWeatherClickRef.current = enableWeatherClick
+  }, [enableWeatherClick])
+
   // Note: enableCoordinateDisplay logic removed - now controlled by coordClickType setting
+
+  // Listen for weather panel open event from popup
+  useEffect(() => {
+    const handleOpenWeatherPanel = (e: CustomEvent<string>) => {
+      setSelectedPrefectureId(e.detail)
+      setShowWeatherForecast(true)
+    }
+    window.addEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
+    return () => window.removeEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
+  }, [])
 
   // ============================================
   // Keyboard shortcuts
@@ -989,12 +923,13 @@ function App() {
           setShowRightLegend((prev) => !prev)
           break
 
-        // [W] Wind Field (Mock)
+        // [W] Weather click mode toggle
         case 'w':
-          toggleOverlay({ id: 'wind-field', name: '(見本)風向・風量' })
+          setEnableWeatherClick((prev) => !prev)
           break
+        // [C] Rain radar toggle
         case 'c':
-          toggleOverlay({ id: 'lte-coverage', name: '(見本)LTE' })
+          toggleWeatherOverlay('rain-radar')
           break
 
         // [M] Map style toggle (restored)
@@ -1031,14 +966,23 @@ function App() {
           setShowHelp((prev) => !prev)
           break
         case 'escape':
-          setShowHelp(false)
+          // Close weather popup first, then panel, then help
+          if (weatherPopupRef.current) {
+            weatherPopupRef.current.remove()
+            weatherPopupRef.current = null
+          } else if (showWeatherForecast) {
+            setShowWeatherForecast(false)
+            setSelectedPrefectureId(undefined)
+          } else {
+            setShowHelp(false)
+          }
           break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mapLoaded, baseMap, handleBaseMapChange])
+  }, [mapLoaded, baseMap, handleBaseMapChange, showWeatherForecast])
 
   // ============================================
   // Search functionality (DID + Geocoding)
@@ -1151,30 +1095,6 @@ function App() {
   // Cache cleanup on app initialization
   // ============================================
   useEffect(() => {
-    // #region agent log (debug)
-    if (!debugRunIdRef.current) {
-      debugRunIdRef.current = `run-${Date.now()}`
-      try {
-        sessionStorage.setItem('debug-run-id', debugRunIdRef.current)
-      } catch {
-        // ignore
-      }
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:boot',
-          message: 'run-start',
-          data: { runId: debugRunIdRef.current, baseMap },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current,
-          hypothesisId: 'Z'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-
     clearOldCaches().catch((err) => {
       console.warn('Failed to clear old caches:', err)
     })
@@ -1213,13 +1133,15 @@ function App() {
       center: mapStateRef.current.center,
       zoom: mapStateRef.current.zoom,
       pitch: mapStateRef.current.pitch,
-      bearing: mapStateRef.current.bearing
+      bearing: mapStateRef.current.bearing,
+      attributionControl: false
     }
 
     const map = new maplibregl.Map(mapConfig)
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right')
+    map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
     map.addControl(new maplibregl.ScaleControl(), 'bottom-left')
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left')
 
     // Keep current zoom in React state (for always-visible Zoom UI)
     setMapZoom(map.getZoom())
@@ -1239,33 +1161,7 @@ function App() {
       maxWidth: '300px'
     })
 
-    map.on('load', () => {
-      // #region agent log (debug)
-      try {
-        const style = map.getStyle()
-        fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'src/App.tsx:map.on(load)',
-            message: 'style-loaded',
-            data: {
-              baseMap,
-              hasGlyphs: !!style.glyphs,
-              layerCount: Array.isArray(style.layers) ? style.layers.length : 0,
-              sourceCount: style.sources ? Object.keys(style.sources).length : 0
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'pre-fix',
-            hypothesisId: 'H'
-          })
-        }).catch(() => {})
-      } catch {
-        // ignore
-      }
-      // #endregion agent log (debug)
-      // スタイルにglyphsプロパティが存在しない場合は追加
+    map.on('load', () => {      // スタイルにglyphsプロパティが存在しない場合は追加
       const style = map.getStyle()
       if (!style.glyphs) {
         style.glyphs = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
@@ -1498,6 +1394,108 @@ function App() {
       // Left-click only works if setting is 'left' or 'both'
       if (clickType === 'left' || clickType === 'both') {
         showCoordinatesAtPosition(e.lngLat, e.point)
+      }
+
+      // Weather click mode - show weather popup for clicked location
+      if (enableWeatherClickRef.current) {
+        const { lat, lng } = e.lngLat
+        const prefecture = findNearestPrefecture(lat, lng)
+
+        if (prefecture) {
+          // Close existing popup if any
+          if (weatherPopupRef.current) {
+            weatherPopupRef.current.remove()
+          }
+
+          // Show loading popup
+          const loadingPopup = new maplibregl.Popup({ closeOnClick: true })
+            .setLngLat([lng, lat])
+            .setHTML(`
+              <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 200px;">
+                <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                <div style="color: #666;">天気データを取得中...</div>
+              </div>
+            `)
+            .addTo(map)
+
+          // Store popup reference for ESC key handling
+          weatherPopupRef.current = loadingPopup
+          loadingPopup.on('close', () => {
+            weatherPopupRef.current = null
+          })
+
+          // Fetch weather data
+          getPrefectureForecast(prefecture.id).then((result) => {
+            if (result && result.weather) {
+              const currentWeather = getWeatherDescription(result.weather.current.weatherCode)
+              const daily = result.weather.daily.slice(0, 3) // Next 3 days
+
+              loadingPopup.setHTML(`
+                <div style="padding: 16px; font-family: system-ui, sans-serif; min-width: auto; background: rgba(20, 20, 30, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e5e5e5;">
+                  <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px;">
+                    ${prefecture.name} (${prefecture.capital})
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <span style="font-size: 36px;">${currentWeather.icon}</span>
+                    <div>
+                      <div style="font-size: 24px; font-weight: bold;">${result.weather.current.temperature}°C</div>
+                      <div style="color: #9ca3af;">${currentWeather.label}</div>
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12px; margin-bottom: 12px;">
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">湿度</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.humidity}%</div>
+                    </div>
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">風速</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.windSpeed}km/h</div>
+                    </div>
+                    <div style="text-align: center; padding: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                      <div style="color: #9ca3af; font-size: 11px;">降水</div>
+                      <div style="font-weight: bold; color: #e5e5e5;">${result.weather.current.precipitation}mm</div>
+                    </div>
+                  </div>
+                  <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">週間予報</div>
+                    ${daily.map((day, i) => {
+                      const dayWeather = getWeatherDescription(day.weatherCode)
+                      return `
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 8px; margin-bottom: 4px; background: ${i === 0 ? 'rgba(30, 58, 95, 0.5)' : 'rgba(255, 255, 255, 0.05)'}; border-radius: 8px;">
+                          <span style="width: 60px; font-weight: ${i === 0 ? 'bold' : 'normal'};">${i === 0 ? '今日' : formatDailyDate(day.date)}</span>
+                          <span style="font-size: 18px;">${dayWeather.icon}</span>
+                          <span style="color: #ef4444; font-weight: bold;">${day.temperatureMax}°</span>
+                          <span style="color: #6b7280;">/</span>
+                          <span style="color: #3b82f6;">${day.temperatureMin}°</span>
+                        </div>
+                      `
+                    }).join('')}
+                  </div>
+                  <div style="margin-top: 12px; text-align: center;">
+                    <button onclick="window.dispatchEvent(new CustomEvent('openWeatherPanel', {detail: '${prefecture.id}'}))"
+                            style="padding: 8px 16px; font-size: 12px; background: rgba(59, 130, 246, 0.9); color: white; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; cursor: pointer; backdrop-filter: blur(4px);">
+                      詳細予報を見る
+                    </button>
+                  </div>
+                </div>
+              `)
+            } else {
+              loadingPopup.setHTML(`
+                <div style="padding: 12px; font-family: system-ui, sans-serif;">
+                  <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                  <div style="color: #e53935;">天気データの取得に失敗しました</div>
+                </div>
+              `)
+            }
+          }).catch(() => {
+            loadingPopup.setHTML(`
+              <div style="padding: 12px; font-family: system-ui, sans-serif;">
+                <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
+                <div style="color: #e53935;">天気データの取得に失敗しました</div>
+              </div>
+            `)
+          })
+        }
       }
     })
 
@@ -1808,145 +1806,16 @@ function App() {
           map.setPaintProperty(`${layerId}-outline`, 'line-opacity', Math.min(1, opacity * 0.9))
         }
       }
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:applyComparisonLayerState',
-          message: 'applied',
-          data: {
-            baseMap,
-            layerId,
-            isVisible,
-            visibility,
-            opacity,
-            hasLayer: !!map.getLayer(layerId),
-            hasHeat: !!map.getLayer(`${layerId}-heat`)
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'J'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
-      // #region agent log (debug)
-      // 反映直後はまだ描画フレームが回っていない可能性があるため、idle後に「本当に描画できているか」を検証する
-      if (isVisible) {
-        const runKey = debugRunIdRef.current || 'unknown'
-        const key = `${runKey}:${baseMap}:${layerId}`
-        if (!comparisonIdleDebugKeysRef.current.has(key)) {
-          comparisonIdleDebugKeysRef.current.add(key)
-          map.once('idle', () => {
-            const safeRendered = (layers: string[]): number => {
-              try {
-                return map.queryRenderedFeatures(undefined, { layers }).length
-              } catch {
-                return -1
-              }
-            }
-            const safeSource = (sourceId: string): number => {
-              try {
-                // GeoJSON sourceの場合も0以上が返ることがある。失敗時は -1 にする
-                return map.querySourceFeatures(sourceId).length
-              } catch {
-                return -1
-              }
-            }
-            const layerIds = [layerId, `${layerId}-heat`, `${layerId}-label`, `${layerId}-outline`]
-            const styleLayers = map.getStyle().layers ?? []
-            const idx = (id: string): number => styleLayers.findIndex((l) => l.id === id)
-            const rasterMaxIndex = styleLayers.reduce((acc, l, i) => {
-              if ((l.type as string) === 'raster') return Math.max(acc, i)
-              return acc
-            }, -1)
-
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:applyComparisonLayerState',
-                message: 'idle-render-check',
-                data: {
-                  baseMap,
-                  layerId,
-                  sourceFeatureCount: safeSource(layerId),
-                  renderedMain: safeRendered([layerId]),
-                  renderedHeat: safeRendered([`${layerId}-heat`]),
-                  renderedLabel: safeRendered([`${layerId}-label`]),
-                  layerOrder: {
-                    rasterMaxIndex,
-                    indices: Object.fromEntries(layerIds.map((id) => [id, idx(id)]))
-                  }
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: runKey,
-                hypothesisId: 'M'
-              })
-            }).catch(() => {})
-          })
-        }
-      }
-      // #endregion agent log (debug)
     }
 
     async function initComparisonLayers() {
       if (!map) return
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:initComparisonLayers',
-          message: 'enter',
-          data: { mapLoaded, layerCount: ISHIKAWA_NOTO_COMPARISON_LAYERS.length },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
       for (const layerConfig of ISHIKAWA_NOTO_COMPARISON_LAYERS) {
         const hasSource = !!map.getSource(layerConfig.id)
 
         try {
           if (!hasSource) {
             const geojson = await fetchGeoJSONWithCache(layerConfig.path)
-            // #region agent log (debug)
-            {
-              const sampleTypes = geojson.features
-                .slice(0, 50)
-                .map((f) => f.geometry?.type ?? 'null')
-              const typeCounts = sampleTypes.reduce<Record<string, number>>((acc, t) => {
-                acc[t] = (acc[t] ?? 0) + 1
-                return acc
-              }, {})
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'geojson-loaded',
-                  data: {
-                    layerId: layerConfig.id,
-                    path: layerConfig.path,
-                    features: geojson.features.length,
-                    sampleTypeCounts: typeCounts
-                  },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'pre-fix',
-                  hypothesisId: 'A'
-                })
-              }).catch(() => {})
-            }
-            // #endregion agent log (debug)
-
             map.addSource(layerConfig.id, {
               type: 'geojson',
               data: geojson
@@ -1954,23 +1823,7 @@ function App() {
 
             const bounds = computeCollectionBounds(geojson)
             if (bounds) {
-              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)
-              // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'bounds-computed',
-                  data: { layerId: layerConfig.id, bounds },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'post-fix',
-                  hypothesisId: 'F'
-                })
-              }).catch(() => {})
-              // #endregion agent log (debug)
-            }
+              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)            }
 
             const primaryType = getPrimaryGeometryType(geojson)
             const layerOpacity = comparisonLayerOpacity.get(layerConfig.id) ?? 0.5
@@ -2020,22 +1873,6 @@ function App() {
                   visibility: 'none'
                 }
               })
-              // #region agent log (debug)
-              fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  location: 'src/App.tsx:initComparisonLayers',
-                  message: 'heatmap-added',
-                  data: { layerId: layerConfig.id, heatId, elevationRange: elevRange },
-                  timestamp: Date.now(),
-                  sessionId: 'debug-session',
-                  runId: 'pre-fix',
-                  hypothesisId: 'E'
-                })
-              }).catch(() => {})
-              // #endregion agent log (debug)
-
               // Circle レイヤー（ポイントデータ用）
               map.addLayer({
                 id: layerConfig.id,
@@ -2101,30 +1938,6 @@ function App() {
                 'text-halo-width': 1
               }
             })
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:initComparisonLayers',
-                message: 'layer-added',
-                data: {
-                  layerId: layerConfig.id,
-                  primaryType,
-                  renderAsCircle,
-                  addedType: renderAsCircle ? 'circle' : 'fill',
-                  hasLayer: !!map.getLayer(layerConfig.id),
-                  hasOutline: !!map.getLayer(`${layerConfig.id}-outline`),
-                  hasLabel: !!map.getLayer(`${layerConfig.id}-label`)
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'pre-fix',
-                hypothesisId: 'A'
-              })
-            }).catch(() => {})
-            // #endregion agent log (debug)
-
             // 非同期ロード後に、現在のON/OFFを即反映（初期表示の空振り防止）
             applyComparisonLayerState(layerConfig.id)
           } else {
@@ -2362,41 +2175,13 @@ function App() {
     const map = mapRef.current
     if (!map || !mapLoaded) return
 
-    const isVisible = overlayStates.get(overlay.id) ?? false
-
-    // #region agent log (debug)
-    {
-      const hasTiles = 'tiles' in overlay
-      const hasGeojson = 'geojson' in overlay
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:toggleOverlay',
-          message: 'toggle-click',
-          data: {
-            id: overlay.id,
-            name: overlay.name,
-            isVisibleBefore: isVisible,
-            hasTiles,
-            tilesLen: hasTiles
-              ? ((overlay as (typeof GEO_OVERLAYS)[0]).tiles?.length ?? null)
-              : null,
-            hasGeojson,
-            geojsonPath: hasGeojson
-              ? ((overlay as (typeof GEO_OVERLAYS)[0]).geojson ?? null)
-              : null,
-            mapLoaded
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current || 'unknown',
-          hypothesisId: 'N'
-        })
-      }).catch(() => {})
+    // Wait for style to be fully loaded before adding layers
+    if (!map.isStyleLoaded()) {
+      map.once('style.load', () => toggleOverlay(overlay))
+      return
     }
-    // #endregion agent log (debug)
 
+    const isVisible = overlayStates.get(overlay.id) ?? false
     if (!isVisible) {
       if (!map.getSource(overlay.id)) {
         // Handle mock GeoJSON overlays
@@ -2456,33 +2241,14 @@ function App() {
             type: 'raster',
             source: overlay.id,
             paint: { 'raster-opacity': overlay.opacity }
-          })
-          // #region agent log (debug)
-          fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              location: 'src/App.tsx:toggleOverlay',
-              message: 'raster-added',
-              data: {
-                id: overlay.id,
-                tilesLen: overlay.tiles.length,
-                opacity: overlay.opacity,
-                hasLayer: !!map.getLayer(overlay.id),
-                hasSource: !!map.getSource(overlay.id)
-              },
-              timestamp: Date.now(),
-              sessionId: 'debug-session',
-              runId: debugRunIdRef.current || 'unknown',
-              hypothesisId: 'N'
-            })
-          }).catch(() => {})
-          // #endregion agent log (debug)
-        }
+          })        }
       } else {
         map.setLayoutProperty(overlay.id, 'visibility', 'visible')
         if (map.getLayer(`${overlay.id}-outline`)) {
           map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'visible')
+        }
+        if (map.getLayer(`${overlay.id}-bg`)) {
+          map.setLayoutProperty(`${overlay.id}-bg`, 'visibility', 'visible')
         }
       }
       setOverlayStates((prev) => new Map(prev).set(overlay.id, true))
@@ -2492,6 +2258,9 @@ function App() {
       }
       if (map.getLayer(`${overlay.id}-outline`)) {
         map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'none')
+      }
+      if (map.getLayer(`${overlay.id}-bg`)) {
+        map.setLayoutProperty(`${overlay.id}-bg`, 'visibility', 'none')
       }
       setOverlayStates((prev) => new Map(prev).set(overlay.id, false))
     }
@@ -3565,96 +3334,7 @@ function App() {
       if (map.getLayer(`${layerConfig.id}-label`)) {
         map.setLayoutProperty(`${layerConfig.id}-label`, 'visibility', visibility)
       }
-    })
-    // #region agent log (debug)
-    {
-      const states = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => {
-        const l = map.getLayer(cfg.id)
-        const heat = map.getLayer(`${cfg.id}-heat`)
-        const outline = map.getLayer(`${cfg.id}-outline`)
-        const label = map.getLayer(`${cfg.id}-label`)
-        const safeVis = (id: string): string | null => {
-          try {
-            return map.getLayoutProperty(id, 'visibility') as string
-          } catch {
-            return null
-          }
-        }
-        return {
-          id: cfg.id,
-          targetVisible: comparisonLayerVisibility.has(cfg.id),
-          layerType: l?.type ?? null,
-          layerVis: l ? safeVis(cfg.id) : null,
-          heatType: heat?.type ?? null,
-          heatVis: heat ? safeVis(`${cfg.id}-heat`) : null,
-          outlineType: outline?.type ?? null,
-          outlineVis: outline ? safeVis(`${cfg.id}-outline`) : null,
-          labelType: label?.type ?? null,
-          labelVis: label ? safeVis(`${cfg.id}-label`) : null
-        }
-      })
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:comparison-visibility-effect',
-          message: 'applied',
-          data: { baseMap, visible: Array.from(comparisonLayerVisibility.values()), states },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'H'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-
-    // #region agent log (debug)
-    {
-      const safeRenderedCount = (layers: string[]): number => {
-        try {
-          const existingLayers = layers.filter((layerId) => map.getLayer(layerId))
-          if (existingLayers.length === 0) return 0
-          return map.queryRenderedFeatures(undefined, { layers: existingLayers }).length
-        } catch {
-          return -1
-        }
-      }
-      const center = map.getCenter()
-      const b = map.getBounds()
-      const bounds: [[number, number], [number, number]] = [
-        [b.getWest(), b.getSouth()],
-        [b.getEast(), b.getNorth()]
-      ]
-      const rendered = ISHIKAWA_NOTO_COMPARISON_LAYERS.map((cfg) => ({
-        id: cfg.id,
-        targetVisible: comparisonLayerVisibility.has(cfg.id),
-        renderedMain: safeRenderedCount([cfg.id]),
-        renderedHeat: safeRenderedCount([`${cfg.id}-heat`]),
-        renderedLabel: safeRenderedCount([`${cfg.id}-label`])
-      }))
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:comparison-visibility-effect',
-          message: 'render-check',
-          data: {
-            baseMap,
-            zoom: map.getZoom(),
-            center: [center.lng, center.lat],
-            bounds,
-            rendered
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: debugRunIdRef.current || 'unknown',
-          hypothesisId: 'L'
-        })
-      }).catch(() => {})
-    }
-    // #endregion agent log (debug)
-  }, [comparisonLayerVisibility, mapLoaded])
+    })  }, [comparisonLayerVisibility, mapLoaded])
 
   // ============================================
   // Comparison Layer Opacity Control
@@ -3729,44 +3409,11 @@ function App() {
       const map = mapRef.current
       if (!map || !mapLoaded) return
       if (baseMap !== 'osm') return
-
-      // #region agent log (debug)
-      fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'src/App.tsx:handleComparisonLayerToggle',
-          message: 'toggle',
-          data: { layerId, visible, mapLoaded, hasLayer: !!map.getLayer(layerId) },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'C'
-        })
-      }).catch(() => {})
-      // #endregion agent log (debug)
-
       if (visible) {
         const bounds = comparisonLayerBoundsRef.current.get(layerId)
         if (bounds) {
           try {
-            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
-            // #region agent log (debug)
-            fetch('http://127.0.0.1:7242/ingest/95e2077b-40eb-4a7c-a9eb-5a01c799bc92', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'src/App.tsx:handleComparisonLayerToggle',
-                message: 'fitBounds',
-                data: { layerId, bounds },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'post-fix',
-                hypothesisId: 'F'
-              })
-            }).catch(() => {})
-            // #endregion agent log (debug)
-          } catch {
+            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })          } catch {
             // ignore
           }
         }
@@ -3846,12 +3493,12 @@ function App() {
           position: 'fixed',
           left: showLeftLegend ? leftSidebarWidth : 0,
           top: 80,
-          width: 20,
-          height: 40,
+          width: 24,
+          height: 48,
           background: theme.colors.panelBg,
           color: theme.colors.textMuted,
           border: 'none',
-          borderRadius: '0 4px 4px 0',
+          borderRadius: '0 8px 8px 0',
           cursor: 'pointer',
           boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
           zIndex: 11,
@@ -3859,7 +3506,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px'
+          fontSize: '12px'
         }}
         title={showLeftLegend ? 'サイドバーを閉じる' : 'サイドバーを開く'}
       >
@@ -4803,12 +4450,12 @@ function App() {
           position: 'fixed',
           right: showRightLegend ? rightSidebarWidth : 0,
           top: 12,
-          width: 20,
-          height: 30,
+          width: 24,
+          height: 48,
           background: darkMode ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.9)',
           color: darkMode ? '#aaa' : '#666',
           border: 'none',
-          borderRadius: '4px 0 0 4px',
+          borderRadius: '8px 0 0 8px',
           cursor: 'pointer',
           boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
           zIndex: 11,
@@ -4816,7 +4463,7 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '10px'
+          fontSize: '12px'
         }}
         title={showRightLegend ? 'サイドバーを閉じる' : 'サイドバーを開く'}
       >
@@ -4946,7 +4593,7 @@ function App() {
           </div>
 
           <label
-            title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）"
+            title="雨雲レーダー：直近の雨雲の動きを表示します（5分ごとに更新）[C]キーでトグル"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -4961,50 +4608,77 @@ function App() {
               checked={isWeatherVisible('rain-radar')}
               onChange={() => toggleWeatherOverlay('rain-radar')}
             />
-            <span>雨雲</span>
+            <span>雨雲 [C]</span>
             {isWeatherVisible('rain-radar') && radarLastUpdate && (
               <span style={{ fontSize: '9px', color: '#888' }}>{radarLastUpdate}</span>
             )}
           </label>
 
           <label
-            title="風向・風量 * [W]：風の方向と速度（仮設置データ）"
+            title="地図をクリックすると、その地域の天気予報を表示 [W]キーでトグル"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              marginBottom: '4px',
+              marginBottom: '8px',
               cursor: 'pointer',
               fontSize: '12px'
             }}
           >
             <input
               type="checkbox"
-              checked={isOverlayVisible('wind-field')}
-              onChange={() => toggleOverlay({ id: 'wind-field', name: '風向・風量' })}
+              checked={enableWeatherClick}
+              onChange={() => setEnableWeatherClick(!enableWeatherClick)}
             />
-            <span>風向・風量 * [W]</span>
+            <span>クリックで天気予報 [W]</span>
           </label>
 
-          <div
+          {enableWeatherClick && (
+            <div
+              style={{
+                fontSize: '10px',
+                color: darkMode ? '#888' : '#666',
+                marginBottom: '8px',
+                marginLeft: '20px',
+                padding: '6px 8px',
+                backgroundColor: darkMode ? '#2a2a2a' : '#f0f9ff',
+                // borderRadius: '4px',
+                borderLeft: `3px solid ${darkMode ? '#3b82f6' : '#3b82f6'}`
+              }}
+            >
+              地図上をクリックすると、その地域の天気予報がポップアップで表示されます
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowWeatherForecast(true)}
             style={{
-              fontSize: '10px',
-              color: darkMode ? '#666' : '#aaa',
-              marginBottom: '12px',
-              paddingLeft: '20px'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              padding: '6px 10px',
+              fontSize: '11px',
+              backgroundColor: darkMode ? '#2563eb' : '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              width: '100%',
+              justifyContent: 'center'
             }}
           >
-            （仮設置）
-          </div>
+            都道府県別 詳細予報パネル
+          </button>
         </div>
 
         {/* Signal Info */}
-        <div>
+        <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
             電波種
           </div>
           <label
-            title="LTE * [C]：携帯電話カバレッジ強度（仮設置データ）"
+            title="LTE：携帯電話カバレッジ強度（仮設置データ）"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -5019,7 +4693,7 @@ function App() {
               checked={isOverlayVisible('lte-coverage')}
               onChange={() => toggleOverlay({ id: 'lte-coverage', name: 'LTE' })}
             />
-            <span>LTE * [C]</span>
+            <span>LTE *</span>
           </label>
           <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
             （仮設置）
@@ -5060,18 +4734,18 @@ function App() {
         onClick={() => setDarkMode(!darkMode)}
         style={{
           position: 'fixed',
-          top: 148,
+          bottom: 78,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: theme.colors.buttonBg,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
           color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '14px',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -5121,19 +4795,19 @@ function App() {
         onClick={toggle3DMode}
         style={{
           position: 'fixed',
-          top: 182,
+          bottom: 44,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: is3DMode ? theme.colors.buttonBgActive : theme.colors.buttonBg,
-          color: is3DMode ? '#fff' : theme.colors.text,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
+          color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '11px',
           fontWeight: 'bold',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -5149,19 +4823,19 @@ function App() {
         onClick={() => setShowHelp(true)}
         style={{
           position: 'fixed',
-          top: 216,
+          bottom: 10,
           right: 10,
           padding: '6px',
           width: 29,
           height: 29,
-          backgroundColor: theme.colors.buttonBg,
+          backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
           color: theme.colors.text,
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
           fontSize: '14px',
           fontWeight: 'bold',
-          boxShadow: theme.shadows.outline,
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -5198,11 +4872,11 @@ function App() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.colors.buttonBg,
+            backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
             color: theme.colors.text,
             border: 'none',
             borderRadius: '4px',
-            boxShadow: theme.shadows.outline,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
             cursor: undoRedoState.canUndo ? 'pointer' : 'not-allowed',
             opacity: undoRedoState.canUndo ? 1 : 0.45
           }}
@@ -5226,10 +4900,10 @@ function App() {
             padding: '6px 8px',
             minWidth: 52,
             textAlign: 'center',
-            backgroundColor: theme.colors.buttonBg,
+            backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
             color: theme.colors.text,
             borderRadius: '4px',
-            boxShadow: theme.shadows.outline,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
             fontSize: '12px',
             fontWeight: 700,
             pointerEvents: 'none'
@@ -5249,11 +4923,11 @@ function App() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: theme.colors.buttonBg,
+            backgroundColor: darkMode ? 'rgba(55, 75, 105, 0.9)' : 'rgba(160, 185, 215, 0.9)',
             color: theme.colors.text,
             border: 'none',
             borderRadius: '4px',
-            boxShadow: theme.shadows.outline,
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
             cursor: undoRedoState.canRedo ? 'pointer' : 'not-allowed',
             opacity: undoRedoState.canRedo ? 1 : 0.45
           }}
@@ -5713,6 +5387,32 @@ function App() {
                   fontSize: '12px'
                 }}
               >
+                W
+              </kbd>
+              <span>天気予報クリックモード</span>
+              <kbd
+                style={{
+                  backgroundColor: darkMode ? '#444' : '#eee',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontSize: '12px'
+                }}
+              >
+                C
+              </kbd>
+              <span>雨雲レーダー表示</span>
+              <kbd
+                style={{
+                  backgroundColor: darkMode ? '#444' : '#eee',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  textAlign: 'center',
+                  fontFamily: 'monospace',
+                  fontSize: '12px'
+                }}
+              >
                 ?
               </kbd>
               <span>ヘルプ表示/非表示</span>
@@ -6004,15 +5704,15 @@ function App() {
       <div
         style={{
           position: 'absolute',
-          bottom: 4,
-          left: '50%',
+          bottom: 8,
+          left: '70%',
           transform: 'translateX(-50%)',
           fontSize: '12px',
-          color: '#666',
-          backgroundColor: 'rgba(255,255,255,0.8)',
+          color: '#eeeeeec0',
+          backgroundColor: 'rgba(0,0,0,0.2)',
           padding: '2px 8px',
-          borderRadius: '2px',
-          zIndex: 5
+          borderRadius: '4px',
+          zIndex: 2
         }}
       >
         出典: 政府統計の総合窓口(e-Stat) / 国土地理院
@@ -6063,6 +5763,18 @@ function App() {
             : undefined
         }
       />
+
+      {/* Weather Forecast Panel */}
+      {showWeatherForecast && (
+        <WeatherForecastPanel
+          selectedPrefectureId={selectedPrefectureId}
+          darkMode={darkMode}
+          onClose={() => {
+            setShowWeatherForecast(false)
+            setSelectedPrefectureId(undefined)
+          }}
+        />
+      )}
     </div>
   )
 }

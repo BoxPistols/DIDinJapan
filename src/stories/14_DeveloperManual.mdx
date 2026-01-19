@@ -783,12 +783,27 @@ async function geocode(query: string): Promise<GeocodeResult[]> {
   <tbody>
     <tr style={TableStyle.tr}>
       <td style={TableStyle.td}><code>D</code></td>
+      <td style={TableStyle.td}>DID表示切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>L</code></td>
       <td style={TableStyle.td}>ダークモード切替</td>
       <td style={TableStyle.td}>グローバル</td>
     </tr>
     <tr style={TableStyle.tr}>
       <td style={TableStyle.td}><code>M</code></td>
       <td style={TableStyle.td}>ベースマップ切替</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>W</code></td>
+      <td style={TableStyle.td}>天気予報クリックモード</td>
+      <td style={TableStyle.td}>グローバル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code>C</code></td>
+      <td style={TableStyle.td}>雨雲レーダー表示</td>
       <td style={TableStyle.td}>グローバル</td>
     </tr>
     <tr style={TableStyle.tr}>
@@ -808,8 +823,8 @@ async function geocode(query: string): Promise<GeocodeResult[]> {
     </tr>
     <tr>
       <td style={TableStyle.td}><code>Escape</code></td>
-      <td style={TableStyle.td}>描画/選択のキャンセル</td>
-      <td style={TableStyle.td}>DrawingTools</td>
+      <td style={TableStyle.td}>描画/選択のキャンセル、天気ポップアップ閉じる</td>
+      <td style={TableStyle.td}>グローバル/DrawingTools</td>
     </tr>
   </tbody>
 </table>

@@ -1150,6 +1150,107 @@ export function generateRadioInterferenceGeoJSON(): GeoJSON.FeatureCollection {
  * データソース: map-auto-waypointプロジェクトより移植
  * 注意: 座標・半径は参考値です。正確な情報は航空局で確認してください。
  */
+/**
+ * Generate GeoJSON for Weather Icons overlay
+ * 天気アイコンを地図上に表示するためのポイントデータ
+ */
+export function generateWeatherIconsGeoJSON(): GeoJSON.FeatureCollection {
+  // 日本全国の主要都市に天気アイコンを配置
+  const weatherPoints: Array<{
+    id: string
+    name: string
+    coordinates: [number, number]
+    weather: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'partly_cloudy' | 'stormy'
+    temperature: number
+    humidity: number
+    windSpeed: number
+    precipitation: number
+  }> = [
+    // 北海道
+    { id: 'w-sapporo', name: '札幌', coordinates: [141.35, 43.06], weather: 'snowy', temperature: -2, humidity: 70, windSpeed: 3.2, precipitation: 40 },
+    { id: 'w-hakodate', name: '函館', coordinates: [140.73, 41.77], weather: 'cloudy', temperature: 1, humidity: 65, windSpeed: 4.5, precipitation: 20 },
+    // 東北
+    { id: 'w-sendai', name: '仙台', coordinates: [140.87, 38.27], weather: 'partly_cloudy', temperature: 5, humidity: 55, windSpeed: 3.8, precipitation: 10 },
+    { id: 'w-akita', name: '秋田', coordinates: [140.10, 39.72], weather: 'snowy', temperature: 0, humidity: 75, windSpeed: 5.2, precipitation: 50 },
+    // 関東
+    { id: 'w-tokyo', name: '東京', coordinates: [139.75, 35.68], weather: 'sunny', temperature: 12, humidity: 45, windSpeed: 2.5, precipitation: 0 },
+    { id: 'w-yokohama', name: '横浜', coordinates: [139.64, 35.44], weather: 'sunny', temperature: 13, humidity: 48, windSpeed: 3.0, precipitation: 0 },
+    { id: 'w-chiba', name: '千葉', coordinates: [140.12, 35.61], weather: 'partly_cloudy', temperature: 11, humidity: 50, windSpeed: 4.2, precipitation: 5 },
+    { id: 'w-saitama', name: 'さいたま', coordinates: [139.65, 35.86], weather: 'sunny', temperature: 11, humidity: 42, windSpeed: 2.0, precipitation: 0 },
+    // 中部
+    { id: 'w-nagoya', name: '名古屋', coordinates: [136.91, 35.18], weather: 'cloudy', temperature: 10, humidity: 55, windSpeed: 2.8, precipitation: 15 },
+    { id: 'w-niigata', name: '新潟', coordinates: [139.02, 37.90], weather: 'rainy', temperature: 6, humidity: 80, windSpeed: 4.0, precipitation: 60 },
+    { id: 'w-kanazawa', name: '金沢', coordinates: [136.63, 36.59], weather: 'rainy', temperature: 7, humidity: 78, windSpeed: 3.5, precipitation: 55 },
+    // 近畿
+    { id: 'w-osaka', name: '大阪', coordinates: [135.50, 34.69], weather: 'partly_cloudy', temperature: 11, humidity: 52, windSpeed: 2.2, precipitation: 10 },
+    { id: 'w-kyoto', name: '京都', coordinates: [135.77, 35.01], weather: 'cloudy', temperature: 9, humidity: 58, windSpeed: 1.8, precipitation: 20 },
+    { id: 'w-kobe', name: '神戸', coordinates: [135.19, 34.69], weather: 'partly_cloudy', temperature: 12, humidity: 50, windSpeed: 3.2, precipitation: 5 },
+    // 中国・四国
+    { id: 'w-hiroshima', name: '広島', coordinates: [132.46, 34.40], weather: 'sunny', temperature: 13, humidity: 48, windSpeed: 2.5, precipitation: 0 },
+    { id: 'w-matsuyama', name: '松山', coordinates: [132.77, 33.84], weather: 'sunny', temperature: 14, humidity: 45, windSpeed: 2.0, precipitation: 0 },
+    { id: 'w-takamatsu', name: '高松', coordinates: [134.05, 34.34], weather: 'partly_cloudy', temperature: 12, humidity: 50, windSpeed: 2.8, precipitation: 5 },
+    // 九州
+    { id: 'w-fukuoka', name: '福岡', coordinates: [130.42, 33.60], weather: 'cloudy', temperature: 14, humidity: 55, windSpeed: 3.0, precipitation: 15 },
+    { id: 'w-nagasaki', name: '長崎', coordinates: [129.87, 32.75], weather: 'rainy', temperature: 13, humidity: 70, windSpeed: 4.5, precipitation: 45 },
+    { id: 'w-kagoshima', name: '鹿児島', coordinates: [130.56, 31.60], weather: 'partly_cloudy', temperature: 16, humidity: 60, windSpeed: 3.8, precipitation: 20 },
+    // 沖縄
+    { id: 'w-naha', name: '那覇', coordinates: [127.68, 26.21], weather: 'sunny', temperature: 22, humidity: 65, windSpeed: 5.0, precipitation: 10 },
+  ]
+
+  const features: GeoJSON.Feature[] = weatherPoints.map((item) => ({
+    type: 'Feature',
+    properties: {
+      id: item.id,
+      name: item.name,
+      weather: item.weather,
+      temperature: item.temperature,
+      humidity: item.humidity,
+      windSpeed: item.windSpeed,
+      precipitation: item.precipitation,
+      // アイコン用
+      icon: getWeatherIcon(item.weather),
+      weatherLabel: getWeatherLabel(item.weather),
+      label: `${item.temperature}°C`
+    },
+    geometry: {
+      type: 'Point',
+      coordinates: item.coordinates
+    }
+  }))
+
+  return { type: 'FeatureCollection', features }
+}
+
+/**
+ * Get weather icon emoji based on weather type
+ */
+function getWeatherIcon(weather: string): string {
+  switch (weather) {
+    case 'sunny': return '☀️'
+    case 'partly_cloudy': return '⛅'
+    case 'cloudy': return '☁️'
+    case 'rainy': return '🌧️'
+    case 'snowy': return '❄️'
+    case 'stormy': return '⛈️'
+    default: return '🌡️'
+  }
+}
+
+/**
+ * Get weather label in Japanese based on weather type
+ */
+function getWeatherLabel(weather: string): string {
+  switch (weather) {
+    case 'sunny': return '晴れ'
+    case 'partly_cloudy': return '一部曇り'
+    case 'cloudy': return '曇り'
+    case 'rainy': return '雨'
+    case 'snowy': return '雪'
+    case 'stormy': return '雷雨'
+    default: return '不明'
+  }
+}
+
 export function generateMannedAircraftZonesGeoJSON(): GeoJSON.FeatureCollection {
   const zones: Array<{
     id: string

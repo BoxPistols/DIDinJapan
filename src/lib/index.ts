@@ -116,7 +116,42 @@ export {
 } from './services/elevationService'
 export type { ElevationData, CoordinateInfo } from './services/elevationService'
 
+// Weather and Drone Operation Services
+export {
+  fetchMeshWeather,
+  fetchMeshTimeSeries
+} from './services/jmaMesh'
+export {
+  fetchSunriseSunset,
+  getCivilTwilightEnd,
+  isDaylight,
+  getMinutesUntilTwilightEnd
+} from './services/sunriseSunset'
+export {
+  checkLTEAvailability,
+  estimateSignalStrength
+} from './services/networkCoverage'
+
+// Drone Operation Hooks
+export {
+  useMeshCodeConversion,
+  useWeatherMesh,
+  useCurrentWeatherForecast,
+  useNetworkCoverage,
+  useFlightWindow,
+  useOperationSafety,
+  getSafetyLevelColor,
+  getSafetyLevelText
+} from './hooks'
+
 // Utilities
+export {
+  latLngToMeshCode,
+  meshCodeToLatLng,
+  meshCodeToBBox,
+  getSurroundingMeshCodes,
+  isValidMeshCode
+} from './utils/meshCodeConverter'
 export {
   calculateBBox,
   calculateDistance,
@@ -130,6 +165,7 @@ export {
   generateBuildingsGeoJSON,
   generateWindFieldGeoJSON,
   generateLTECoverageGeoJSON,
+  generateWeatherIconsGeoJSON,
   generateRadioInterferenceGeoJSON,
   generateMannedAircraftZonesGeoJSON
 } from './utils/geo'

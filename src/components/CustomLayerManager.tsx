@@ -438,8 +438,8 @@ export function CustomLayerManager({
         onClick={() => setIsOpen(true)}
         style={{
           position: 'fixed',
-          bottom: 20,
-          right: 64, // 右下・固定UIと被らない位置
+          bottom: 8,
+          right: 52, // 右下・固定UIと被らない位置
           padding: '10px 16px',
           backgroundColor: 'rgba(51, 136, 255, 0.85)', // 少し透過して地図を邪魔しない
           color: '#fff',

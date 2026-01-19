@@ -41,7 +41,7 @@ export const getAppTheme = (darkMode: boolean): AppTheme => {
         panelBgMuted: '#1a1f2e',
         modalBg: 'rgba(26, 31, 46, 0.8)',
         overlayBg: 'rgba(0, 0, 0, 0.4)',
-        buttonBg: 'rgba(74, 158, 255, 0.1)',
+        buttonBg: 'rgba(74, 158, 255, 0.2)',
         buttonBgActive: '#4a9eff',
 
         // Text
@@ -72,7 +72,7 @@ export const getAppTheme = (darkMode: boolean): AppTheme => {
       panelBgMuted: '#f8f8f8',
       modalBg: 'rgba(255, 255, 255, 0.8)',
       overlayBg: 'rgba(0, 0, 0, 0.4)',
-      buttonBg: 'rgba(74, 158, 255, 0.1)',
+      buttonBg: 'rgba(74, 158, 255, 0.2)',
       buttonBgActive: '#4a9eff',
       text: '#1a1a1a',
       textMuted: '#6b7280',

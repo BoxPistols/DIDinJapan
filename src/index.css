@@ -9,19 +9,39 @@ body {
   color-scheme: light dark;
 }
 
+/* MapLibre popup - above scouter overlay */
+.maplibregl-popup {
+  z-index: 1500 !important;
+}
+
 .maplibregl-popup-content {
-  background-color: rgba(20, 30, 48, 0.9) !important;
+  background-color: transparent !important;
   color: #fff;
-  padding: 12px 16px !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  padding: 0 !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
   font-size: 13px;
   line-height: 1.5;
   min-width: 200px;
+  overflow: visible;
 }
 
 .maplibregl-popup-tip {
-  border-top-color: rgba(20, 30, 48, 0.9) !important;
+  border-top-color: rgba(20, 20, 30, 0.75) !important;
+}
+
+.maplibregl-popup-close-button {
+  color: #9ca3af !important;
+  font-size: 32px !important;
+  padding: 4px 8px !important;
+  right: 2px !important;
+  top: 1px !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: #e5e5e5 !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px;
 }
 
 .did-popup .popup-header {
@@ -62,9 +82,15 @@ body {
   font-feature-settings: "tnum";
 }
 
-/* NavigationControlを下にずらす（右パネルトグルと被らないように） */
-.maplibregl-ctrl-top-right {
-  top: 50px !important;
+/* NavigationControlを右下に配置 */
+.maplibregl-ctrl-bottom-right {
+  bottom: 120px !important;
+}
+
+/* Attribution & Scale を左下（サイドバーの右側）に配置 */
+.maplibregl-ctrl-bottom-left {
+  bottom: 3px !important;
+  left: 280px !important;
 }
 
 /* MapLibre GL Controls - Dark mode support */

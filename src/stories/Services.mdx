@@ -293,25 +293,124 @@ async function analyzeRouteProfile(routePoints: [number, number][]) {
 
 ## Weather Services
 
-気象情報は、飛行の可否を決定する最もクリティカルな要素です。本ライブラリは複数のプロバイダを統合しています。
+気象情報は、飛行の可否を決定する最もクリティカルな要素です。本ライブラリは2つのAPIを統合しています。
+
+### キーボードショートカット
+
+| キー | 機能 |
+|:---:|:---|
+| `C` | 雨雲レーダーのトグル |
+| `W` | 天気予報クリックモードのトグル |
+| `ESC` | ポップアップ・パネルを順番に閉じる |
+
+---
 
 ### RainViewerService (雨雲レーダー)
 
-世界中の気象レーダーを統合したAPI。
+世界中の気象レーダーを統合したAPI（[RainViewer API](https://www.rainviewer.com/api.html)）。
+
+**ファイル**: `src/lib/services/rainViewer.ts`
 
 - **`getAvailableFrames()`**: 利用可能な過去・未来のタイムスタンプ配列を取得。
 - **`buildTileUrl(path)`**: MapLibreのラスターレイヤーとして利用可能なXYZタイルURLを生成。
 
+**API仕様**:
+```
+エンドポイント: https://api.rainviewer.com/public/weather-maps.json
+料金: 完全無料
+認証: 不要
+更新頻度: 5分ごと
+```
+
 **実装のポイント**:
 アニメーション表示を行う場合、全フレームのタイルを一気に読み込むとネットワーク帯域を圧迫します。現在表示中のフレームと、次のフレームのみをプリロードする制御が推奨されます。
 
-### OpenWeatherService (総合気象)
+---
 
-- **`fetchWeather(lat, lng)`**: 現在の天気、気温、湿度、気圧、風速、風向。
-- **`fetchWind(lat, lng)`**: 風に特化した軽量APIコール。
+### WeatherApiService (天気予報)
+
+[Open-Meteo API](https://open-meteo.com/) を使用した都道府県別天気予報サービス。完全無料・認証不要で動作します。
+
+**ファイル**: `src/lib/services/weatherApi.ts`
+
+**API仕様**:
+```
+エンドポイント: https://api.open-meteo.com/v1/forecast
+料金: 完全無料
+認証: 不要
+リクエスト制限: 10,000/日（非商用）
+```
+
+#### 主要関数
+
+| 関数 | 説明 |
+|------|------|
+| `fetchPrefectureWeather(lat, lng)` | 座標から天気データ取得 |
+| `getPrefectureForecast(prefectureId)` | 都道府県IDから天気取得 |
+| `findNearestPrefecture(lat, lng)` | 最寄りの都道府県を検索 |
+| `getWeatherDescription(code)` | 天気コードをラベル・アイコンに変換 |
+| `formatHourlyTime(time)` | 時刻フォーマット |
+| `formatDailyDate(date)` | 日付フォーマット |
+| `getAllRegions()` | 全地方名リスト取得 |
+| `getPrefecturesByRegion(region)` | 地方別都道府県リスト |
+
+#### 都道府県データ
+
+全47都道府県の県庁所在地座標を `JAPAN_PREFECTURES` 配列で管理。
+
+```typescript
+export const JAPAN_PREFECTURES = [
+  { id: 'hokkaido', name: '北海道', capital: '札幌', lat: 43.06, lng: 141.35, region: '北海道' },
+  { id: 'aomori', name: '青森県', capital: '青森', lat: 40.82, lng: 140.74, region: '東北' },
+  // ... 全47都道府県
+]
+```
+
+#### 天気コード対応表
+
+WMO Weather Interpretation Codes (WW) に基づく。
+
+| コード | 天気 | アイコン |
+|:------:|------|:--------:|
+| 0 | 快晴 | ☀️ |
+| 1-3 | 晴れ/一部曇り | 🌤️/⛅/🌥️ |
+| 45, 48 | 霧 | 🌫️ |
+| 51-55 | 霧雨 | 🌦️ |
+| 61-65 | 雨 | 🌧️ |
+| 71-75 | 雪 | ❄️ |
+| 80-82 | にわか雨 | 🌧️ |
+| 85-86 | にわか雪 | 🌨️ |
+| 95-99 | 雷雨 | ⛈️ |
+
+#### レスポンス例
+
+```json
+{
+  "current": {
+    "temperature_2m": 5.2,
+    "relative_humidity_2m": 72,
+    "precipitation": 0,
+    "weather_code": 3,
+    "wind_speed_10m": 7.4
+  },
+  "hourly": {
+    "time": ["2026-01-20T00:00", "2026-01-20T01:00", "..."],
+    "temperature_2m": [5.2, 4.8, "..."],
+    "weather_code": [3, 3, "..."],
+    "precipitation": [0, 0.1, "..."]
+  },
+  "daily": {
+    "time": ["2026-01-20", "2026-01-21", "..."],
+    "weather_code": [3, 71, "..."],
+    "temperature_2m_max": [8, 5, "..."],
+    "temperature_2m_min": [-2, -3, "..."],
+    "precipitation_sum": [0.1, 2.5, "..."]
+  }
+}
+```
 
 **風速カテゴリ (Beaufort Scale for Drones)**:
-ドローン運用向けにカスタマイズされた風速評価ロジックを内蔵しています。
+ドローン運用向けにカスタマイズされた風速評価ロジック。
 
 | 風速 (m/s) | レベル | 判定 |
 |:---:|:---:|:---:|

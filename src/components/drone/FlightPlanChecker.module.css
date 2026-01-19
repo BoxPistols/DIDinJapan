@@ -1,0 +1,239 @@
+/**
+ * FlightPlanChecker Component Styles
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading,
+.error {
+  padding: 16px;
+  text-align: center;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.loading {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(59, 130, 246, 0.9);
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.9);
+}
+
+/* Overall Safety Status */
+.overallStatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.overallStatus.safe {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.5);
+}
+
+.overallStatus.unsafe {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.statusIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.overallStatus.safe .statusIcon {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.overallStatus.unsafe .statusIcon {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.statusText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statusTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+:global([data-theme="light"]) .statusTitle {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.statusSubtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:global([data-theme="light"]) .statusSubtitle {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Safety Indicators Section */
+.indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+:global([data-theme="light"]) .indicators {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Reasons Section */
+.reasonsSection {
+  margin-top: 8px;
+}
+
+.reasonsTitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global([data-theme="light"]) .reasonsTitle {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.reasonsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.reason.critical {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 0.9);
+}
+
+.reason.warning {
+  background: rgba(249, 115, 22, 0.1);
+  color: rgba(249, 115, 22, 0.9);
+}
+
+.reason.info {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(59, 130, 246, 0.9);
+}
+
+:global([data-theme="light"]) .reason.critical {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgba(239, 68, 68, 1);
+}
+
+:global([data-theme="light"]) .reason.warning {
+  background: rgba(249, 115, 22, 0.1);
+  color: rgba(249, 115, 22, 1);
+}
+
+:global([data-theme="light"]) .reason.info {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(59, 130, 246, 1);
+}
+
+.reasonIcon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.reasonText {
+  line-height: 1.4;
+}
+
+/* Next Safe Window */
+.nextWindow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.nextWindowLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:global([data-theme="light"]) .nextWindowLabel {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.nextWindowValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(59, 130, 246, 0.9);
+  font-family: 'Courier New', monospace;
+}
+
+:global([data-theme="light"]) .nextWindowValue {
+  color: rgba(59, 130, 246, 1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    gap: 12px;
+  }
+
+  .overallStatus {
+    padding: 12px;
+  }
+
+  .statusIcon {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  .statusTitle {
+    font-size: 14px;
+  }
+
+  .statusSubtitle {
+    font-size: 12px;
+  }
+}

@@ -293,6 +293,159 @@ function RainRadarOverlay({ map }: { map: maplibregl.Map }) {
 
 ---
 
+## 天気予報の取得と表示
+
+Open-Meteo APIを使用して都道府県別の天気予報を取得・表示する例です。
+
+```tsx
+import { useState, useEffect } from 'react'
+import {
+  fetchPrefectureWeather,
+  findNearestPrefecture,
+  getWeatherDescription,
+  JAPAN_PREFECTURES
+} from 'japan-drone-map'
+
+// 天気アイコンコンポーネント
+function WeatherIcon({ code }: { code: number }) {
+  const { icon, label } = getWeatherDescription(code)
+  return <span title={label}>{icon}</span>
+}
+
+// 天気表示コンポーネント
+function WeatherDisplay({ lat, lng }: { lat: number; lng: number }) {
+  const [weather, setWeather] = useState<any>(null)
+  const [prefecture, setPrefecture] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchWeather() {
+      setLoading(true)
+      try {
+        // 最寄りの都道府県を検索
+        const nearestPref = findNearestPrefecture(lat, lng)
+        setPrefecture(nearestPref)
+
+        // 天気データを取得
+        const data = await fetchPrefectureWeather(nearestPref.lat, nearestPref.lng)
+        setWeather(data)
+      } catch (err) {
+        console.error('天気取得失敗', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchWeather()
+  }, [lat, lng])
+
+  if (loading) return <div>読み込み中...</div>
+  if (!weather) return <div>天気情報を取得できませんでした</div>
+
+  return (
+    <div className="weather-display">
+      <h3>{prefecture?.name} ({prefecture?.capital})</h3>
+
+      {/* 現在の天気 */}
+      <div className="current-weather">
+        <WeatherIcon code={weather.current.weather_code} />
+        <span className="temp">{weather.current.temperature_2m}°C</span>
+      </div>
+
+      {/* 詳細情報 */}
+      <div className="weather-details">
+        <div>湿度: {weather.current.relative_humidity_2m}%</div>
+        <div>風速: {weather.current.wind_speed_10m} km/h</div>
+        <div>降水: {weather.current.precipitation} mm</div>
+      </div>
+
+      {/* 週間予報 */}
+      <div className="daily-forecast">
+        {weather.daily.time.slice(0, 3).map((date: string, i: number) => (
+          <div key={date} className="forecast-day">
+            <span>{date}</span>
+            <WeatherIcon code={weather.daily.weather_code[i]} />
+            <span>
+              {weather.daily.temperature_2m_max[i]}° / {weather.daily.temperature_2m_min[i]}°
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+```
+
+### 地図クリックで天気ポップアップ表示
+
+```tsx
+import maplibregl from 'maplibre-gl'
+import {
+  findNearestPrefecture,
+  fetchPrefectureWeather,
+  getWeatherDescription
+} from 'japan-drone-map'
+
+function enableWeatherClickMode(map: maplibregl.Map) {
+  let popup: maplibregl.Popup | null = null
+
+  map.on('click', async (e) => {
+    const { lng, lat } = e.lngLat
+
+    // 既存のポップアップを閉じる
+    popup?.remove()
+
+    // 最寄りの都道府県を検索
+    const pref = findNearestPrefecture(lat, lng)
+    if (!pref) return
+
+    // ローディング表示
+    popup = new maplibregl.Popup()
+      .setLngLat([lng, lat])
+      .setHTML('<div>読み込み中...</div>')
+      .addTo(map)
+
+    try {
+      // 天気データを取得
+      const weather = await fetchPrefectureWeather(pref.lat, pref.lng)
+      const { icon, label } = getWeatherDescription(weather.current.weather_code)
+
+      // ポップアップ更新
+      popup.setHTML(`
+        <div style="min-width: 200px;">
+          <h3>${pref.name} (${pref.capital})</h3>
+          <div style="font-size: 24px;">
+            ${icon} ${weather.current.temperature_2m}°C
+          </div>
+          <div>${label}</div>
+          <hr />
+          <div>湿度: ${weather.current.relative_humidity_2m}%</div>
+          <div>風速: ${weather.current.wind_speed_10m} km/h</div>
+          <div>降水: ${weather.current.precipitation} mm</div>
+        </div>
+      `)
+    } catch (err) {
+      popup.setHTML('<div>天気情報の取得に失敗しました</div>')
+    }
+  })
+
+  // ESCキーでポップアップを閉じる
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      popup?.remove()
+      popup = null
+    }
+  })
+}
+```
+
+**キーボードショートカット**:
+- `W`: 天気予報クリックモードのトグル
+- `C`: 雨雲レーダーのトグル
+- `ESC`: ポップアップを閉じる
+
+---
+
 ## カスタムレイヤーの追加
 
 ユーザーが追加したカスタムレイヤーを地図に表示する例です。

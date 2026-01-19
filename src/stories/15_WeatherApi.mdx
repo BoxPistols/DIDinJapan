@@ -1,0 +1,612 @@
+{/* 15_WeatherApi.mdx */}
+import { Meta } from '@storybook/blocks'
+
+<Meta title="Learning/15_天気予報API仕様" />
+
+export const TableStyle = {
+  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
+  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
+  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
+  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  td: { padding: '12px' },
+  tdCenter: { padding: '12px', textAlign: 'center' },
+  code: { backgroundColor: 'rgba(74, 158, 255, 0.1)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }
+}
+
+# 天気予報API仕様書
+
+本ライブラリには**2つの天気関連システム**が実装されています。
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>システム</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>API</th>
+      <th style={TableStyle.th}>ファイル</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>天気予報表示</td>
+      <td style={TableStyle.td}>都道府県別天気予報UI</td>
+      <td style={TableStyle.td}>Open-Meteo</td>
+      <td style={TableStyle.td}><code style={TableStyle.code}>weatherApi.ts</code></td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>ドローン運用安全</td>
+      <td style={TableStyle.td}>飛行可否判定</td>
+      <td style={TableStyle.td}>JMA Mesh</td>
+      <td style={TableStyle.td}><code style={TableStyle.code}>jmaMesh.ts</code></td>
+    </tr>
+  </tbody>
+</table>
+
+---
+
+## 1. 天気予報表示システム (Open-Meteo)
+
+地図クリックで都道府県の天気予報を表示する機能。
+
+### 1-1. 概要
+
+```
+API: Open-Meteo API
+URL: https://api.open-meteo.com/v1/forecast
+料金: 完全無料
+認証: 不要
+制限: 10,000リクエスト/日（非商用）
+```
+
+### 1-2. キーボードショートカット
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>キー</th>
+      <th style={TableStyle.th}>機能</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>W</code></td>
+      <td style={TableStyle.td}>天気予報クリックモードのトグル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>C</code></td>
+      <td style={TableStyle.td}>雨雲レーダーのトグル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>ESC</code></td>
+      <td style={TableStyle.td}>ポップアップ・パネルを順番に閉じる</td>
+    </tr>
+  </tbody>
+</table>
+
+### 1-3. ファイル構成
+
+```
+src/
+├── lib/services/
+│   ├── weatherApi.ts      # Open-Meteo API連携
+│   └── rainViewer.ts      # RainViewer API連携（雨雲レーダー）
+└── components/weather/
+    └── WeatherForecastPanel.tsx  # 詳細予報パネル
+```
+
+### 1-4. weatherApi.ts 主要関数
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>関数</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>fetchPrefectureWeather(lat, lng)</code></td>
+      <td style={TableStyle.td}>座標から天気データ取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getPrefectureForecast(prefectureId)</code></td>
+      <td style={TableStyle.td}>都道府県IDから天気取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>findNearestPrefecture(lat, lng)</code></td>
+      <td style={TableStyle.td}>最寄りの都道府県を検索</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getWeatherDescription(code)</code></td>
+      <td style={TableStyle.td}>天気コードをラベル・アイコンに変換</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>formatHourlyTime(time)</code></td>
+      <td style={TableStyle.td}>時刻フォーマット</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>formatDailyDate(date)</code></td>
+      <td style={TableStyle.td}>日付フォーマット</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getAllRegions()</code></td>
+      <td style={TableStyle.td}>全地方名リスト取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getPrefecturesByRegion(region)</code></td>
+      <td style={TableStyle.td}>地方別都道府県リスト</td>
+    </tr>
+  </tbody>
+</table>
+
+### 1-5. 都道府県データ
+
+全47都道府県の県庁所在地座標を `JAPAN_PREFECTURES` 配列で管理。
+
+```typescript
+export const JAPAN_PREFECTURES = [
+  { id: 'hokkaido', name: '北海道', capital: '札幌', lat: 43.06, lng: 141.35, region: '北海道' },
+  { id: 'aomori', name: '青森県', capital: '青森', lat: 40.82, lng: 140.74, region: '東北' },
+  { id: 'iwate', name: '岩手県', capital: '盛岡', lat: 39.70, lng: 141.15, region: '東北' },
+  // ... 全47都道府県
+]
+
+// 地方区分
+const REGIONS = ['北海道', '東北', '関東', '中部', '近畿', '中国', '四国', '九州・沖縄']
+```
+
+### 1-6. APIリクエスト
+
+```typescript
+// リクエストURL構築
+const url = `https://api.open-meteo.com/v1/forecast?` +
+  `latitude=${lat}&longitude=${lng}` +
+  `&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m` +
+  `&hourly=temperature_2m,weather_code,precipitation` +
+  `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum` +
+  `&timezone=Asia%2FTokyo`
+```
+
+### 1-7. APIレスポンス
+
+```json
+{
+  "current": {
+    "temperature_2m": 5.2,
+    "relative_humidity_2m": 72,
+    "precipitation": 0,
+    "weather_code": 3,
+    "wind_speed_10m": 7.4
+  },
+  "hourly": {
+    "time": ["2026-01-20T00:00", "2026-01-20T01:00", "..."],
+    "temperature_2m": [5.2, 4.8, "..."],
+    "weather_code": [3, 3, "..."],
+    "precipitation": [0, 0.1, "..."]
+  },
+  "daily": {
+    "time": ["2026-01-20", "2026-01-21", "..."],
+    "weather_code": [3, 71, "..."],
+    "temperature_2m_max": [8, 5, "..."],
+    "temperature_2m_min": [-2, -3, "..."],
+    "precipitation_sum": [0.1, 2.5, "..."]
+  }
+}
+```
+
+### 1-8. WMO天気コード対応表
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>コード</th>
+      <th style={TableStyle.th}>天気</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>アイコン</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>0</td>
+      <td style={TableStyle.td}>快晴</td>
+      <td style={TableStyle.tdCenter}>☀️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>1</td>
+      <td style={TableStyle.td}>晴れ</td>
+      <td style={TableStyle.tdCenter}>🌤️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>2</td>
+      <td style={TableStyle.td}>一部曇り</td>
+      <td style={TableStyle.tdCenter}>⛅</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>3</td>
+      <td style={TableStyle.td}>曇り</td>
+      <td style={TableStyle.tdCenter}>🌥️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>45, 48</td>
+      <td style={TableStyle.td}>霧</td>
+      <td style={TableStyle.tdCenter}>🌫️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>51, 53, 55</td>
+      <td style={TableStyle.td}>霧雨</td>
+      <td style={TableStyle.tdCenter}>🌦️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>61, 63, 65</td>
+      <td style={TableStyle.td}>雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>66, 67</td>
+      <td style={TableStyle.td}>凍雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>71, 73, 75</td>
+      <td style={TableStyle.td}>雪</td>
+      <td style={TableStyle.tdCenter}>❄️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>77</td>
+      <td style={TableStyle.td}>霧雪</td>
+      <td style={TableStyle.tdCenter}>🌨️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>80, 81, 82</td>
+      <td style={TableStyle.td}>にわか雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>85, 86</td>
+      <td style={TableStyle.td}>にわか雪</td>
+      <td style={TableStyle.tdCenter}>🌨️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>95, 96, 99</td>
+      <td style={TableStyle.td}>雷雨</td>
+      <td style={TableStyle.tdCenter}>⛈️</td>
+    </tr>
+  </tbody>
+</table>
+
+### 1-9. 使用例
+
+```tsx
+import {
+  fetchPrefectureWeather,
+  findNearestPrefecture,
+  getWeatherDescription
+} from 'japan-drone-map'
+
+// 地図クリック時
+async function handleMapClick(lat: number, lng: number) {
+  // 最寄りの都道府県を検索
+  const prefecture = findNearestPrefecture(lat, lng)
+
+  // 天気データ取得
+  const weather = await fetchPrefectureWeather(prefecture.lat, prefecture.lng)
+
+  // 天気アイコン・ラベル取得
+  const { icon, label } = getWeatherDescription(weather.current.weather_code)
+
+  console.log(`${prefecture.name}: ${icon} ${weather.current.temperature_2m}°C ${label}`)
+}
+```
+
+---
+
+## 2. 雨雲レーダー (RainViewer)
+
+### 2-1. 概要
+
+```
+API: RainViewer API
+URL: https://api.rainviewer.com/public/weather-maps.json
+料金: 完全無料
+認証: 不要
+更新: 5分ごと
+```
+
+### 2-2. rainViewer.ts 主要関数
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>関数</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getAvailableFrames()</code></td>
+      <td style={TableStyle.td}>利用可能なタイムスタンプ取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>buildTileUrl(path)</code></td>
+      <td style={TableStyle.td}>XYZタイルURL生成</td>
+    </tr>
+  </tbody>
+</table>
+
+### 2-3. 使用例
+
+```tsx
+import { RainViewerService } from 'japan-drone-map'
+
+// 雨雲レーダーフレーム取得
+const data = await RainViewerService.getAvailableFrames()
+const latestPath = data.radar.past[data.radar.past.length - 1].path
+
+// MapLibreレイヤー用URL
+const tileUrl = RainViewerService.buildTileUrl(latestPath)
+// => "https://tilecache.rainviewer.com/v2/radar/{path}/256/{z}/{x}/{y}/2/1_1.png"
+```
+
+---
+
+## 3. ドローン運用安全システム (JMA Mesh)
+
+飛行可否を判定するための気象・通信・時間データを統合したシステム。
+
+### 3-1. 概要
+
+```
+目的: ドローン飛行の安全性判定
+データソース:
+  - 気象庁メッシュAPI（風速・降水確率）
+  - Sunrise-Sunset.org（民間薄明時間）
+  - LTEカバレッジ（通信確保）
+```
+
+### 3-2. ファイル構成
+
+```
+src/lib/
+├── services/
+│   ├── jmaMesh.ts           # 気象庁メッシュAPI
+│   ├── sunriseSunset.ts     # 日没時刻API
+│   └── networkCoverage.ts   # LTEカバレッジ
+├── hooks/
+│   ├── useWeatherMesh.ts    # 気象データフック
+│   ├── useFlightWindow.ts   # 飛行可能時間帯
+│   ├── useNetworkCoverage.ts # 通信状況
+│   └── useOperationSafety.ts # 統合安全判定
+└── utils/
+    └── meshCodeConverter.ts  # メッシュコード変換
+```
+
+### 3-3. 飛行安全判定ルール
+
+```typescript
+// useOperationSafety の判定ロジック
+canFly = true
+  && windSpeed < 10      // 風速10m/s未満
+  && precipitation <= 50 // 降水確率50%以下
+  && hasLTE              // LTE通信圏内
+  && isDaylight          // 民間薄明時間内
+```
+
+### 3-4. 安全レベル定義
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>レベル</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>色</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>safe</code></td>
+      <td style={TableStyle.tdCenter}>🟢 緑</td>
+      <td style={TableStyle.td}>安全に飛行可能</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>caution</code></td>
+      <td style={TableStyle.tdCenter}>🟡 黄</td>
+      <td style={TableStyle.td}>注意が必要</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>warning</code></td>
+      <td style={TableStyle.tdCenter}>🟠 橙</td>
+      <td style={TableStyle.td}>警告（条件悪化）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>danger</code></td>
+      <td style={TableStyle.tdCenter}>🔴 赤</td>
+      <td style={TableStyle.td}>危険（飛行非推奨）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>prohibited</code></td>
+      <td style={TableStyle.tdCenter}>⛔ 濃赤</td>
+      <td style={TableStyle.td}>飛行禁止</td>
+    </tr>
+  </tbody>
+</table>
+
+### 3-5. 風速基準
+
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>風速 (m/s)</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>レベル</th>
+      <th style={TableStyle.th}>判定</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>0 - 2</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>safe</code></td>
+      <td style={TableStyle.td}>安全（良好）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>2 - 5</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>caution</code></td>
+      <td style={TableStyle.td}>注意（飛行可能）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>5 - 10</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>warning</code></td>
+      <td style={TableStyle.td}>警告（操縦難化）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>10+</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>danger</code></td>
+      <td style={TableStyle.td}>危険（飛行不可）</td>
+    </tr>
+  </tbody>
+</table>
+
+### 3-6. useOperationSafety フック
+
+```typescript
+import { useOperationSafety, getSafetyLevelColor } from 'japan-drone-map'
+
+function FlightSafetyCheck({ lat, lng, meshCode }) {
+  const safety = useOperationSafety(lat, lng, meshCode)
+
+  if (safety.loading) return <div>安全確認中...</div>
+
+  return (
+    <div style={{ backgroundColor: getSafetyLevelColor(safety.safetyLevel) }}>
+      {safety.canFly ? (
+        <span>✓ 飛行可能</span>
+      ) : (
+        <div>
+          <span>✗ 飛行不可</span>
+          <ul>
+            {safety.reasons.map((r, i) => (
+              <li key={i}>{r.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+### 3-7. OperationSafetyResult 型
+
+```typescript
+interface OperationSafetyResult {
+  canFly: boolean
+  reasons: SafetyReason[]
+  safetyLevel: SafetyLevel
+  nextSafeWindow: Date | null
+  loading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+
+  // 生データアクセス
+  weatherData?: {
+    windSpeed?: number
+    windDirection?: number
+    precipitationProbability?: number
+    temperature?: number
+  }
+  networkData?: {
+    hasLTE: boolean
+    signalStrength: string
+  }
+  flightWindowData?: {
+    flightAllowedNow: boolean
+    minutesRemaining: number | null
+  }
+}
+```
+
+---
+
+## 4. メッシュコード変換
+
+気象庁データは「メッシュコード」で地域を識別します。
+
+### 4-1. meshCodeConverter.ts
+
+```typescript
+import {
+  latLngToMeshCode,
+  meshCodeToLatLng,
+  getSurroundingMeshCodes
+} from 'japan-drone-map'
+
+// 座標 → メッシュコード
+const meshCode = latLngToMeshCode(35.6895, 139.6917)
+// => "53393599"
+
+// メッシュコード → 座標（中心点）
+const center = meshCodeToLatLng("53393599")
+// => { lat: 35.6895833, lng: 139.6916666 }
+
+// 周辺メッシュコード取得
+const surrounding = getSurroundingMeshCodes("53393599")
+// => ["53393589", "53393598", "53393599", ...]
+```
+
+---
+
+## 5. 日没時刻・民間薄明 (Sunrise-Sunset)
+
+### 5-1. API仕様
+
+```
+API: Sunrise-Sunset.org
+URL: https://api.sunrise-sunset.org/json
+料金: 完全無料
+認証: 不要
+```
+
+### 5-2. useFlightWindow フック
+
+```typescript
+import { useFlightWindow } from 'japan-drone-map'
+
+function DaylightInfo({ lat, lng }) {
+  const flight = useFlightWindow(lat, lng)
+
+  return (
+    <div>
+      <p>日の出: {flight.sunrise?.toLocaleTimeString()}</p>
+      <p>日没: {flight.sunset?.toLocaleTimeString()}</p>
+      <p>民間薄明終了: {flight.civilTwilightEnd?.toLocaleTimeString()}</p>
+      <p>飛行可能: {flight.flightAllowedNow ? 'はい' : 'いいえ'}</p>
+      {flight.minutesRemaining && (
+        <p>残り時間: {flight.minutesRemaining}分</p>
+      )}
+    </div>
+  )
+}
+```
+
+### 5-3. MLIT規制
+
+```
+■ 無人航空機の飛行禁止時間帯
+- 民間薄明時間終了後（夜間）のドローン飛行禁止
+- 例外: 照明設備のあるエリアで許可申請された場合のみ
+
+■ 民間薄明時間（Civil Twilight）とは
+- 日没後、太陽の中心が地平線下6°に達するまでの時間
+- この間は自然光で十分な視認性がある
+```
+
+---
+
+## 6. 参考リンク
+
+### 公式ドキュメント
+- [Open-Meteo API](https://open-meteo.com/en/docs)
+- [RainViewer API](https://www.rainviewer.com/api.html)
+- [Sunrise-Sunset API](https://sunrise-sunset.org/api)
+- [気象庁 気象データ高度利用ポータル](https://www.data.jma.go.jp/developer/index.html)
+
+### 法規制
+- [国土交通省 無人航空機の飛行許可](https://www.mlit.go.jp/koku/koku_tk10_000003.html)
+- [WMO Weather Codes](https://open-meteo.com/en/docs#weathervariables)

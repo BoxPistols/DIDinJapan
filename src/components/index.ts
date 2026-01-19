@@ -22,3 +22,6 @@ export type { IsikawaNotoComparisonPanelProps } from './IsikawaNotoComparisonPan
 
 export { FocusCrosshair } from './FocusCrosshair'
 export type { FocusCrosshairProps, CrosshairDesign } from './FocusCrosshair'
+
+// Drone operation components
+export * from './drone'

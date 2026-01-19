@@ -27,8 +27,9 @@ import { Meta } from '@storybook/blocks'
 - **傾斜量図** - 地形の傾斜度
 
 #### 気象情報
-- **雨雲レーダー** - RainViewer API連携
-- **風況データ** - OpenWeatherMap API連携
+- **雨雲レーダー [C]** - RainViewer API連携（リアルタイム、5分更新）
+- **天気予報クリックモード [W]** - 地図クリックで都道府県の天気を表示
+- **詳細予報パネル** - 48時間予報 + 7日間週間予報（Open-Meteo API）
 
 #### カスタムレイヤー
 - **GeoJSONインポート** - 独自のデータを追加
@@ -100,12 +101,12 @@ const radarUrl = RainViewerService.buildTileUrl('some-path')
     <tr>
       <td>雨雲レーダー</td>
       <td>RainViewer API</td>
-      <td>リアルタイム</td>
+      <td>5分ごと</td>
     </tr>
     <tr>
-      <td>風況データ</td>
-      <td>OpenWeatherMap</td>
-      <td>リアルタイム</td>
+      <td>天気予報</td>
+      <td>Open-Meteo API</td>
+      <td>1時間ごと</td>
     </tr>
   </tbody>
 </table>
