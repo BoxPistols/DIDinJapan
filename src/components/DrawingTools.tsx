@@ -8,9 +8,29 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type maplibregl from 'maplibre-gl'
 import { createCirclePolygon, convertDecimalToDMS } from '../lib/utils/geo'
+import type RBush from 'rbush'
+import {
+  checkWaypointCollision,
+  checkPathCollision,
+  checkPolygonCollision,
+  createSpatialIndex
+} from '../lib'
+import {
+  checkWaypointCollision,
+  checkPathCollision,
+  checkPolygonCollision,
+  createSpatialIndex
+} from '../lib'
 import { Modal } from './Modal'
 import { showToast } from '../utils/toast'
 import { showConfirm } from '../utils/dialog'
+import type RBush from 'rbush'
+import {
+  checkWaypointCollision,
+  checkPathCollision,
+  checkPolygonCollision,
+  createSpatialIndex
+} from '../lib'
 
 // デバウンスユーティリティ
 function debounce<Args extends unknown[]>(
@@ -578,6 +598,7 @@ export interface UndoRedoState {
 
 export interface DrawingToolsProps {
   map: maplibregl.Map | null
+  prohibitedAreas?: GeoJSON.FeatureCollection
   onFeaturesChange?: (features: DrawnFeature[]) => void
   darkMode?: boolean
   embedded?: boolean // サイドバー内に埋め込む場合true
@@ -620,6 +641,7 @@ const loadFromLocalStorage = (): GeoJSON.FeatureCollection | null => {
  */
 export function DrawingTools({
   map,
+  prohibitedAreas,
   onFeaturesChange,
   darkMode = false,
   embedded = false,
@@ -635,6 +657,7 @@ export function DrawingTools({
   const [drawnFeatures, setDrawnFeatures] = useState<DrawnFeature[]>([])
   const [circleRadius, setCircleRadius] = useState(100) // メートル
   const [circlePoints, setCirclePoints] = useState(24) // 円の頂点数
+  const [prohibitedIndex, setProhibitedIndex] = useState<RBush | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<Set<string>>(new Set())
@@ -849,6 +872,9 @@ export function DrawingTools({
   useEffect(() => {
     if (!map || !mapLoaded) return
     if (drawRef.current) return
+    if (prohibitedAreas) {
+      setProhibitedIndex(createSpatialIndex(prohibitedAreas))
+    }
 
     isDisposedRef.current = false
     const safeSetTimeout = (fn: () => void, ms: number) =>
@@ -1137,6 +1163,13 @@ export function DrawingTools({
       updateFeatures()
       bringLabelsToFront()
 
+      // 衝突判定＆色更新
+      if (prohibitedIndex && prohibitedAreas) {
+        const normalized = normalizeDrawnFeatures(e.features as unknown as GeoJSON.Feature[], circlePoints)
+        annotateCollisions(normalized)
+        mergeDrawnFeatures(normalized, true)
+      }
+
       // WP連続モードの場合は継続
       if (drawModeRef.current === 'point' && continuousModeRef.current) {
         // 連続モード: draw_pointモードを維持
@@ -1161,6 +1194,12 @@ export function DrawingTools({
     const handleUpdate = () => {
       updateFeatures()
       bringLabelsToFront()
+      if (prohibitedIndex && prohibitedAreas) {
+        const selected = draw.getSelected()
+        const normalized = normalizeDrawnFeatures(selected.features ?? [], circlePoints)
+        annotateCollisions(normalized)
+        mergeDrawnFeatures(normalized, true)
+      }
     }
 
     const handleDelete = () => {
