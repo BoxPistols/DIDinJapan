@@ -1,0 +1,278 @@
+/**
+ * WeatherTimeSlider Component Styles
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+:global([data-theme="light"]) .container {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeDisplay {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.currentTime {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'Courier New', monospace;
+}
+
+:global([data-theme="light"]) .currentTime {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.relativeTime {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+:global([data-theme="light"]) .relativeTime {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.resetButton {
+  padding: 6px 12px;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 6px;
+  color: rgba(59, 130, 246, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetButton:hover {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+:global([data-theme="light"]) .resetButton {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgba(59, 130, 246, 1);
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.navButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+:global([data-theme="light"]) .navButton {
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+:global([data-theme="light"]) .navButton:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Slider */
+.sliderWrapper {
+  position: relative;
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+
+:global([data-theme="light"]) .slider {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.9);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.9);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.slider:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+  background: rgba(59, 130, 246, 1);
+}
+
+.slider:hover::-moz-range-thumb {
+  transform: scale(1.1);
+  background: rgba(59, 130, 246, 1);
+}
+
+.sliderProgress {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 3px 0 0 3px;
+  pointer-events: none;
+  z-index: 1;
+  transition: width 0.1s ease;
+}
+
+/* Ticks */
+.sliderTicks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  width: 1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+:global([data-theme="light"]) .tick {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.majorTick {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.4);
+  width: 2px;
+}
+
+:global([data-theme="light"]) .majorTick {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.tickLabel {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+:global([data-theme="light"]) .tickLabel {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+/* Range Labels */
+.range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+:global([data-theme="light"]) .range {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.rangeLabel {
+  font-family: 'Courier New', monospace;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .currentTime {
+    font-size: 14px;
+  }
+
+  .relativeTime {
+    font-size: 11px;
+  }
+
+  .navButton {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .tickLabel {
+    font-size: 9px;
+  }
+}

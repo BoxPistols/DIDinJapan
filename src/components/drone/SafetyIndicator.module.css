@@ -1,0 +1,65 @@
+/**
+ * SafetyIndicator Component Styles
+ */
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.dot.safe {
+  background-color: #22c55e;
+  color: #22c55e;
+}
+
+.dot.caution {
+  background-color: #eab308;
+  color: #eab308;
+}
+
+.dot.warning {
+  background-color: #f97316;
+  color: #f97316;
+}
+
+.dot.danger {
+  background-color: #ef4444;
+  color: #ef4444;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global([data-theme="light"]) .label {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.value {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Courier New', monospace;
+}
+
+:global([data-theme="light"]) .value {
+  color: rgba(0, 0, 0, 0.6);
+}
