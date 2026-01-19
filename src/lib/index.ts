@@ -165,6 +165,7 @@ export {
   generateBuildingsGeoJSON,
   generateWindFieldGeoJSON,
   generateLTECoverageGeoJSON,
+  generateWeatherIconsGeoJSON,
   generateRadioInterferenceGeoJSON,
   generateMannedAircraftZonesGeoJSON
 } from './utils/geo'

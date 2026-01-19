@@ -27,6 +27,7 @@ import {
   generateBuildingsGeoJSON,
   generateWindFieldGeoJSON,
   generateLTECoverageGeoJSON,
+  generateWeatherIconsGeoJSON,
   calculateBBox,
   mergeBBoxes,
   getCustomLayers,
@@ -2463,6 +2464,25 @@ function App() {
             type: 'line',
             source: overlay.id,
             paint: { 'line-color': '#00CED1', 'line-width': 1.5 }
+          })
+        } else if (overlay.id === 'weather-icons') {
+          const geojson = generateWeatherIconsGeoJSON()
+          map.addSource(overlay.id, { type: 'geojson', data: geojson })
+          map.addLayer({
+            id: overlay.id,
+            type: 'symbol',
+            source: overlay.id,
+            layout: {
+              'text-field': ['concat', ['get', 'icon'], '\n', ['get', 'label']],
+              'text-size': 16,
+              'text-anchor': 'center',
+              'text-allow-overlap': true
+            },
+            paint: {
+              'text-color': '#333',
+              'text-halo-color': '#fff',
+              'text-halo-width': 2
+            }
           })
         } else if ('tiles' in overlay) {
           // Handle raster tile overlays
@@ -5006,6 +5026,25 @@ function App() {
             <span>風向・風量 * [W]</span>
           </label>
 
+          <label
+            title="天気アイコン：各地域の天気予報をアイコンで表示（見本データ）"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isOverlayVisible('weather-icons')}
+              onChange={() => toggleOverlay({ id: 'weather-icons', name: '天気アイコン' })}
+            />
+            <span>☀️ 天気予報 *</span>
+          </label>
+
           <div
             style={{
               fontSize: '10px',
@@ -5014,7 +5053,7 @@ function App() {
               paddingLeft: '20px'
             }}
           >
-            （仮設置）
+            （見本データ）
           </div>
         </div>
 
