@@ -3243,13 +3243,26 @@ function App() {
       if (restrictionId === 'airport-airspace') {
         const zone = getAllRestrictionZones().find((z) => z.id === restrictionId)
 
-        // 衝突検出用にGeoJSONを取得してキャッシュ（kokuareaタイル使用時も）
-        // 注意: zone.pathのローカルファイルは滑走路表面の小さなポリゴンを含むが、
-        // kokuareaタイルは大きな円形制限区域を表示する。衝突検出はkokuareaタイルの
-        // 表示と一致させるため、常にgenerateAirportGeoJSON()（円形ポリゴン生成）を使用
-        const airportGeoJSON: GeoJSON.FeatureCollection = generateAirportGeoJSON()
+        // kokuareaタイルで表示を試みる
+        // 注意: kokuareaタイルはベクタータイルで正確な制限区域を表示するが、
+        // その形状データを直接取得できないため、衝突検出には使用しない。
+        // generateAirportGeoJSON()の円形領域はkokuareaタイルの表示と一致しないため、
+        // kokuarea使用時は空港領域の衝突検出を行わない（DID等他のゾーンは検出可能）
+        if (zone?.geojsonTileTemplate) {
+          try {
+            enableKokuarea(map, zone.geojsonTileTemplate)
+            if (syncState) {
+              setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
+            }
+            // kokuareaタイル使用時は衝突検出用キャッシュを設定しない
+            return
+          } catch (e) {
+            console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
+          }
+        }
 
-        // 衝突検出用にゾーンタイプを追加してキャッシュに保存
+        // kokuareaタイルが使えない場合はGeoJSONで表示（この場合は衝突検出も有効）
+        const airportGeoJSON: GeoJSON.FeatureCollection = generateAirportGeoJSON()
         if (airportGeoJSON) {
           const taggedFeatures = airportGeoJSON.features.map((f) => ({
             ...f,
@@ -3259,21 +3272,6 @@ function App() {
           restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
           setDidCacheVersion((v) => v + 1)
         }
-
-        // kokuareaタイルで表示（衝突検出用キャッシュとは別）
-        if (zone?.geojsonTileTemplate) {
-          try {
-            enableKokuarea(map, zone.geojsonTileTemplate)
-            if (syncState) {
-              setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
-            }
-            return
-          } catch (e) {
-            console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
-          }
-        }
-
-        // kokuareaタイルが使えない場合はGeoJSONで表示
         geojson = airportGeoJSON
         color = RESTRICTION_COLORS.airport
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_RED') {
