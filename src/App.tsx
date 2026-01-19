@@ -5019,7 +5019,7 @@ function App() {
         </div>
 
         {/* Signal Info */}
-        <div>
+        <div style={{ marginBottom: '12px' }}>
           <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
             電波種
           </div>
@@ -5043,6 +5043,34 @@ function App() {
           </label>
           <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
             （仮設置）
+          </div>
+        </div>
+
+        {/* Drone Operation Safety */}
+        <div style={{ marginBottom: '12px' }}>
+          <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666', marginBottom: '6px' }}>
+            飛行安全
+          </div>
+          <label
+            title="ドローン運用安全ダッシュボード：地点をクリックして飛行可否を確認"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showDroneDashboard}
+              onChange={() => setShowDroneDashboard(!showDroneDashboard)}
+            />
+            <span>🚁 安全評価パネル *</span>
+          </label>
+          <div style={{ fontSize: '10px', color: darkMode ? '#666' : '#aaa', paddingLeft: '20px' }}>
+            （見本データ）
           </div>
         </div>
 
@@ -5190,34 +5218,6 @@ function App() {
         title="ヘルプ [?]"
       >
         ?
-      </button>
-
-      {/* Drone Operation Dashboard Toggle */}
-      <button
-        onClick={() => setShowDroneDashboard(!showDroneDashboard)}
-        style={{
-          position: 'fixed',
-          top: 252,
-          right: 10,
-          padding: '6px',
-          width: 29,
-          height: 29,
-          backgroundColor: showDroneDashboard ? theme.colors.primary : theme.colors.buttonBg,
-          color: showDroneDashboard ? '#fff' : theme.colors.text,
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          boxShadow: theme.shadows.outline,
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        title="ドローン運用安全ダッシュボード"
-      >
-        🚁
       </button>
 
       {/* Undo / Zoom / Redo (always visible) */}

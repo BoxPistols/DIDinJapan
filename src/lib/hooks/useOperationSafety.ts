@@ -249,7 +249,7 @@ export function useOperationSafety(
       network.refetch(),
       flightWindow.refetch()
     ])
-  }, [weather, network, flightWindow])
+  }, [weather.refetch, network.refetch, flightWindow.refetch])
 
   return {
     canFly: safetyEvaluation.canFly,

@@ -28,82 +28,32 @@ const JMA_BASE_URL = 'https://www.jma.go.jp/bosai/jmatile/data/wdist'
 /**
  * Fetch current weather data for a specific mesh code
  * @param meshCode JMA mesh code (e.g., "53394547")
- * @returns Weather data or mock data with "(見本)" marker on failure
+ * @returns Weather data (currently returns mock data with "(見本)" marker)
+ *
+ * Note: JMA public API requires specific endpoint format.
+ * For production, integrate with actual JMA data distribution service.
  */
 export async function fetchMeshWeather(meshCode: string): Promise<JmaMeshWeatherData> {
-  try {
-    const timestamp = Math.floor(Date.now() / 1000)
-    const url = `${JMA_BASE_URL}/${timestamp}.json`
-    
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`JMA API returned ${response.status}`)
-    }
-    
-    const data: JmaApiResponse = await response.json()
-    
-    // Parse JMA response for the specific mesh
-    // Note: Actual parsing logic depends on JMA's data structure
-    return {
-      windSpeed: data.windSpeed || 0,
-      windDirection: data.windDirection || 0,
-      precipitationProbability: data.precipProb || 0,
-      temperature: data.temperature || 20,
-      timestamp: data.validTime || new Date().toISOString(),
-      meshCode
-    }
-  } catch (error) {
-    console.error('Failed to fetch JMA mesh weather:', error)
-    return createMockWeatherData(meshCode)
-  }
+  // Currently using mock data - JMA public API integration pending
+  // Real implementation would use: https://www.jma.go.jp/bosai/forecast/data/forecast/{areaCode}.json
+  return createMockWeatherData(meshCode)
 }
 
 /**
  * Fetch time series weather forecast (5-minute intervals, up to 72 hours)
  * @param meshCode JMA mesh code
  * @param hours Number of hours to forecast (max 72)
- * @returns Time series forecast data
+ * @returns Time series forecast data (currently returns mock data with "(見本)" marker)
+ *
+ * Note: JMA public API integration pending. Returns mock data for now.
  */
 export async function fetchMeshTimeSeries(
   meshCode: string,
   hours: number = 24
 ): Promise<JmaTimeSeriesData> {
   const maxHours = Math.min(hours, 72)
-  const intervals = (maxHours * 60) / 5 // 5-minute intervals
-  
-  try {
-    const timestamp = Math.floor(Date.now() / 1000)
-    const url = `${JMA_BASE_URL}/${timestamp}.json`
-    
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`JMA API returned ${response.status}`)
-    }
-    
-    const data: JmaApiResponse = await response.json()
-    
-    // Parse time series data from JMA response
-    const forecasts: JmaMeshWeatherData[] = []
-    for (let i = 0; i < intervals; i++) {
-      const forecastTime = new Date(Date.now() + i * 5 * 60 * 1000)
-      forecasts.push({
-        windSpeed: data.windSpeed || 0,
-        windDirection: data.windDirection || 0,
-        precipitationProbability: data.precipProb || 0,
-        temperature: data.temperature || 20,
-        timestamp: forecastTime.toISOString(),
-        meshCode
-      })
-    }
-    
-    return {
-      meshCode,
-      forecasts
-    }
-  } catch (error) {
-    console.error('Failed to fetch JMA time series:', error)
-    return createMockTimeSeries(meshCode, maxHours)
-  }
+  // Currently using mock data - JMA public API integration pending
+  return createMockTimeSeries(meshCode, maxHours)
 }
 
 /**

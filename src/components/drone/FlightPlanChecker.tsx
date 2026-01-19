@@ -5,7 +5,6 @@
 
 import React, { useMemo } from 'react'
 import { useOperationSafety } from '../../lib/hooks'
-import { useWeatherMesh } from '../../lib/hooks/useWeatherMesh'
 import { latLngToMeshCode } from '../../lib/utils/meshCodeConverter'
 import { SafetyIndicator } from './SafetyIndicator'
 import styles from './FlightPlanChecker.module.css'
@@ -33,10 +32,6 @@ export const FlightPlanChecker: React.FC<FlightPlanCheckerProps> = ({
 }) => {
   const meshCode = useMemo(() => latLngToMeshCode(lat, lng), [lat, lng])
   const safety = useOperationSafety(lat, lng, meshCode)
-  
-  // Access raw weather data for more robust value extraction
-  const { data: weatherData } = useWeatherMesh(meshCode)
-  const currentForecast = weatherData?.forecasts[0]
 
   if (safety.loading) {
     return (
@@ -120,22 +115,18 @@ export const FlightPlanChecker: React.FC<FlightPlanCheckerProps> = ({
           level={getWindLevel()}
           label="風速"
           value={
-            currentForecast 
-              ? `${currentForecast.windSpeed.toFixed(1)} m/s` 
-              : safety.weatherData?.windSpeed 
-                ? `${safety.weatherData.windSpeed.toFixed(1)} m/s`
-                : 'データなし'
+            safety.weatherData?.windSpeed != null
+              ? `${safety.weatherData.windSpeed.toFixed(1)} m/s`
+              : 'データなし'
           }
         />
         <SafetyIndicator
           level={getPrecipLevel()}
           label="降水確率"
           value={
-            currentForecast 
-              ? `${currentForecast.precipitationProbability}%` 
-              : safety.weatherData?.precipitationProbability 
-                ? `${safety.weatherData.precipitationProbability}%`
-                : 'データなし'
+            safety.weatherData?.precipitationProbability != null
+              ? `${safety.weatherData.precipitationProbability}%`
+              : 'データなし'
           }
         />
         <SafetyIndicator

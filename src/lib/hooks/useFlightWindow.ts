@@ -39,7 +39,7 @@ export interface FlightWindowResult {
 export function useFlightWindow(
   lat: number,
   lng: number,
-  date: Date = new Date()
+  date?: Date
 ): FlightWindowResult {
   const [flightAllowedNow, setFlightAllowedNow] = useState<boolean>(false)
   const [minutesRemaining, setMinutesRemaining] = useState<number>(0)
@@ -47,13 +47,17 @@ export function useFlightWindow(
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Use stable date reference - only use date's day, not the object itself
+  const dateKey = date ? date.toDateString() : new Date().toDateString()
+
   const fetchFlightWindow = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
+      const targetDate = date ?? new Date()
       // Get civil twilight end time
-      const twilightEnd = await getCivilTwilightEnd(lat, lng, date)
+      const twilightEnd = await getCivilTwilightEnd(lat, lng, targetDate)
       setCivilTwilightEnd(twilightEnd)
 
       // Check if current time is within daylight
@@ -74,7 +78,8 @@ export function useFlightWindow(
     } finally {
       setLoading(false)
     }
-  }, [lat, lng, date])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lng, dateKey])
 
   useEffect(() => {
     fetchFlightWindow()
