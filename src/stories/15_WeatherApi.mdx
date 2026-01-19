@@ -1,16 +1,46 @@
 {/* 15_WeatherApi.mdx */}
 import { Meta } from '@storybook/blocks'
 
-<Meta title="API/15_天気予報API仕様" />
+<Meta title="Learning/15_天気予報API仕様" />
+
+export const TableStyle = {
+  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
+  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
+  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
+  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  td: { padding: '12px' },
+  tdCenter: { padding: '12px', textAlign: 'center' },
+  code: { backgroundColor: 'rgba(74, 158, 255, 0.1)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }
+}
 
 # 天気予報API仕様書
 
 本ライブラリには**2つの天気関連システム**が実装されています。
 
-| システム | 用途 | API | ファイル |
-|----------|------|-----|----------|
-| **天気予報表示** | 都道府県別天気予報UI | Open-Meteo | `weatherApi.ts` |
-| **ドローン運用安全** | 飛行可否判定 | JMA Mesh | `jmaMesh.ts` |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>システム</th>
+      <th style={TableStyle.th}>用途</th>
+      <th style={TableStyle.th}>API</th>
+      <th style={TableStyle.th}>ファイル</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>天気予報表示</td>
+      <td style={TableStyle.td}>都道府県別天気予報UI</td>
+      <td style={TableStyle.td}>Open-Meteo</td>
+      <td style={TableStyle.td}><code style={TableStyle.code}>weatherApi.ts</code></td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>ドローン運用安全</td>
+      <td style={TableStyle.td}>飛行可否判定</td>
+      <td style={TableStyle.td}>JMA Mesh</td>
+      <td style={TableStyle.td}><code style={TableStyle.code}>jmaMesh.ts</code></td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -30,11 +60,28 @@ URL: https://api.open-meteo.com/v1/forecast
 
 ### 1-2. キーボードショートカット
 
-| キー | 機能 |
-|:---:|:---|
-| `W` | 天気予報クリックモードのトグル |
-| `C` | 雨雲レーダーのトグル |
-| `ESC` | ポップアップ・パネルを順番に閉じる |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>キー</th>
+      <th style={TableStyle.th}>機能</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>W</code></td>
+      <td style={TableStyle.td}>天気予報クリックモードのトグル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>C</code></td>
+      <td style={TableStyle.td}>雨雲レーダーのトグル</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>ESC</code></td>
+      <td style={TableStyle.td}>ポップアップ・パネルを順番に閉じる</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 1-3. ファイル構成
 
@@ -49,16 +96,48 @@ src/
 
 ### 1-4. weatherApi.ts 主要関数
 
-| 関数 | 説明 |
-|------|------|
-| `fetchPrefectureWeather(lat, lng)` | 座標から天気データ取得 |
-| `getPrefectureForecast(prefectureId)` | 都道府県IDから天気取得 |
-| `findNearestPrefecture(lat, lng)` | 最寄りの都道府県を検索 |
-| `getWeatherDescription(code)` | 天気コードをラベル・アイコンに変換 |
-| `formatHourlyTime(time)` | 時刻フォーマット |
-| `formatDailyDate(date)` | 日付フォーマット |
-| `getAllRegions()` | 全地方名リスト取得 |
-| `getPrefecturesByRegion(region)` | 地方別都道府県リスト |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>関数</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>fetchPrefectureWeather(lat, lng)</code></td>
+      <td style={TableStyle.td}>座標から天気データ取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getPrefectureForecast(prefectureId)</code></td>
+      <td style={TableStyle.td}>都道府県IDから天気取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>findNearestPrefecture(lat, lng)</code></td>
+      <td style={TableStyle.td}>最寄りの都道府県を検索</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getWeatherDescription(code)</code></td>
+      <td style={TableStyle.td}>天気コードをラベル・アイコンに変換</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>formatHourlyTime(time)</code></td>
+      <td style={TableStyle.td}>時刻フォーマット</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>formatDailyDate(date)</code></td>
+      <td style={TableStyle.td}>日付フォーマット</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getAllRegions()</code></td>
+      <td style={TableStyle.td}>全地方名リスト取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getPrefecturesByRegion(region)</code></td>
+      <td style={TableStyle.td}>地方別都道府県リスト</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 1-5. 都道府県データ
 
@@ -117,21 +196,82 @@ const url = `https://api.open-meteo.com/v1/forecast?` +
 
 ### 1-8. WMO天気コード対応表
 
-| コード | 天気 | アイコン |
-|:------:|------|:--------:|
-| 0 | 快晴 | ☀️ |
-| 1 | 晴れ | 🌤️ |
-| 2 | 一部曇り | ⛅ |
-| 3 | 曇り | 🌥️ |
-| 45, 48 | 霧 | 🌫️ |
-| 51, 53, 55 | 霧雨 | 🌦️ |
-| 61, 63, 65 | 雨 | 🌧️ |
-| 66, 67 | 凍雨 | 🌧️ |
-| 71, 73, 75 | 雪 | ❄️ |
-| 77 | 霧雪 | 🌨️ |
-| 80, 81, 82 | にわか雨 | 🌧️ |
-| 85, 86 | にわか雪 | 🌨️ |
-| 95, 96, 99 | 雷雨 | ⛈️ |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>コード</th>
+      <th style={TableStyle.th}>天気</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>アイコン</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>0</td>
+      <td style={TableStyle.td}>快晴</td>
+      <td style={TableStyle.tdCenter}>☀️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>1</td>
+      <td style={TableStyle.td}>晴れ</td>
+      <td style={TableStyle.tdCenter}>🌤️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>2</td>
+      <td style={TableStyle.td}>一部曇り</td>
+      <td style={TableStyle.tdCenter}>⛅</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>3</td>
+      <td style={TableStyle.td}>曇り</td>
+      <td style={TableStyle.tdCenter}>🌥️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>45, 48</td>
+      <td style={TableStyle.td}>霧</td>
+      <td style={TableStyle.tdCenter}>🌫️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>51, 53, 55</td>
+      <td style={TableStyle.td}>霧雨</td>
+      <td style={TableStyle.tdCenter}>🌦️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>61, 63, 65</td>
+      <td style={TableStyle.td}>雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>66, 67</td>
+      <td style={TableStyle.td}>凍雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>71, 73, 75</td>
+      <td style={TableStyle.td}>雪</td>
+      <td style={TableStyle.tdCenter}>❄️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>77</td>
+      <td style={TableStyle.td}>霧雪</td>
+      <td style={TableStyle.tdCenter}>🌨️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>80, 81, 82</td>
+      <td style={TableStyle.td}>にわか雨</td>
+      <td style={TableStyle.tdCenter}>🌧️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>85, 86</td>
+      <td style={TableStyle.td}>にわか雪</td>
+      <td style={TableStyle.tdCenter}>🌨️</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>95, 96, 99</td>
+      <td style={TableStyle.td}>雷雨</td>
+      <td style={TableStyle.tdCenter}>⛈️</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 1-9. 使用例
 
@@ -173,10 +313,24 @@ URL: https://api.rainviewer.com/public/weather-maps.json
 
 ### 2-2. rainViewer.ts 主要関数
 
-| 関数 | 説明 |
-|------|------|
-| `getAvailableFrames()` | 利用可能なタイムスタンプ取得 |
-| `buildTileUrl(path)` | XYZタイルURL生成 |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>関数</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>getAvailableFrames()</code></td>
+      <td style={TableStyle.td}>利用可能なタイムスタンプ取得</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>buildTileUrl(path)</code></td>
+      <td style={TableStyle.td}>XYZタイルURL生成</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 2-3. 使用例
 
@@ -238,22 +392,76 @@ canFly = true
 
 ### 3-4. 安全レベル定義
 
-| レベル | 色 | 説明 |
-|--------|-----|------|
-| `safe` | 🟢 緑 | 安全に飛行可能 |
-| `caution` | 🟡 黄 | 注意が必要 |
-| `warning` | 🟠 橙 | 警告（条件悪化） |
-| `danger` | 🔴 赤 | 危険（飛行非推奨） |
-| `prohibited` | ⛔ 濃赤 | 飛行禁止 |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>レベル</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>色</th>
+      <th style={TableStyle.th}>説明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>safe</code></td>
+      <td style={TableStyle.tdCenter}>🟢 緑</td>
+      <td style={TableStyle.td}>安全に飛行可能</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>caution</code></td>
+      <td style={TableStyle.tdCenter}>🟡 黄</td>
+      <td style={TableStyle.td}>注意が必要</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>warning</code></td>
+      <td style={TableStyle.tdCenter}>🟠 橙</td>
+      <td style={TableStyle.td}>警告（条件悪化）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>danger</code></td>
+      <td style={TableStyle.tdCenter}>🔴 赤</td>
+      <td style={TableStyle.td}>危険（飛行非推奨）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}><code style={TableStyle.code}>prohibited</code></td>
+      <td style={TableStyle.tdCenter}>⛔ 濃赤</td>
+      <td style={TableStyle.td}>飛行禁止</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 3-5. 風速基準
 
-| 風速 (m/s) | レベル | 判定 |
-|:---:|:---:|:---|
-| 0 - 2 | `safe` | 安全（良好） |
-| 2 - 5 | `caution` | 注意（飛行可能） |
-| 5 - 10 | `warning` | 警告（操縦難化） |
-| 10+ | `danger` | 危険（飛行不可） |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>風速 (m/s)</th>
+      <th style={{...TableStyle.th, textAlign: 'center'}}>レベル</th>
+      <th style={TableStyle.th}>判定</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>0 - 2</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>safe</code></td>
+      <td style={TableStyle.td}>安全（良好）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>2 - 5</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>caution</code></td>
+      <td style={TableStyle.td}>注意（飛行可能）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>5 - 10</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>warning</code></td>
+      <td style={TableStyle.td}>警告（操縦難化）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.tdCenter}>10+</td>
+      <td style={TableStyle.tdCenter}><code style={TableStyle.code}>danger</code></td>
+      <td style={TableStyle.td}>危険（飛行不可）</td>
+    </tr>
+  </tbody>
+</table>
 
 ### 3-6. useOperationSafety フック
 
