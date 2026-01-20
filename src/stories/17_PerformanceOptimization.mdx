@@ -164,11 +164,32 @@ map.on('mousemove', throttledMouseMove)
 
 #### パフォーマンス改善
 
-| 指標 | 改善前 | 改善後 |
-|---|---|---|
-| 実行頻度 | ~400 Hz | 60 Hz （最大） |
-| CPU 使用率 | ~80% | ~20% |
-| フレームドロップ | 頻繁 | ほぼなし |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>指標</th>
+      <th style={TableStyle.th}>改善前</th>
+      <th style={TableStyle.th}>改善後</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>実行頻度</td>
+      <td style={TableStyle.td}>~400 Hz</td>
+      <td style={TableStyle.td}>60 Hz （最大）</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>CPU 使用率</td>
+      <td style={TableStyle.td}>~80%</td>
+      <td style={TableStyle.td}>~20%</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>フレームドロップ</td>
+      <td style={TableStyle.td}>頻繁</td>
+      <td style={TableStyle.td}>ほぼなし</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -206,11 +227,32 @@ const features = map.queryRenderedFeatures(e.point, {
 
 #### 効果
 
-| 状況 | 検索対象 | 改善効果 |
-|---|---|---|
-| DID 全国表示 | 94個 → 94個 | 検索アルゴリズム効率向上 |
-| DID 東京のみ | 94個 → 2個 | **47倍高速化** |
-| 空港 + 制限エリア | 94個 → 6個 | **16倍高速化** |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>状況</th>
+      <th style={TableStyle.th}>検索対象</th>
+      <th style={TableStyle.th}>改善効果</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>DID 全国表示</td>
+      <td style={TableStyle.td}>94個 → 94個</td>
+      <td style={TableStyle.td}>検索アルゴリズム効率向上</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>DID 東京のみ</td>
+      <td style={TableStyle.td}>94個 → 2個</td>
+      <td style={TableStyle.td}>47倍高速化</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>空港 + 制限エリア</td>
+      <td style={TableStyle.td}>94個 → 6個</td>
+      <td style={TableStyle.td}>16倍高速化</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -274,11 +316,32 @@ await processBatch()
 
 #### 効果
 
-| 指標 | 改善前 | 改善後 |
-|---|---|---|
-| UI ブロック時間 | 5～10秒 | 0.5秒以下 |
-| ユーザー操作可能性 | 不可 | **常に可能** |
-| フレームレート | 0 FPS | 60 FPS 維持 |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>指標</th>
+      <th style={TableStyle.th}>改善前</th>
+      <th style={TableStyle.th}>改善後</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>UI ブロック時間</td>
+      <td style={TableStyle.td}>5～10秒</td>
+      <td style={TableStyle.td}>0.5秒以下</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>ユーザー操作可能性</td>
+      <td style={TableStyle.td}>不可</td>
+      <td style={TableStyle.td}>常に可能</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>フレームレート</td>
+      <td style={TableStyle.td}>0 FPS</td>
+      <td style={TableStyle.td}>60 FPS 維持</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
@@ -305,20 +368,70 @@ await processBatch()
 
 ### JavaScript 実行時間（DID全国表示時）
 
-| 操作 | 改善前 | 改善後 | 改善率 |
-|---|---|---|---|
-| マウス移動（tooltip表示） | 50-150ms | 5-20ms | **90%削減** |
-| レイヤー読み込み | 5-10秒（ブロック） | 0.5秒（バッチ） | **95%削減** |
-| 初期表示 | 8-12秒 | 1-2秒 | **85%削減** |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>操作</th>
+      <th style={TableStyle.th}>改善前</th>
+      <th style={TableStyle.th}>改善後</th>
+      <th style={TableStyle.th}>改善率</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>マウス移動（tooltip表示）</td>
+      <td style={TableStyle.td}>50-150ms</td>
+      <td style={TableStyle.td}>5-20ms</td>
+      <td style={TableStyle.td}>90%削減</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>レイヤー読み込み</td>
+      <td style={TableStyle.td}>5-10秒（ブロック）</td>
+      <td style={TableStyle.td}>0.5秒（バッチ）</td>
+      <td style={TableStyle.td}>95%削減</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>初期表示</td>
+      <td style={TableStyle.td}>8-12秒</td>
+      <td style={TableStyle.td}>1-2秒</td>
+      <td style={TableStyle.td}>85%削減</td>
+    </tr>
+  </tbody>
+</table>
 
 ### UX 改善
 
-| 項目 | 改善前 | 改善後 |
-|---|---|---|
-| UI レスポンシブ性 | ❌ 固まる | ✅ スムーズ |
-| ツールチップ表示速度 | 遅延あり | 即座 |
-| ズーム・パン操作 | 遅延 | スムーズ |
-| DID読み込み中の操作 | 不可 | 可能 |
+<table style={TableStyle.table}>
+  <thead>
+    <tr style={TableStyle.thead}>
+      <th style={TableStyle.th}>項目</th>
+      <th style={TableStyle.th}>改善前</th>
+      <th style={TableStyle.th}>改善後</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>UI レスポンシブ性</td>
+      <td style={TableStyle.td}>❌ 固まる</td>
+      <td style={TableStyle.td}>✅ スムーズ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>ツールチップ表示速度</td>
+      <td style={TableStyle.td}>遅延あり</td>
+      <td style={TableStyle.td}>即座</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>ズーム・パン操作</td>
+      <td style={TableStyle.td}>遅延</td>
+      <td style={TableStyle.td}>スムーズ</td>
+    </tr>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>DID読み込み中の操作</td>
+      <td style={TableStyle.td}>不可</td>
+      <td style={TableStyle.td}>可能</td>
+    </tr>
+  </tbody>
+</table>
 
 ---
 
