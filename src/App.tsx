@@ -279,7 +279,7 @@ function App() {
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
-// DID GeoJSONキャッシュ（衝突検出用）
+  // DID GeoJSONキャッシュ（衝突検出用）
   // Removed: didGeoJSONCacheRef - Now retrieve directly from MapLibre GL sources to reduce memory duplication
   // 禁止エリアGeoJSONキャッシュ（空港、レッド/イエローゾーン用）
   const restrictionGeoJSONCacheRef = useRef<Map<string, GeoJSON.FeatureCollection>>(new Map())
@@ -416,7 +416,7 @@ function App() {
   const [isResizingLeft, setIsResizingLeft] = useState(false)
   const [isResizingRight, setIsResizingRight] = useState(false)
 
-// Tooltip visibility
+  // Tooltip visibility
   const [showTooltip, setShowTooltip] = useState(() => {
     try {
       const stored = localStorage.getItem('ui-settings')
@@ -445,7 +445,7 @@ function App() {
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
 
-// 衝突検出用: 表示中のDIDレイヤーおよび禁止ゾーンのGeoJSONを結合
+  // 衝突検出用: 表示中のDIDレイヤーおよび禁止ゾーンのGeoJSONを結合
   const prohibitedAreas = useMemo<GeoJSON.FeatureCollection | undefined>(() => {
     // 個別の都道府県DIDレイヤー
     const visibleLayerIds = Array.from(layerStates.entries())
@@ -513,6 +513,10 @@ function App() {
   const [showWeatherForecast, setShowWeatherForecast] = useState(false)
   const [selectedPrefectureId, setSelectedPrefectureId] = useState<string | undefined>()
   const [enableWeatherClick, setEnableWeatherClick] = useState(false)
+  // ローディング状態管理（レイヤーID -> 表示名）
+  const [loadingLayers, setLoadingLayers] = useState<Map<string, string>>(new Map())
+  // プログレスバーの表示状態（フェードアウト用）
+  const [showProgressBar, setShowProgressBar] = useState(false)
   const enableWeatherClickRef = useRef(false)
   const weatherPopupRef = useRef<maplibregl.Popup | null>(null)
 
@@ -679,7 +683,8 @@ function App() {
       const url = new URL(window.location.href)
       if (!url.searchParams.has(COMPARISON_VIS_URL_PARAM)) return
       url.searchParams.delete(COMPARISON_VIS_URL_PARAM)
-      window.history.replaceState({}, '', url.toString())    } catch {
+      window.history.replaceState({}, '', url.toString())
+    } catch {
       // ignore
     }
   }, [])
@@ -729,7 +734,9 @@ function App() {
   } | null>(null)
 
   // Track active drawing mode to prevent context menu while drawing
-  const [activeDrawMode, setActiveDrawMode] = useState<'none' | 'polygon' | 'circle' | 'point' | 'line'>('none')
+  const [activeDrawMode, setActiveDrawMode] = useState<
+    'none' | 'polygon' | 'circle' | 'point' | 'line'
+  >('none')
 
   // Helper to get stored coordinate format
   const getStoredCoordFormat = (): 'decimal' | 'dms' => {
@@ -960,7 +967,8 @@ function App() {
         opacity: Object.fromEntries(Array.from(comparisonLayerOpacity.entries())),
         timestamp: Date.now()
       }
-      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))    } catch {
+      localStorage.setItem(COMPARISON_SETTINGS_KEY, JSON.stringify(payload))
+    } catch {
       // ignore
     }
   }, [comparisonLayerVisibility, comparisonLayerOpacity])
@@ -1011,7 +1019,8 @@ function App() {
       setShowWeatherForecast(true)
     }
     window.addEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
-    return () => window.removeEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
+    return () =>
+      window.removeEventListener('openWeatherPanel', handleOpenWeatherPanel as EventListener)
   }, [])
 
   // Listen for weather popup close event from popup close button
@@ -1428,86 +1437,98 @@ function App() {
         ]
       }
     ]
-  }, [contextMenu, showLeftLegend, showRightLegend, darkMode, coordFormat, restrictionStates, showTooltip, showFocusCrosshair])
+  }, [
+    contextMenu,
+    showLeftLegend,
+    showRightLegend,
+    darkMode,
+    coordFormat,
+    restrictionStates,
+    showTooltip,
+    showFocusCrosshair
+  ])
 
   // Handle context menu actions
-  const handleContextMenuAction = useCallback((action: string, data?: any) => {
-    switch (action) {
-      case 'copy-coordinates': {
-        if (contextMenu) {
-          let coordStr: string
-          if (coordFormat === 'dms') {
-            const latDMS = convertDecimalToDMS(contextMenu.lngLat.lat, true, 'ja')
-            const lngDMS = convertDecimalToDMS(contextMenu.lngLat.lng, false, 'ja')
-            coordStr = `${latDMS} ${lngDMS}`
-          } else {
-            coordStr = `${contextMenu.lngLat.lng.toFixed(4)}, ${contextMenu.lngLat.lat.toFixed(4)}`
+  const handleContextMenuAction = useCallback(
+    (action: string, data?: any) => {
+      switch (action) {
+        case 'copy-coordinates': {
+          if (contextMenu) {
+            let coordStr: string
+            if (coordFormat === 'dms') {
+              const latDMS = convertDecimalToDMS(contextMenu.lngLat.lat, true, 'ja')
+              const lngDMS = convertDecimalToDMS(contextMenu.lngLat.lng, false, 'ja')
+              coordStr = `${latDMS} ${lngDMS}`
+            } else {
+              coordStr = `${contextMenu.lngLat.lng.toFixed(4)}, ${contextMenu.lngLat.lat.toFixed(4)}`
+            }
+            navigator.clipboard.writeText(coordStr).then(() => {
+              toast.success('座標をコピーしました')
+            })
           }
-          navigator.clipboard.writeText(coordStr).then(() => {
-            toast.success('座標をコピーしました')
-          })
+          break
         }
-        break
-      }
 
-      case 'set-coord-format-decimal': {
-        setCoordFormat('decimal')
-        break
-      }
+        case 'set-coord-format-decimal': {
+          setCoordFormat('decimal')
+          break
+        }
 
-      case 'set-coord-format-dms': {
-        setCoordFormat('dms')
-        break
-      }
+        case 'set-coord-format-dms': {
+          setCoordFormat('dms')
+          break
+        }
 
-      case 'show-weather': {
-        if (contextMenu) {
-          const prefecture = findNearestPrefecture(contextMenu.lngLat.lat, contextMenu.lngLat.lng)
-          if (prefecture) {
-            setSelectedPrefectureId(prefecture.id)
-            setShowWeatherForecast(true)
+        case 'show-weather': {
+          if (contextMenu) {
+            const prefecture = findNearestPrefecture(contextMenu.lngLat.lat, contextMenu.lngLat.lng)
+            if (prefecture) {
+              setSelectedPrefectureId(prefecture.id)
+              setShowWeatherForecast(true)
+            }
           }
+          break
         }
-        break
-      }
 
-      case 'toggle-left-sidebar': {
-        setShowLeftLegend((prev: boolean) => !prev)
-        break
-      }
-
-      case 'toggle-right-sidebar': {
-        setShowRightLegend((prev: boolean) => !prev)
-        break
-      }
-
-      case 'toggle-dark-mode': {
-        setDarkMode((prev: boolean) => !prev)
-        break
-      }
-
-      case 'toggle-restriction': {
-        if (data) {
-          toggleRestriction(data)
+        case 'toggle-left-sidebar': {
+          setShowLeftLegend((prev: boolean) => !prev)
+          break
         }
-        break
-      }
 
-      case 'toggle-tooltip': {
-        setShowTooltip((prev: boolean) => !prev)
-        break
-      }
+        case 'toggle-right-sidebar': {
+          setShowRightLegend((prev: boolean) => !prev)
+          break
+        }
 
-      case 'toggle-crosshair': {
-        setShowFocusCrosshair((prev: boolean) => !prev)
-        break
-      }
+        case 'toggle-dark-mode': {
+          setDarkMode((prev: boolean) => !prev)
+          break
+        }
 
-      default:
-        break
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextMenu, coordFormat])
+        case 'toggle-restriction': {
+          if (data) {
+            toggleRestriction(data)
+          }
+          break
+        }
+
+        case 'toggle-tooltip': {
+          setShowTooltip((prev: boolean) => !prev)
+          break
+        }
+
+        case 'toggle-crosshair': {
+          setShowFocusCrosshair((prev: boolean) => !prev)
+          break
+        }
+
+        default:
+          break
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [contextMenu, coordFormat]
+  )
 
   // Persist coordFormat to localStorage
   useEffect(() => {
@@ -1644,7 +1665,8 @@ function App() {
       maxWidth: '300px'
     })
 
-    map.on('load', () => {      // スタイルにglyphsプロパティが存在しない場合は追加
+    map.on('load', () => {
+      // スタイルにglyphsプロパティが存在しない場合は追加
       const style = map.getStyle()
       if (!style.glyphs) {
         style.glyphs = 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
@@ -1676,7 +1698,6 @@ function App() {
     let lastCursorState: string = ''
 
     const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
-
       if (!showTooltipRef.current) {
         if (popupRef.current) {
           popupRef.current.remove()
@@ -1713,13 +1734,12 @@ function App() {
       }
 
       // Query only visible layers (huge performance gain with 94 total layers)
-      const features = visibleQueryLayers.length > 0
-        ? map.queryRenderedFeatures(e.point, { layers: visibleQueryLayers })
-        : []
+      const features =
+        visibleQueryLayers.length > 0
+          ? map.queryRenderedFeatures(e.point, { layers: visibleQueryLayers })
+          : []
 
-      const didFeature = features.find(
-        (f) => isDIDLayer(f.layer.id) && f.layer.type === 'fill'
-      )
+      const didFeature = features.find((f) => isDIDLayer(f.layer.id) && f.layer.type === 'fill')
       const restrictionFeature = features.find(
         (f) =>
           f.layer.id.startsWith('airport-') ||
@@ -1814,7 +1834,8 @@ function App() {
           category = '航空法'
         } else if (layerId.startsWith('did-') || layerId.includes('DID_ALL_JAPAN')) {
           areaType = '人口集中地区（全国）'
-          description = '航空法：地上の人・物件の安全確保のための区域。地方ごとに分類されているのは、パフォーマンス向上のため（47都道府県すべてを一度に読み込むと画面が重くなります）'
+          description =
+            '航空法：地上の人・物件の安全確保のための区域。地方ごとに分類されているのは、パフォーマンス向上のため（47都道府県すべてを一度に読み込むと画面が重くなります）'
           category = 'DID（航空法：人口集中地区）'
         } else if (layerId.startsWith('facility-')) {
           const facilityId = getFacilityLayerBaseId(layerId) ?? layerId
@@ -1949,12 +1970,14 @@ function App() {
           // Show loading popup
           const loadingPopup = new maplibregl.Popup({ closeOnClick: true, closeButton: false })
             .setLngLat([lng, lat])
-            .setHTML(`
+            .setHTML(
+              `
               <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 200px;">
                 <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
                 <div style="color: #666;">天気データを取得中...</div>
               </div>
-            `)
+            `
+            )
             .addTo(map)
 
           // Store popup reference for ESC key handling
@@ -1964,12 +1987,13 @@ function App() {
           })
 
           // Fetch weather data
-          getPrefectureForecast(prefecture.id).then((result) => {
-            if (result && result.weather) {
-              const currentWeather = getWeatherDescription(result.weather.current.weatherCode)
-              const daily = result.weather.daily.slice(0, 3) // Next 3 days
+          getPrefectureForecast(prefecture.id)
+            .then((result) => {
+              if (result && result.weather) {
+                const currentWeather = getWeatherDescription(result.weather.current.weatherCode)
+                const daily = result.weather.daily.slice(0, 3) // Next 3 days
 
-              loadingPopup.setHTML(`
+                loadingPopup.setHTML(`
                 <div style="padding: 16px; font-family: system-ui, sans-serif; min-width: auto; background: rgba(20, 20, 30, 0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1); color: #e5e5e5;">
                   <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 10px;">
                     <span>${prefecture.name} (${prefecture.capital})</span>
@@ -2005,9 +2029,10 @@ function App() {
                   </div>
                   <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px;">
                     <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">週間予報</div>
-                    ${daily.map((day, i) => {
-                      const dayWeather = getWeatherDescription(day.weatherCode)
-                      return `
+                    ${daily
+                      .map((day, i) => {
+                        const dayWeather = getWeatherDescription(day.weatherCode)
+                        return `
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 5px 8px; margin-bottom: 4px; background: ${i === 0 ? 'rgba(30, 58, 95, 0.5)' : 'rgba(255, 255, 255, 0.05)'}; border-radius: 8px;">
                           <span style="width: 60px; font-weight: ${i === 0 ? 'bold' : 'normal'};">${i === 0 ? '今日' : formatDailyDate(day.date)}</span>
                           <span style="font-size: 18px;">${dayWeather.icon}</span>
@@ -2016,7 +2041,8 @@ function App() {
                           <span style="color: #3b82f6;">${day.temperatureMin}°</span>
                         </div>
                       `
-                    }).join('')}
+                      })
+                      .join('')}
                   </div>
                   <div style="margin-top: 12px; text-align: center;">
                     <button onclick="window.dispatchEvent(new CustomEvent('openWeatherPanel', {detail: '${prefecture.id}'}))"
@@ -2026,22 +2052,23 @@ function App() {
                   </div>
                 </div>
               `)
-            } else {
-              loadingPopup.setHTML(`
+              } else {
+                loadingPopup.setHTML(`
                 <div style="padding: 12px; font-family: system-ui, sans-serif;">
                   <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
                   <div style="color: #e53935;">天気データの取得に失敗しました</div>
                 </div>
               `)
-            }
-          }).catch(() => {
-            loadingPopup.setHTML(`
+              }
+            })
+            .catch(() => {
+              loadingPopup.setHTML(`
               <div style="padding: 12px; font-family: system-ui, sans-serif;">
                 <div style="font-weight: bold; margin-bottom: 8px;">${prefecture.name}</div>
                 <div style="color: #e53935;">天気データの取得に失敗しました</div>
               </div>
             `)
-          })
+            })
         }
       }
     })
@@ -2176,6 +2203,22 @@ function App() {
   }, [baseMap])
 
   // ============================================
+  // Progress bar fade in/out effect
+  // ============================================
+  useEffect(() => {
+    if (loadingLayers.size > 0) {
+      // ローディング開始時：即座に表示
+      setShowProgressBar(true)
+    } else {
+      // ローディング終了時：フェードアウト後に非表示
+      const timer = setTimeout(() => {
+        setShowProgressBar(false)
+      }, 300) // フェードアウトアニメーション時間に合わせる
+      return () => clearTimeout(timer)
+    }
+  }, [loadingLayers.size])
+
+  // ============================================
   // Opacity effect
   // ============================================
   useEffect(() => {
@@ -2240,6 +2283,13 @@ function App() {
         return
       }
 
+      // ローディング開始
+      setLoadingLayers((prev) => {
+        const next = new Map(prev)
+        next.set(layer.id, layer.name)
+        return next
+      })
+
       try {
         type DidProperties = Record<string, unknown> & { CITYNAME?: string }
         type DidFC = GeoJSON.FeatureCollection<GeoJSON.Geometry | null, DidProperties>
@@ -2303,6 +2353,13 @@ function App() {
         })
       } catch (e) {
         console.error(`Failed to add layer ${layer.id}:`, e)
+      } finally {
+        // ローディング終了
+        setLoadingLayers((prev) => {
+          const next = new Map(prev)
+          next.delete(layer.id)
+          return next
+        })
       }
     },
     [mapLoaded, opacity]
@@ -2430,7 +2487,8 @@ function App() {
 
             const bounds = computeCollectionBounds(geojson)
             if (bounds) {
-              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)            }
+              comparisonLayerBoundsRef.current.set(layerConfig.id, bounds)
+            }
 
             const primaryType = getPrimaryGeometryType(geojson)
             const layerOpacity = comparisonLayerOpacity.get(layerConfig.id) ?? 0.5
@@ -2728,7 +2786,9 @@ function App() {
   const enableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) =>
+      new Map(prev).set(group.name, 'default')
+    )
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2765,7 +2825,9 @@ function App() {
   const enableAllInGroupRed = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'red'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) =>
+      new Map(prev).set(group.name, 'red')
+    )
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2802,7 +2864,9 @@ function App() {
   const disableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) =>
+      new Map(prev).set(group.name, 'default')
+    )
     applyDidGroupColors(group, 'default')
 
     group.layers.forEach((layer) => {
@@ -2849,7 +2913,10 @@ function App() {
       }
 
       if (!hasBounds) return null
-      return [[minLng, minLat], [maxLng, maxLat]]
+      return [
+        [minLng, minLat],
+        [maxLng, maxLat]
+      ]
     })()
 
     // 未ロードのレイヤーをロードして完了を待つ
@@ -2857,11 +2924,31 @@ function App() {
       const state = layerStates.get(layer.id)
       return !state || !state.visible
     })
-    
+
     if (layersToLoad.length > 0) {
-      await Promise.all(layersToLoad.map((layer) => addLayer(layer, true)))
+      // グループ全体のローディング表示
+      setLoadingLayers((prev) => {
+        const next = new Map(prev)
+        layersToLoad.forEach((layer) => {
+          next.set(layer.id, layer.name)
+        })
+        return next
+      })
+
+      try {
+        await Promise.all(layersToLoad.map((layer) => addLayer(layer, true)))
+      } finally {
+        // グループ全体のローディング終了
+        setLoadingLayers((prev) => {
+          const next = new Map(prev)
+          layersToLoad.forEach((layer) => {
+            next.delete(layer.id)
+          })
+          return next
+        })
+      }
     }
-    
+
     // DIDを表示（レイヤーのロード完了後）
     enableAllInGroup(group)
 
@@ -2956,7 +3043,8 @@ function App() {
             type: 'raster',
             source: overlay.id,
             paint: { 'raster-opacity': overlay.opacity }
-          })        }
+          })
+        }
       } else {
         map.setLayoutProperty(overlay.id, 'visibility', 'visible')
         if (map.getLayer(`${overlay.id}-outline`)) {
@@ -2974,7 +3062,7 @@ function App() {
       if (map.getLayer(`${overlay.id}-outline`)) {
         map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'none')
       }
-if (map.getLayer(`${overlay.id}-bg`)) {
+      if (map.getLayer(`${overlay.id}-bg`)) {
         map.setLayoutProperty(`${overlay.id}-bg`, 'visibility', 'none')
       }
       setOverlayStates((prev: Map<string, boolean>) => new Map(prev).set(overlay.id, false))
@@ -2999,47 +3087,50 @@ if (map.getLayer(`${overlay.id}-bg`)) {
     return path
   }
 
-  const toggleWeatherOverlay = useCallback(async (overlayId: string) => {
-    const map = mapRef.current
-    if (!map || !mapLoaded) return
+  const toggleWeatherOverlay = useCallback(
+    async (overlayId: string) => {
+      const map = mapRef.current
+      if (!map || !mapLoaded) return
 
-    const isVisible = weatherStatesRef.current.get(overlayId) ?? false
+      const isVisible = weatherStatesRef.current.get(overlayId) ?? false
 
-    if (!isVisible) {
-      if (overlayId === 'rain-radar') {
-        let path = rainRadarPath
-        if (!path) {
-          path = await updateRainRadar()
+      if (!isVisible) {
+        if (overlayId === 'rain-radar') {
+          let path = rainRadarPath
+          if (!path) {
+            path = await updateRainRadar()
+          }
+          if (!path) return
+
+          const tileUrl = buildRainTileUrl(path)
+
+          if (map.getSource('rain-radar')) {
+            map.removeLayer('rain-radar')
+            map.removeSource('rain-radar')
+          }
+
+          map.addSource('rain-radar', {
+            type: 'raster',
+            tiles: [tileUrl],
+            tileSize: 256
+          })
+          map.addLayer({
+            id: 'rain-radar',
+            type: 'raster',
+            source: 'rain-radar',
+            paint: { 'raster-opacity': 0.6 }
+          })
         }
-        if (!path) return
-
-        const tileUrl = buildRainTileUrl(path)
-
-        if (map.getSource('rain-radar')) {
-          map.removeLayer('rain-radar')
-          map.removeSource('rain-radar')
+        setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, true))
+      } else {
+        if (map.getLayer(overlayId)) {
+          map.setLayoutProperty(overlayId, 'visibility', 'none')
         }
-
-        map.addSource('rain-radar', {
-          type: 'raster',
-          tiles: [tileUrl],
-          tileSize: 256
-        })
-        map.addLayer({
-          id: 'rain-radar',
-          type: 'raster',
-          source: 'rain-radar',
-          paint: { 'raster-opacity': 0.6 }
-        })
+        setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, false))
       }
-      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, true))
-    } else {
-      if (map.getLayer(overlayId)) {
-        map.setLayoutProperty(overlayId, 'visibility', 'none')
-      }
-      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, false))
-    }
-  }, [mapLoaded, rainRadarPath])
+    },
+    [mapLoaded, rainRadarPath]
+  )
 
   const isWeatherVisible = (overlayId: string) => weatherStates.get(overlayId) ?? false
 
@@ -3451,11 +3542,12 @@ if (map.getLayer(`${overlay.id}-bg`)) {
     if (kokuareaRef.current.regionalBounds) {
       const [[minLng, minLat], [maxLng, maxLat]] = kokuareaRef.current.regionalBounds
       filteredFeatures = merged.features.filter((f) => {
-        if (!f.geometry || f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') {
+        if (!f.geometry || (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon')) {
           return false
         }
         // 簡易的なバウンディングボックスチェック（正確にはポリゴンの交差判定が必要だが、パフォーマンス優先）
-        const coords = f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0]
+        const coords =
+          f.geometry.type === 'Polygon' ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0]
         return coords.some((coord: number[]) => {
           const [lng, lat] = coord
           return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat
@@ -3464,7 +3556,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
     }
 
     // 衝突検出用: kokuareaのフィーチャーをAIRPORTゾーンとしてキャッシュに追加
-    const validFeatures = filteredFeatures.filter((f): f is typeof f & { geometry: GeoJSON.Geometry } => f.geometry !== null)
+    const validFeatures = filteredFeatures.filter(
+      (f): f is typeof f & { geometry: GeoJSON.Geometry } => f.geometry !== null
+    )
     if (validFeatures.length > 0) {
       const taggedFeatures: GeoJSON.Feature[] = validFeatures.map((f) => ({
         type: 'Feature',
@@ -3475,7 +3569,10 @@ if (map.getLayer(`${overlay.id}-bg`)) {
           name: (f.properties as Record<string, unknown> | null)?.__koku_label ?? '空港周辺空域'
         }
       }))
-      const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+      const taggedGeoJSON: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: taggedFeatures
+      }
       restrictionGeoJSONCacheRef.current.set('airport-airspace', taggedGeoJSON)
     }
 
@@ -3558,10 +3655,10 @@ if (map.getLayer(`${overlay.id}-bg`)) {
   ): Promise<void> => {
     const allLayers = getAllLayers()
     const visibleLayers = getLayersInViewport(map, allLayers)
-    
+
     // ビューポート内のレイヤーを読み込む
     const features: GeoJSON.Feature[] = []
-    
+
     await Promise.all(
       visibleLayers.map(async (layer) => {
         try {
@@ -3597,7 +3694,12 @@ if (map.getLayer(`${overlay.id}-bg`)) {
   }
 
   // DIDビューポートベース動的読み込みの有効化
-  const enableDIDViewport = (map: maplibregl.Map, restrictionId: string, color: string, opacity: number): void => {
+  const enableDIDViewport = (
+    map: maplibregl.Map,
+    restrictionId: string,
+    color: string,
+    opacity: number
+  ): void => {
     const state = didViewportRef.current
     state.enabled = true
     state.restrictionId = restrictionId
@@ -3616,8 +3718,8 @@ if (map.getLayer(`${overlay.id}-bg`)) {
       }
       timeoutId = window.setTimeout(() => {
         if (state.enabled && state.restrictionId) {
-          void updateDIDViewportLayers(map, state.restrictionId, state.color, opacity).catch((err) =>
-            console.error('DID viewport update failed:', err)
+          void updateDIDViewportLayers(map, state.restrictionId, state.color, opacity).catch(
+            (err) => console.error('DID viewport update failed:', err)
           )
         }
         timeoutId = null
@@ -3664,6 +3766,13 @@ if (map.getLayer(`${overlay.id}-bg`)) {
       const facilityLayer = getFacilityLayerById(restrictionId)
       if (facilityLayer) {
         if (!map.getSource(restrictionId)) {
+          // ローディング開始
+          setLoadingLayers((prev) => {
+            const next = new Map(prev)
+            next.set(restrictionId, facilityLayer.name)
+            return next
+          })
+
           try {
             const data = await fetchGeoJSONWithCache(facilityLayer.path)
             map.addSource(restrictionId, { type: 'geojson', data })
@@ -3671,6 +3780,13 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             console.error(`Failed to load facility data for ${restrictionId}:`, e)
             toast.error(`${facilityLayer.name}データの読み込みに失敗しました`)
             return
+          } finally {
+            // ローディング終了（成功・失敗どちらの場合も実行）
+            setLoadingLayers((prev) => {
+              const next = new Map(prev)
+              next.delete(restrictionId)
+              return next
+            })
           }
 
           const pointRadius = facilityLayer.pointRadius ?? 10
@@ -3738,7 +3854,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
         }
 
         if (syncState) {
-          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) =>
+            new Map(prev).set(restrictionId, true)
+          )
         }
         return
       }
@@ -3756,7 +3874,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
           try {
             enableKokuarea(map, zone.geojsonTileTemplate)
             if (syncState) {
-              setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
+              setRestrictionStates((prev: Map<string, boolean>) =>
+                new Map(prev).set(restrictionId, true)
+              )
             }
             // 衝突検出用キャッシュはupdateKokuareaData()で設定される
             return
@@ -3772,7 +3892,10 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             ...f,
             properties: { ...f.properties, zoneType: 'AIRPORT' }
           }))
-          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          const taggedGeoJSON: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection',
+            features: taggedFeatures
+          }
           restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
         }
         geojson = airportGeoJSON
@@ -3785,7 +3908,10 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             ...f,
             properties: { ...f.properties, zoneType: 'RED_ZONE' }
           }))
-          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          const taggedGeoJSON: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection',
+            features: taggedFeatures
+          }
           restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
         }
         color = RESTRICTION_COLORS.no_fly_red
@@ -3797,7 +3923,10 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             ...f,
             properties: { ...f.properties, zoneType: 'YELLOW_ZONE' }
           }))
-          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          const taggedGeoJSON: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection',
+            features: taggedFeatures
+          }
           restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
         }
         color = RESTRICTION_COLORS.no_fly_yellow
@@ -3807,7 +3936,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
 
         // 楽観的UI更新
         if (syncState) {
-          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) =>
+            new Map(prev).set(restrictionId, true)
+          )
         }
 
         // 既にソースがある場合は表示のみ切り替え
@@ -3934,7 +4065,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
         }
       }
       if (syncState) {
-        setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, false))
+        setRestrictionStates((prev: Map<string, boolean>) =>
+          new Map(prev).set(restrictionId, false)
+        )
       }
     },
     [mapLoaded]
@@ -4275,7 +4408,8 @@ if (map.getLayer(`${overlay.id}-bg`)) {
       if (map.getLayer(`${layerConfig.id}-label`)) {
         map.setLayoutProperty(`${layerConfig.id}-label`, 'visibility', visibility)
       }
-    })  }, [comparisonLayerVisibility, mapLoaded])
+    })
+  }, [comparisonLayerVisibility, mapLoaded])
 
   // ============================================
   // Comparison Layer Opacity Control
@@ -4354,7 +4488,8 @@ if (map.getLayer(`${overlay.id}-bg`)) {
         const bounds = comparisonLayerBoundsRef.current.get(layerId)
         if (bounds) {
           try {
-            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })          } catch {
+            map.fitBounds(bounds, { padding: 50, maxZoom: 14 })
+          } catch {
             // ignore
           }
         }
@@ -4636,7 +4771,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
           style={{ marginBottom: '12px' }}
           title="マップの背景地図スタイルを変更します（Mで切替）"
         >
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <div
               style={{
                 display: 'flex',
@@ -4647,6 +4782,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                 overflowY: 'hidden',
                 WebkitOverflowScrolling: 'touch',
                 paddingBottom: '2px',
+                marginRight: '4px',
                 flex: '1 1 auto'
               }}
             >
@@ -4657,11 +4793,12 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                   style={{
                     flex: '0 0 auto',
                     padding: '4px 8px',
+                    minWidth: '44px',
                     fontSize: '12px',
                     backgroundColor: baseMap === key ? '#4a90d9' : theme.colors.buttonBg,
                     color: baseMap === key ? '#fff' : theme.colors.text,
                     border: `1px solid ${baseMap === key ? '#4a90d9' : theme.colors.borderStrong}`,
-                    borderRadius: '3px',
+                    borderRadius: '4px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
                   }}
@@ -4670,6 +4807,17 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                 </button>
               ))}
             </div>
+            <span
+              style={{
+                fontSize: '12px',
+                color: theme.colors.textMuted,
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+            >
+              [M]
+            </span>
           </div>
         </div>
 
@@ -4748,7 +4896,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
               borderRadius: '6px'
             }}
           >
-            <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>⊕ 中心十字 [X]</div>
+            <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '6px' }}>
+              ⊕ 中心十字 [X]
+            </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
               <label
                 style={{
@@ -4893,7 +5043,6 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                 const midIndex = Math.floor(lineCoords.length / 2)
                 center = lineCoords[midIndex]
               }
-
             }
             previousFeaturesRef.current = features
           }}
@@ -5090,9 +5239,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                   borderRadius: '2px'
                 }}
               />
-              <span>
-                {facility.name} [J]
-              </span>
+              <span>{facility.name} [J]</span>
             </label>
           ))}
           {/* レッドゾーン */}
@@ -5164,10 +5311,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             }}
           >
             参考情報（※実際の飛行前はDIPS/NOTAM確認必須）
-            <InfoBadge
-              ariaLabel="参考情報の説明"
-              onClick={() => setInfoModalKey('facilities')}
-            />
+            <InfoBadge ariaLabel="参考情報の説明" onClick={() => setInfoModalKey('facilities')} />
           </h3>
           <div
             style={{
@@ -5299,7 +5443,9 @@ if (map.getLayer(`${overlay.id}-bg`)) {
 
               {expandedGroups.has(group.name) && (
                 <div style={{ padding: '4px 0 4px 8px' }}>
-                  <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                  <div
+                    style={{ display: 'flex', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}
+                  >
                     <button
                       onClick={() => enableAllInGroup(group)}
                       title="この地域の都道府県をすべて表示（地方ごとに分類されているのは、パフォーマンス向上のためです）"
@@ -5814,6 +5960,66 @@ if (map.getLayer(`${overlay.id}-bg`)) {
         ?
       </button>
 
+      {/* Loading Progress Bar - 画面最上部に配置 */}
+      {showProgressBar && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+            zIndex: 1300,
+            overflow: 'hidden',
+            animation:
+              loadingLayers.size > 0
+                ? 'fadeInProgressBar 0.3s ease-in forwards'
+                : 'fadeOutProgressBar 0.3s ease-out forwards'
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: '100%',
+              background: `linear-gradient(90deg, 
+                ${darkMode ? '#4a90d9' : '#2563eb'} 0%, 
+                ${darkMode ? '#6ba3e8' : '#3b82f6'} 50%, 
+                ${darkMode ? '#4a90d9' : '#2563eb'} 100%)`,
+              backgroundSize: '200% 100%',
+              animation: 'progressBar 1.5s ease-in-out infinite',
+              opacity: 0.7
+            }}
+          />
+        </div>
+      )}
+
+      {/* Progress bar animations */}
+      <style>
+        {`
+          @keyframes fadeInProgressBar {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+          @keyframes fadeOutProgressBar {
+            from {
+              opacity: 1;
+            }
+            to {
+              opacity: 0;
+            }
+          }
+          @keyframes progressBar {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}
+      </style>
+
       {/* Undo / Zoom / Redo (always visible) */}
       <div
         style={{
@@ -6006,7 +6212,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             </ul>
           </div>
 
-          {/* セクション2：禁止エリア表示 */}
+          {/* セクション2：ショートカットキー（グループ化） */}
           <div
             style={{
               marginBottom: '8px',
@@ -6019,138 +6225,88 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             <div
               style={{
                 fontWeight: 600,
-                marginBottom: '10px',
+                marginBottom: '12px',
                 color: darkMode ? '#4a90d9' : '#2563eb',
                 fontSize: '14px'
               }}
             >
-              禁止エリア表示
+              ショートカットキー
             </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '60px 1fr',
-                gap: '4px 8px',
-                fontSize: '13px'
-              }}
-            >
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                D
-              </kbd>
-              <span>飛行注意区域（DID）</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                A
-              </kbd>
-              <span>空港周辺空域</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                R
-              </kbd>
-              <span>レッドゾーン（飛行禁止） * 未実装</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                Y
-              </kbd>
-              <span>イエローゾーン（要許可） * 未実装</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                E
-              </kbd>
-              <span>緊急用務空域 *</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                H
-              </kbd>
-              <span>有人機発着地</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                J
-              </kbd>
-              <span>駐屯地・基地</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                F
-              </kbd>
-              <span>消防署</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                O
-              </kbd>
-              <span>医療機関</span>
+
+            {/* UI・表示切替 */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: darkMode ? '#888' : '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                UI・表示
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '45px 1fr 45px 1fr', gap: '4px 8px', fontSize: '12px' }}>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>S</kbd>
+                <span>左サイドバー</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>P</kbd>
+                <span>右サイドバー</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>L</kbd>
+                <span>ダーク/ライト</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>M</kbd>
+                <span>マップ切替</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>2/3</kbd>
+                <span>2D / 3D</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>?</kbd>
+                <span>ヘルプ</span>
+              </div>
+            </div>
+
+            {/* 規制エリア */}
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: darkMode ? '#888' : '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                規制エリア表示
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '45px 1fr 45px 1fr', gap: '4px 8px', fontSize: '12px' }}>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>D</kbd>
+                <span>DID</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>A</kbd>
+                <span>空港</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>R</kbd>
+                <span>レッドゾーン*</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>Y</kbd>
+                <span>イエロー*</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>J</kbd>
+                <span>駐屯地*</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>H</kbd>
+                <span>有人機発着*</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>F</kbd>
+                <span>消防署*</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>O</kbd>
+                <span>医療機関*</span>
+              </div>
+            </div>
+
+            {/* 描画・気象・検索 */}
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: darkMode ? '#888' : '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                描画・気象・その他
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '45px 1fr 45px 1fr', gap: '4px 8px', fontSize: '12px' }}>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>⌘Z</kbd>
+                <span>Undo</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>⇧⌘Z</kbd>
+                <span>Redo</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>T</kbd>
+                <span>頂点ラベル</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>X</kbd>
+                <span>中心十字</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>W</kbd>
+                <span>天気予報</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>C</kbd>
+                <span>雨雲レーダー</span>
+                <kbd style={{ backgroundColor: darkMode ? '#444' : '#eee', padding: '2px 4px', borderRadius: '3px', textAlign: 'center', fontFamily: 'monospace', fontSize: '11px' }}>⌘K</kbd>
+                <span>検索</span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '10px', color: darkMode ? '#888' : '#777', marginTop: '10px', lineHeight: '1.5' }}>
+              <div style={{ marginBottom: '2px' }}><strong>公的データ:</strong> DID（e-Stat国勢調査）、空港（国土地理院空域タイル）</div>
+              <div>* OSM/参考データに基づく表示（公式DIPS規制情報ではありません）</div>
             </div>
           </div>
 
@@ -6202,279 +6358,16 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                 簡易表示、ズーム8以上で詳細表示に切り替わります。
               </li>
               <li style={{ marginBottom: '6px' }}>
-                <strong>施設データ:</strong>{' '}
-                OSM/自治体オープンデータを加工した参考情報です。公式の規制区分ではありません。
+                <strong>重要施設（*）:</strong>{' '}
+                レッドゾーン・イエローゾーン・駐屯地は警察庁公開リストに基づく参考データです。公式DIPS規制情報ではありません。
               </li>
               <li>
-                <strong>* 仮設置データ:</strong>{' '}
-                緊急用務空域・有人機発着エリアなどは試験的表示です。
+                <strong>参考施設（*）:</strong>{' '}
+                有人機発着地・消防署・医療機関はOSM/自治体オープンデータに基づく参考情報です。
               </li>
             </ul>
           </div>
 
-          {/* セクション2.6：トラブルシューティング */}
-          <div
-            style={{
-              marginBottom: '8px',
-              padding: '16px',
-              backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-              borderRadius: '8px',
-              border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: '10px',
-                color: darkMode ? '#4a90d9' : '#2563eb',
-                fontSize: '14px'
-              }}
-            >
-              トラブルシューティング
-            </div>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '20px',
-                lineHeight: '1.6',
-                fontSize: '13px',
-                color: darkMode ? '#ddd' : '#555'
-              }}
-            >
-              <li style={{ marginBottom: '6px' }}>
-                <strong>レイヤーが表示されない場合:</strong>{' '}
-                地域のDIDレイヤーなどがうまく表示されない時は、ページをリロード（<kbd
-                  style={{
-                    backgroundColor: darkMode ? '#444' : '#eee',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  F5
-                </kbd>{' '}
-                または{' '}
-                <kbd
-                  style={{
-                    backgroundColor: darkMode ? '#444' : '#eee',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  Ctrl+R
-                </kbd>
-                ）してください。それでも解決しない場合は、スーパーリロード（<kbd
-                  style={{
-                    backgroundColor: darkMode ? '#444' : '#eee',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  Ctrl+Shift+R
-                </kbd>{' '}
-                または{' '}
-                <kbd
-                  style={{
-                    backgroundColor: darkMode ? '#444' : '#eee',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  Cmd+Shift+R
-                </kbd>
-                ）を試してください。スーパーリロードはキャッシュを無視して最新の状態でページを読み込みます。
-              </li>
-              <li style={{ marginBottom: '6px' }}>
-                <strong>パフォーマンスが悪い場合:</strong>{' '}
-                不要なレイヤーを非表示にし、必要な地域だけを表示することで改善できます。
-              </li>
-              <li>
-                <strong>ブラウザの互換性:</strong>{' '}
-                最新版のChrome、Firefox、Edge、Safariでの動作を推奨します。
-              </li>
-            </ul>
-          </div>
-
-          {/* セクション3：クイックアクセス */}
-          <div
-            style={{
-              marginBottom: '8px',
-              padding: '16px',
-              backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-              borderRadius: '8px',
-              border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: '10px',
-                color: darkMode ? '#4a90d9' : '#2563eb',
-                fontSize: '14px'
-              }}
-            >
-              クイックアクセス
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '60px 1fr',
-                gap: '4px 8px',
-                fontSize: '13px'
-              }}
-            >
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                ⌘K
-              </kbd>
-              <span>検索にフォーカス</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                ⌘Z
-              </kbd>
-              <span>Undo（描画の取り消し）</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                ⇧⌘Z
-              </kbd>
-              <span>Redo（描画のやり直し）</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                S
-              </kbd>
-              <span>左サイドバー開閉</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                P
-              </kbd>
-              <span>右サイドバー開閉</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                M
-              </kbd>
-              <span>マップスタイル切替（M: 次 / Shift+M: 前）</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                L
-              </kbd>
-              <span>ダークモード/ライトモード</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                2 / 3
-              </kbd>
-              <span>2D / 3D表示切替</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                W
-              </kbd>
-              <span>天気予報クリックモード</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                C
-              </kbd>
-              <span>雨雲レーダー表示</span>
-              <kbd
-                style={{
-                  backgroundColor: darkMode ? '#444' : '#eee',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  textAlign: 'center',
-                  fontFamily: 'monospace',
-                  fontSize: '12px'
-                }}
-              >
-                ?
-              </kbd>
-              <span>ヘルプ表示/非表示</span>
-            </div>
-          </div>
 
           {/* ===== 右カラム ===== */}
 
@@ -6514,6 +6407,54 @@ if (map.getLayer(`${overlay.id}-bg`)) {
               </svg>
               描画ツールの使い方
             </div>
+
+            {/* タブ構造の説明 */}
+            <div
+              style={{
+                marginBottom: '12px',
+                padding: '10px',
+                backgroundColor: darkMode ? 'rgba(37,99,235,0.15)' : 'rgba(37,99,235,0.08)',
+                borderRadius: '6px',
+                border: `1px solid ${darkMode ? '#2563eb55' : '#2563eb33'}`
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: darkMode ? '#90caf9' : '#1565c0',
+                  marginBottom: '6px'
+                }}
+              >
+                3つのタブ
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: darkMode ? '#ddd' : '#555'
+                }}
+              >
+                <div>
+                  <strong style={{ color: darkMode ? '#4a90d9' : '#2563eb' }}>描画</strong>
+                  <br />
+                  新規作成
+                </div>
+                <div>
+                  <strong style={{ color: darkMode ? '#4a90d9' : '#2563eb' }}>管理</strong>
+                  <br />
+                  編集・削除
+                </div>
+                <div>
+                  <strong style={{ color: darkMode ? '#4a90d9' : '#2563eb' }}>入出力</strong>
+                  <br />
+                  読込/保存
+                </div>
+              </div>
+            </div>
+
             <ul
               style={{
                 margin: 0,
@@ -6525,19 +6466,39 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             >
               <li style={{ marginBottom: '6px' }}>
                 <strong>描画の種類:</strong>{' '}
-                ポリゴン、円、ウェイポイント、経路（ライン）の4種類から選択できます。
+                ポリゴン（飛行範囲）、円（半径指定）、WP（ウェイポイント）、経路（ライン）の4種類から選択。
               </li>
               <li style={{ marginBottom: '6px' }}>
-                <strong>ウェイポイント名前付け:</strong>{' '}
-                右サイドバーの「描画済み」リストで各フィーチャーを選択し、名前フィールドを編集できます。
+                <strong>作成フロー:</strong>{' '}
+                「描画」タブでツールを選択 → 地図上でクリック → 描画完了後「完了」ボタンで確定。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>編集フロー:</strong>{' '}
+                「管理」タブでフィーチャーを選択 → 地図上でダブルクリックで頂点編集モードへ → 頂点をドラッグして移動 → 「完了」で確定。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>削除フロー:</strong>{' '}
+                フィーチャーを選択して Delete/Backspace キー、または「管理」タブの削除ボタン（🗑️）をクリック。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>名前付け:</strong>{' '}
+                「管理」タブで各フィーチャーの名前フィールドを編集。エクスポート前に全フィーチャーに名前が必要です。
               </li>
               <li style={{ marginBottom: '6px' }}>
                 <strong>高度設定:</strong>{' '}
-                標高（国土地理院APIから自動取得）と飛行高度を設定すると、上限海抜高度が計算されます。
+                「管理」タブで標高（国土地理院API自動取得）と飛行高度を設定 → 上限海抜高度が自動計算されます。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>円の半径変更:</strong>{' '}
+                「管理」タブで円を選択 → 半径スライダーで調整可能。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>Undo/Redo:</strong>{' '}
+                ⌘Z（Ctrl+Z）で取り消し、⇧⌘Z（Ctrl+Shift+Z）でやり直し。
               </li>
               <li>
                 <strong>頂点ラベル:</strong>{' '}
-                描画中は各頂点に座標ラベルが常時表示されます（ツールチップ機能 T キー）。
+                描画中は各頂点に番号付きラベルを表示。禁止エリア内の頂点は警告色で表示されます。
               </li>
             </ul>
           </div>
@@ -6687,15 +6648,15 @@ if (map.getLayer(`${overlay.id}-bg`)) {
                 地図をクリックすると10進数形式と度分秒（DMS）形式の両方が5秒間表示されます（ドラッグすると固定）。
               </li>
               <li style={{ marginBottom: '6px' }}>
-                <strong>座標表示切替（G）:</strong> 座標表示のON/OFFを切り替えます。
+                <strong>中心十字表示（X）:</strong> 画面中央に十字マーカーを表示/非表示します。
               </li>
               <li style={{ marginBottom: '6px' }}>
-                <strong>ツールチップ表示（T）:</strong>{' '}
-                描画中の頂点に座標ラベルを表示します（現在はON固定）。
+                <strong>頂点ラベル表示（T）:</strong>{' '}
+                描画中の頂点に座標ラベルを表示/非表示します。
               </li>
               <li style={{ marginBottom: '6px' }}>
-                <strong>表示モード切替:</strong> L キー（ダークモード）、2/3
-                キー（2D/3D表示）、X キー（中心十字表示）で切り替え可能です。
+                <strong>表示モード切替:</strong> L キー（ダークモード）、2/3 キー（2D/3D表示）、X
+                キー（中心十字表示）で切り替え可能です。
               </li>
               <li>
                 <strong>表示設定:</strong>{' '}
@@ -6705,6 +6666,100 @@ if (map.getLayer(`${overlay.id}-bg`)) {
           </div>
         </div>
 
+          {/* セクション2.6：トラブルシューティング */}
+          <div
+            style={{
+              marginBottom: '8px',
+              padding: '16px',
+              backgroundColor: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+              borderRadius: '8px',
+              border: `1px solid ${darkMode ? '#333' : '#e0e0e0'}`
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: '10px',
+                color: darkMode ? '#4a90d9' : '#2563eb',
+                fontSize: '14px'
+              }}
+            >
+              トラブルシューティング
+            </div>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '20px',
+                lineHeight: '1.6',
+                fontSize: '13px',
+                color: darkMode ? '#ddd' : '#555'
+              }}
+            >
+              <li style={{ marginBottom: '6px' }}>
+                <strong>レイヤーが表示されない場合:</strong>{' '}
+                地域のDIDレイヤーなどがうまく表示されない時は、ページをリロード（
+                <kbd
+                  style={{
+                    backgroundColor: darkMode ? '#444' : '#eee',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                  }}
+                >
+                  F5
+                </kbd>{' '}
+                または{' '}
+                <kbd
+                  style={{
+                    backgroundColor: darkMode ? '#444' : '#eee',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                  }}
+                >
+                  Ctrl+R
+                </kbd>
+                ）してください。それでも解決しない場合は、スーパーリロード（
+                <kbd
+                  style={{
+                    backgroundColor: darkMode ? '#444' : '#eee',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                  }}
+                >
+                  Ctrl+Shift+R
+                </kbd>{' '}
+                または{' '}
+                <kbd
+                  style={{
+                    backgroundColor: darkMode ? '#444' : '#eee',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                  }}
+                >
+                  Cmd+Shift+R
+                </kbd>
+                ）を試してください。スーパーリロードはキャッシュを無視して最新の状態でページを読み込みます。
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>パフォーマンスが悪い場合:</strong>{' '}
+                不要なレイヤーを非表示にし、必要な地域だけを表示することで改善できます。
+              </li>
+              <li>
+                <strong>ブラウザの互換性:</strong>{' '}
+                最新版のChrome、Firefox、Edge、Safariでの動作を推奨します。
+              </li>
+            </ul>
+          </div>
+
+
+          
         {/* フッター */}
         <div
           style={{
@@ -6724,8 +6779,8 @@ if (map.getLayer(`${overlay.id}-bg`)) {
             ヘリポート、有人機発着エリア/区域、電波干渉区域、緊急用務空域、リモートID特定区域、風向・風量、LTEは参考データまたは試験的表示です。
           </p>
           <p>
-            <strong>* 未実装：</strong>
-            レッドゾーン、イエローゾーンは国土交通省DIPSシステムからの実装が予定されており、現在は利用できません。飛行前は必ずDIPSで公式情報を確認してください。
+            <strong>* 参考実装：</strong>
+            レッドゾーン、イエローゾーンは参考データです（公式DIPSデータではありません）。駐屯地・基地、有人機発着地、消防署、医療機関はOSM等の参考データです。飛行前は必ずDIPSで公式情報を確認してください。
           </p>
         </div>
       </Modal>
@@ -6780,7 +6835,6 @@ if (map.getLayer(`${overlay.id}-bg`)) {
 
       {/* Confirm Dialog */}
       <DialogContainer />
-
 
       {/* Focus Crosshair - map center target */}
       <FocusCrosshair

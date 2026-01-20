@@ -33,15 +33,18 @@ export function ToastContainer() {
           key={toast.id}
           style={{
             padding: '12px 16px',
-            borderRadius: '4px',
+            borderRadius: '8px',
             fontSize: '14px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             animation: 'slideIn 0.3s ease-in-out',
-            backgroundColor: getBackgroundColor(toast.type),
+            backgroundColor: getBackgroundColor(toast.type, true),
             color: '#fff',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
           }}
         >
           <span>{toast.message}</span>
@@ -77,16 +80,17 @@ export function ToastContainer() {
   )
 }
 
-function getBackgroundColor(type: string): string {
+function getBackgroundColor(type: string, transparent: boolean = false): string {
+  const opacity = transparent ? 0.85 : 1.0
   switch (type) {
     case 'success':
-      return '#4CAF50'
+      return `rgba(76, 175, 80, ${opacity})`
     case 'error':
-      return '#F44336'
+      return `rgba(244, 67, 54, ${opacity})`
     case 'warning':
-      return '#FF9800'
+      return `rgba(255, 152, 0, ${opacity})`
     case 'info':
     default:
-      return '#2196F3'
+      return `rgba(33, 150, 243, ${opacity})`
   }
 }
