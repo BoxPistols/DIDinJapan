@@ -4692,7 +4692,7 @@ if (map.getLayer(`${overlay.id}-bg`)) {
         style={{
           position: 'fixed',
           right: showRightLegend ? rightSidebarWidth : 0,
-          top: 12,
+          top: 80,
           width: 24,
           height: 48,
           background: darkMode ? 'rgba(30,30,40,0.9)' : 'rgba(255,255,255,0.9)',
