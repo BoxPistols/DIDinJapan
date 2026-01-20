@@ -8,6 +8,14 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type maplibregl from 'maplibre-gl'
 import { createCirclePolygon, convertDecimalToDMS } from '../lib/utils/geo'
+import type RBush from 'rbush'
+import {
+  checkWaypointCollision,
+  checkWaypointCollisionOptimized,
+  checkPathCollision,
+  checkPolygonCollision,
+  createSpatialIndex
+} from '../lib'
 import { Modal } from './Modal'
 import { showToast } from '../utils/toast'
 import { showConfirm } from '../utils/dialog'
@@ -578,6 +586,7 @@ export interface UndoRedoState {
 
 export interface DrawingToolsProps {
   map: maplibregl.Map | null
+  prohibitedAreas?: GeoJSON.FeatureCollection
   onFeaturesChange?: (features: DrawnFeature[]) => void
   darkMode?: boolean
   embedded?: boolean // サイドバー内に埋め込む場合true
@@ -620,6 +629,7 @@ const loadFromLocalStorage = (): GeoJSON.FeatureCollection | null => {
  */
 export function DrawingTools({
   map,
+  prohibitedAreas,
   onFeaturesChange,
   darkMode = false,
   embedded = false,
@@ -635,6 +645,7 @@ export function DrawingTools({
   const [drawnFeatures, setDrawnFeatures] = useState<DrawnFeature[]>([])
   const [circleRadius, setCircleRadius] = useState(100) // メートル
   const [circlePoints, setCirclePoints] = useState(24) // 円の頂点数
+  const [prohibitedIndex, setProhibitedIndex] = useState<RBush<any> | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<Set<string>>(new Set())
@@ -677,6 +688,192 @@ export function DrawingTools({
   })
   // フィーチャーリストアイテムへのref（自動スクロール用）
   const featureListItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  // 最新の禁止エリアデータを保持するためのRef（イベントハンドラ内での参照用）
+  const prohibitedIndexRef = useRef<RBush<any> | null>(null)
+  const prohibitedAreasRef = useRef<GeoJSON.FeatureCollection | undefined>(prohibitedAreas)
+
+  useEffect(() => {
+    prohibitedIndexRef.current = prohibitedIndex
+  }, [prohibitedIndex])
+
+  const spatialIndexTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    prohibitedAreasRef.current = prohibitedAreas
+
+    // 前回のタイマーをクリア
+    if (spatialIndexTimerRef.current) {
+      clearTimeout(spatialIndexTimerRef.current)
+    }
+
+    // 禁止エリアが変更されたら空間インデックスを再構築（デバウンス付き）
+    if (prohibitedAreas && prohibitedAreas.features.length > 0) {
+      spatialIndexTimerRef.current = setTimeout(() => {
+        setProhibitedIndex(createSpatialIndex(prohibitedAreas))
+      }, 200)
+    } else {
+      setProhibitedIndex(null)
+    }
+
+    return () => {
+      if (spatialIndexTimerRef.current) {
+        clearTimeout(spatialIndexTimerRef.current)
+      }
+    }
+  }, [prohibitedAreas])
+
+  const normalizeDrawnFeatures = useCallback(
+    (features: GeoJSON.Feature[], _points: number): DrawnFeature[] => {
+      return features.map((f) => {
+        let type: DrawnFeature['type'] = 'polygon'
+        if (f.geometry.type === 'Point') type = 'point'
+        else if (f.geometry.type === 'LineString') type = 'line'
+        else if (f.properties?.isCircle) type = 'circle'
+
+        const id = typeof f.id === 'string' ? f.id : String(f.id)
+        const name = f.properties?.name || `${type}-${id.slice(0, 6)}`
+
+        // Ensure coordinates are properly typed/structured
+        let coordinates = (f.geometry as any).coordinates
+        if (type === 'polygon' && f.geometry.type === 'Polygon') {
+          // Polygon coordinates are Position[][]
+          coordinates = (f.geometry as GeoJSON.Polygon).coordinates
+        }
+
+        return {
+          id,
+          type,
+          name,
+          coordinates,
+          radius: f.properties?.radiusKm ? (f.properties.radiusKm as number) * 1000 : undefined,
+          center: f.properties?.center as [number, number] | undefined,
+          properties: f.properties || {},
+          elevation: f.properties?.elevation,
+          flightHeight: f.properties?.flightHeight,
+          maxAltitude: f.properties?.maxAltitude
+        }
+      })
+    },
+    []
+  )
+
+  const annotateCollisions = useCallback(
+    (features: DrawnFeature[]) => {
+      const index = prohibitedIndexRef.current
+      const areas = prohibitedAreasRef.current
+
+      if (!index || !areas) return
+
+      features.forEach((feature) => {
+        let result = null
+
+        if (feature.type === 'point') {
+          const coords = feature.coordinates as [number, number]
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          result = checkWaypointCollisionOptimized(coords, index as any)
+        } else if (feature.type === 'line') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const coords = feature.coordinates as any
+          result = checkPathCollision(coords, areas)
+        } else if (feature.type === 'polygon' || feature.type === 'circle') {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const coords = feature.coordinates as any
+          // ポリゴン座標が既にPosition[][]形式か確認
+          // Polygon.coordinates = Position[][] (外側リング + 穴のリング)
+          const polygonCoords = Array.isArray(coords) && Array.isArray(coords[0]) && Array.isArray(coords[0][0])
+            ? coords  // 既にPosition[][]形式
+            : [coords] // Position[]の場合、配列で包む
+          result = checkPolygonCollision(polygonCoords, areas)
+        }
+
+        if (result) {
+          // 衝突情報をプロパティに保存（管理タブでの表示用）
+          feature.properties = {
+            ...feature.properties,
+            collision: result
+          }
+
+          if (drawRef.current) {
+            drawRef.current.setFeatureProperty(feature.id, 'collision', result)
+
+            // ウェイポイント（Point）の場合のみ色を変更
+            // ポリゴン/ラインの線の色は変えない（頂点の色のみ変更）
+            if (feature.type === 'point' && result.isColliding) {
+              drawRef.current.setFeatureProperty(feature.id, '_displayColor', '#f44336')
+            } else if (feature.type === 'point') {
+              drawRef.current.setFeatureProperty(feature.id, '_displayColor', '#ff9800')
+            }
+          }
+        }
+      })
+    },
+    []
+  )
+
+  // 禁止エリアが変更されたら既存フィーチャーの衝突判定を再実行（デバウンス付き）
+  const collisionCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    // 前回のタイマーをクリア
+    if (collisionCheckTimerRef.current) {
+      clearTimeout(collisionCheckTimerRef.current)
+    }
+
+    if (!prohibitedIndex || !prohibitedAreas || !drawRef.current) return
+
+    // デバウンス: 300ms後に衝突判定を実行
+    collisionCheckTimerRef.current = setTimeout(() => {
+      if (!drawRef.current) return
+      const allFeatures = drawRef.current.getAll()
+      if (!allFeatures.features.length) return
+
+      const normalized = normalizeDrawnFeatures(allFeatures.features, circlePoints)
+      annotateCollisions(normalized)
+
+      // 衝突情報を反映するために頂点ラベルを更新
+      debouncedUpdateVertexLabels.current?.()
+    }, 300)
+
+    return () => {
+      if (collisionCheckTimerRef.current) {
+        clearTimeout(collisionCheckTimerRef.current)
+      }
+    }
+  }, [prohibitedIndex, circlePoints, normalizeDrawnFeatures, annotateCollisions])
+  // 注: prohibitedAreasを依存配列から削除（prohibitedIndexの更新で十分）
+
+  const mergeDrawnFeatures = useCallback(
+    (newFeatures: DrawnFeature[], shouldUpdateMap: boolean) => {
+      setDrawnFeatures((prev) => {
+        const next = [...prev]
+        newFeatures.forEach((nf) => {
+          const idx = next.findIndex((existing) => existing.id === nf.id)
+          if (idx >= 0) {
+            next[idx] = nf
+          } else {
+            next.push(nf)
+          }
+        })
+        return next
+      })
+    },
+    []
+  )
+
+  // 禁止エリアデータが更新されたら、既存のフィーチャーを全件再チェック
+  useEffect(() => {
+    if (!drawRef.current || !prohibitedIndex) return
+
+    // 現在の全てのフィーチャーを取得
+    const allFeatures = drawRef.current.getAll()
+    if (allFeatures.features.length === 0) return
+
+    // 正規化してチェック実行
+    const normalized = normalizeDrawnFeatures(allFeatures.features, circlePoints)
+    annotateCollisions(normalized)
+
+    // 状態も更新
+    mergeDrawnFeatures(normalized, true)
+  }, [prohibitedIndex, normalizeDrawnFeatures, annotateCollisions, mergeDrawnFeatures, circlePoints])
 
   const updateSelectionState = useCallback((ids: string[], primaryId?: string | null) => {
     const nextPrimary =
@@ -849,6 +1046,9 @@ export function DrawingTools({
   useEffect(() => {
     if (!map || !mapLoaded) return
     if (drawRef.current) return
+    if (prohibitedAreas) {
+      setProhibitedIndex(createSpatialIndex(prohibitedAreas))
+    }
 
     isDisposedRef.current = false
     const safeSetTimeout = (fn: () => void, ms: number) =>
@@ -859,6 +1059,7 @@ export function DrawingTools({
 
     const draw = new MapboxDraw({
       displayControlsDefault: false,
+      userProperties: true,
       controls: {},
       // 基本設定
       defaultMode: 'simple_select',
@@ -879,8 +1080,8 @@ export function DrawingTools({
             ['!=', 'mode', 'static']
           ],
           paint: {
-            'fill-color': '#2563eb',
-            'fill-outline-color': '#2563eb',
+            'fill-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
+            'fill-outline-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'fill-opacity': 0.25
           }
         },
@@ -890,8 +1091,8 @@ export function DrawingTools({
           type: 'fill',
           filter: ['all', ['==', 'active', 'true'], ['==', '$type', 'Polygon']],
           paint: {
-            'fill-color': '#2563eb',
-            'fill-outline-color': '#2563eb',
+            'fill-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
+            'fill-outline-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'fill-opacity': 0.25
           }
         },
@@ -910,7 +1111,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-width': 3
           }
         },
@@ -924,7 +1125,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-dasharray': [0.2, 2],
             'line-width': 2
           }
@@ -944,7 +1145,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-width': 3
           }
         },
@@ -958,7 +1159,7 @@ export function DrawingTools({
             'line-join': 'round'
           },
           paint: {
-            'line-color': '#2563eb',
+            'line-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb'],
             'line-dasharray': [0.2, 2],
             'line-width': 3
           }
@@ -976,7 +1177,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 6,
-            'circle-color': '#2563eb'
+            'circle-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb']
           }
         },
         // ポイント - アクティブ（描画中の点）
@@ -991,7 +1192,7 @@ export function DrawingTools({
           ],
           paint: {
             'circle-radius': 8,
-            'circle-color': '#2563eb'
+            'circle-color': ['coalesce', ['get', 'user__displayColor'], '#2563eb']
           }
         },
         // 描画中のポイント
@@ -1084,16 +1285,22 @@ export function DrawingTools({
         }
       })
 
-      // 円形の背景（選択状態でオレンジに変化）
+      // 円形の背景（禁止エリア内の頂点はゾーンタイプに応じた色、選択状態でオレンジ枠）
+      // ゾーンタイプ別色: DID=赤, AIRPORT=紫, RED_ZONE=暗い赤, YELLOW_ZONE=黄
       map.addLayer({
         id: 'vertex-labels-background',
         type: 'circle',
         source: 'vertex-labels',
         paint: {
           'circle-radius': ['case', ['get', 'selected'], 14, 12],
-          'circle-color': ['case', ['get', 'selected'], '#ff9800', '#2563eb'],
+          'circle-color': [
+            'case',
+            ['get', 'isInProhibited'],
+            ['coalesce', ['get', 'collisionColor'], '#f44336'],  // 禁止エリア内 → ゾーン色
+            '#2563eb'  // それ以外 → 青
+          ],
           'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
-          'circle-stroke-color': '#ffffff'
+          'circle-stroke-color': ['case', ['get', 'selected'], '#ff9800', '#ffffff']
         }
       })
 
@@ -1137,6 +1344,13 @@ export function DrawingTools({
       updateFeatures()
       bringLabelsToFront()
 
+      // 衝突判定＆色更新
+      if (prohibitedIndex && prohibitedAreas) {
+        const normalized = normalizeDrawnFeatures(e.features as unknown as GeoJSON.Feature[], circlePoints)
+        annotateCollisions(normalized)
+        mergeDrawnFeatures(normalized, true)
+      }
+
       // WP連続モードの場合は継続
       if (drawModeRef.current === 'point' && continuousModeRef.current) {
         // 連続モード: draw_pointモードを維持
@@ -1149,7 +1363,14 @@ export function DrawingTools({
       // 作成後、自動的に選択状態にして編集しやすく
       if (e.features.length > 0) {
         const newFeatureId = String(e.features[0].id)
+        const newFeature = e.features[0] as unknown as GeoJSON.Feature
         updateSelectionState([newFeatureId], newFeatureId)
+
+        // 円を作成した場合、管理タブに切り替えてサイズ/頂点数を調整できるようにする
+        if (newFeature.properties?.isCircle) {
+          setActiveTab('manage')
+        }
+
         // 作成後、選択モードに戻す
         safeSetTimeout(() => {
           draw.changeMode('simple_select', { featureIds: [newFeatureId] })
@@ -1161,6 +1382,12 @@ export function DrawingTools({
     const handleUpdate = () => {
       updateFeatures()
       bringLabelsToFront()
+      if (prohibitedIndex && prohibitedAreas) {
+        const selected = draw.getSelected()
+        const normalized = normalizeDrawnFeatures(selected.features ?? [], circlePoints)
+        annotateCollisions(normalized)
+        mergeDrawnFeatures(normalized, true)
+      }
     }
 
     const handleDelete = () => {
@@ -1432,13 +1659,29 @@ export function DrawingTools({
         coords = outerRing.slice(0, -1)
       }
 
-      // 各頂点にラベルを追加
+      // 各頂点にラベルを追加（頂点ごとに個別に衝突判定）
       coords.forEach((coord, index) => {
         // 選択状態をチェック（座標が一致するか）
         const isSelected =
           selectedCoords !== null &&
           Math.abs(coord[0] - selectedCoords[0]) < 0.0000001 &&
           Math.abs(coord[1] - selectedCoords[1]) < 0.0000001
+
+        // この頂点が禁止エリア内にあるかチェック
+        let isInProhibited = false
+        let collisionType: string | null = null
+        let collisionColor = '#2563eb' // デフォルト青
+        if (prohibitedIndexRef.current && prohibitedAreasRef.current) {
+          const result = checkWaypointCollisionOptimized(
+            coord,
+            prohibitedIndexRef.current as any
+          )
+          isInProhibited = result.isColliding
+          if (result.isColliding) {
+            collisionType = result.collisionType
+            collisionColor = result.uiColor
+          }
+        }
 
         labelFeatures.push({
           type: 'Feature',
@@ -1448,7 +1691,10 @@ export function DrawingTools({
           },
           properties: {
             label: `${index + 1}`,
-            selected: isSelected
+            selected: isSelected,
+            isInProhibited,
+            collisionType,
+            collisionColor
           }
         })
       })
@@ -3462,7 +3708,15 @@ ${kmlFeatures}
                                   whiteSpace: 'nowrap',
                                   padding: '2px 4px',
                                   borderRadius: '3px',
-                                  transition: 'background-color 0.2s, color 0.2s'
+                                  transition: 'background-color 0.2s, color 0.2s',
+                                  // @ts-expect-error collision check
+                                  color: f.properties?.collision?.isColliding
+                                    ? '#f44336'
+                                    : 'inherit',
+                                  // @ts-expect-error collision check
+                                  fontWeight: f.properties?.collision?.isColliding
+                                    ? 'bold'
+                                    : 'normal'
                                 }}
                                 onClick={() => handleNameClick(f)}
                                 onDoubleClick={() => handleNameDoubleClick(f)}
@@ -3476,6 +3730,10 @@ ${kmlFeatures}
                                 }}
                                 title={`${f.name}（ダブルクリックで編集）`}
                               >
+                                {/* @ts-expect-error collision check */}
+                                {f.properties?.collision?.isColliding && (
+                                  <span style={{ marginRight: '4px' }}>⚠️</span>
+                                )}
                                 {f.name}
                               </span>
                             )}

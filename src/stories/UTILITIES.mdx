@@ -12,4 +12,131 @@ import { Meta } from '@storybook/blocks'
 ## Geographic Calculations (地理計算)
 
 GISアプリケーションにおいて最も基本的かつ重要な計算ロジック群です。
-地球を球体（半径 $R 
+地球を球体（半径 `R ≈ 6371 km`）と近似して計算を行います。
+
+### 距離計算 (Haversine Formula)
+
+2点間の大円距離（Great-circle distance）を計算します。
+
+```typescript
+import { calculateDistance } from 'japan-drone-map'
+
+const dist = calculateDistance(35.6812, 139.7671, 35.6896, 139.6917)
+// => 約 6.8 km (東京駅 - 新宿駅)
+```
+
+**数式:**
+
+```math
+a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)
+c = 2 ⋅ atan2(√a, √(1−a))
+d = R ⋅ c
+```
+
+### 円ポリゴンの生成
+
+中心点と半径から、地図上に描画可能な多角形（近似円）のGeoJSONを生成します。
+ドローンの飛行可能範囲や、空港周辺の制限エリアの可視化に使用されます。
+
+```typescript
+import { createCirclePolygon } from 'japan-drone-map'
+
+// 東京駅を中心に半径1kmの円（32角形近似）
+const circle = createCirclePolygon([139.7671, 35.6812], 1.0, 32)
+```
+
+### 点の包含判定 (Point in Polygon)
+
+ある座標が指定されたポリゴン（多角形）の内部にあるかを判定します。
+飛行禁止区域（DID地区など）の判定ロジックの核となります。
+Ray Casting Algorithm（光線法）を使用しています。
+
+```typescript
+import { pointInPolygon } from 'japan-drone-map'
+
+const isInside = pointInPolygon(
+  [139.76, 35.68], // 判定したい点 [lng, lat]
+  [[139.7, 35.6], [139.8, 35.6], [139.8, 35.7], [139.7, 35.7]] // ポリゴン外周
+)
+```
+
+### 座標フォーマット変換 (DMS)
+
+10進数の緯度経度を、航空図やNOTAMで一般的なDMS（度分秒）形式に変換します。
+
+```typescript
+import { formatCoordinatesDMS } from 'japan-drone-map'
+
+const dms = formatCoordinatesDMS(139.7671, 35.6812)
+// => "35°40'52.32"N, 139°46'01.56"E"
+```
+
+---
+
+## Bounding Box (BBox) 操作
+
+地図の表示範囲制御や、空間インデックスのクエリに使用される矩形範囲の計算ユーティリティです。
+
+### ジオメトリからのBBox計算
+
+任意のGeoJSONジオメトリ（Point, LineString, Polygon, MultiPolygonなど）から、それを包含する最小の矩形（BBox）を計算します。
+
+```typescript
+import { calculateBBox } from 'japan-drone-map'
+
+const [minLng, minLat, maxLng, maxLat] = calculateBBox(feature.geometry)
+```
+
+### BBoxのマージ
+
+複数のBBoxを結合し、それら全てを含む大きなBBoxを生成します。
+複数のレイヤーを同時に表示する際の初期ズーム範囲決定などに利用します。
+
+```typescript
+import { mergeBBoxes } from 'japan-drone-map'
+
+const totalBBox = mergeBBoxes([bbox1, bbox2, bbox3])
+```
+
+---
+
+## Mock Data Generators (モックデータ生成)
+
+開発およびテスト用に、現実的な構造を持ったGeoJSONデータを生成する関数群です。
+バックエンドAPIが利用できない場合や、特定のシナリオ（強風、LTE圏外など）をシミュレーションするために使用します。
+
+| 関数名 | 生成データ | 用途 |
+| :--- | :--- | :--- |
+| `generateBuildingsGeoJSON` | 建物・障害物 | 高さ制限、3D表示テスト |
+| `generateWindFieldGeoJSON` | 風況データ | 気象レイヤー、飛行可否判定 |
+| `generateLTECoverageGeoJSON` | LTE電波強度 | 通信品質マップ、リモートID |
+| `generateRadioInterferenceGeoJSON` | 電波干渉源 | 混信リスクエリアの表示 |
+| `generateMannedAircraftZonesGeoJSON` | 有人機エリア | 離着陸場周辺の注意喚起 |
+
+---
+
+## Kokuarea Utilities (空港周辺空域)
+
+`src/lib/kokuarea.ts` は、国土地理院の「空港周辺空域（進入表面等）」タイルデータを扱うための特化型ユーティリティです。
+
+### タイル座標計算
+
+指定された緯度経度・ズームレベルに対応するタイル座標（XYZ）を計算します。
+
+```typescript
+import { getVisibleTileXYZs } from 'japan-drone-map'
+
+// 現在のビューポート内の全タイルを取得
+const tiles = getVisibleTileXYZs(map.getBounds(), 14)
+```
+
+### 表面分類 (Surface Classification)
+
+GeoJSONプロパティに含まれる名称（例: "成田国際空港-進入表面"）を解析し、表面の種類（進入、転移、水平、円錐）に分類します。これに基づいて描画色を決定します。
+
+```typescript
+import { classifyKokuareaSurface, KOKUAREA_STYLE } from 'japan-drone-map'
+
+const { kind, label } = classifyKokuareaSurface(feature.properties)
+const style = KOKUAREA_STYLE[kind] // 色や不透明度を取得
+```

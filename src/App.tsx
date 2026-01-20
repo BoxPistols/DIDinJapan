@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import styles from './App.module.css'
@@ -240,6 +240,13 @@ function App() {
   const comparisonLayerBoundsRef = useRef<Map<string, [[number, number], [number, number]]>>(
     new Map()
   )
+// DID GeoJSONキャッシュ（衝突検出用）
+  const didGeoJSONCacheRef = useRef<Map<string, GeoJSON.FeatureCollection>>(new Map())
+  // 禁止エリアGeoJSONキャッシュ（空港、レッド/イエローゾーン用）
+  const restrictionGeoJSONCacheRef = useRef<Map<string, GeoJSON.FeatureCollection>>(new Map())
+  const [didCacheVersion, setDidCacheVersion] = useState(0) // キャッシュ更新検知用
+  const debugRunIdRef = useRef<string>('')
+  const comparisonIdleDebugKeysRef = useRef<Set<string>>(new Set())
   const comparisonLayerVisibilityRef = useRef<Set<string>>(new Set())
 
   // State
@@ -263,7 +270,18 @@ function App() {
     () => new Map()
   )
   const [mapLoaded, setMapLoaded] = useState(false)
-  const [opacity, setOpacity] = useState(0.5)
+  const [opacity, setOpacity] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { opacity: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 0.5
+  })
   const [baseMap] = useState<BaseMapKey>(() => {
     // localStorageから保存されたベースマップを読み込み
     try {
@@ -303,18 +321,73 @@ function App() {
   const [isGeoSearching, setIsGeoSearching] = useState(false)
 
   // Legend visibility
-  const [showLeftLegend, setShowLeftLegend] = useState(true)
-  const [showRightLegend, setShowRightLegend] = useState(true)
+  const [showLeftLegend, setShowLeftLegend] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showLeftLegend: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true
+  })
+  const [showRightLegend, setShowRightLegend] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showRightLegend: saved } = JSON.parse(stored)
+        return saved ?? true
+      }
+    } catch {
+      // ignore
+    }
+    return true
+  })
 
   // Coordinate Info Panel
   // Sidebar Resizing
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState(280)
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(220) // 初期幅は少し狭め（右余白の無駄を削減）
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { leftSidebarWidth: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 280
+  })
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { rightSidebarWidth: saved } = JSON.parse(stored)
+        if (typeof saved === 'number' && Number.isFinite(saved)) return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 220
+  }) // 初期幅は少し狭め（右余白の無駄を削減）
   const [isResizingLeft, setIsResizingLeft] = useState(false)
   const [isResizingRight, setIsResizingRight] = useState(false)
 
-  // Tooltip visibility
-  const [showTooltip, setShowTooltip] = useState(false)
+// Tooltip visibility
+  const [showTooltip, setShowTooltip] = useState(() => {
+    try {
+      const stored = localStorage.getItem('ui-settings')
+      if (stored) {
+        const { showTooltip: saved } = JSON.parse(stored)
+        return saved ?? false
+      }
+    } catch {
+      // ignore
+    }
+    return false
+  })
   const [tooltipAutoFade, setTooltipAutoFade] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('ui-settings')
@@ -330,6 +403,60 @@ function App() {
 
   // Custom layers
   const [customLayerVisibility, setCustomLayerVisibility] = useState<Set<string>>(new Set())
+
+// 衝突検出用: 表示中のDIDレイヤーおよび禁止ゾーンのGeoJSONを結合
+  const prohibitedAreas = useMemo<GeoJSON.FeatureCollection | undefined>(() => {
+    // 個別の都道府県DIDレイヤー
+    const visibleLayerIds = Array.from(layerStates.entries())
+      .filter(([, state]) => state.visible)
+      .map(([id]) => id)
+      .filter((id) => id.startsWith('did-'))
+
+    // 「人口集中地区（全国）」が有効な場合、キャッシュ内の全てのDIDを使用
+    const isDIDAllJapanVisible = restrictionStates.get(ZONE_IDS.DID_ALL_JAPAN) ?? false
+
+    const features: GeoJSON.Feature[] = []
+
+    // DIDレイヤー（zoneType: 'DID'を付与）
+    if (isDIDAllJapanVisible) {
+      // 全国DIDが有効な場合、キャッシュ内の全DIDを使用
+      for (const [layerId, cached] of didGeoJSONCacheRef.current.entries()) {
+        if (layerId.startsWith('did-')) {
+          const taggedFeatures = cached.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'DID' }
+          }))
+          features.push(...taggedFeatures)
+        }
+      }
+    } else {
+      // 個別レイヤーのみ
+      for (const layerId of visibleLayerIds) {
+        const cached = didGeoJSONCacheRef.current.get(layerId)
+        if (cached) {
+          const taggedFeatures = cached.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'DID' }
+          }))
+          features.push(...taggedFeatures)
+        }
+      }
+    }
+
+    // 禁止ゾーン（空港、レッドゾーン、イエローゾーン）
+    // キャッシュ済みの禁止ゾーンを追加（すでにzoneTypeが設定済み）
+    for (const [, cached] of restrictionGeoJSONCacheRef.current.entries()) {
+      features.push(...cached.features)
+    }
+
+    if (features.length === 0) return undefined
+
+    return {
+      type: 'FeatureCollection',
+      features
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layerStates, restrictionStates, didCacheVersion])
 
   // Weather Forecast Panel
   const [showWeatherForecast, setShowWeatherForecast] = useState(false)
@@ -698,6 +825,20 @@ function App() {
           darkMode,
           baseMap: newBaseMap,
           enableCoordinateDisplay,
+          showFocusCrosshair,
+          crosshairDesign,
+          coordClickType,
+          coordDisplayPosition,
+          crosshairClickCapture,
+          coordAutoFade,
+          tooltipAutoFade,
+          crosshairColor,
+          opacity,
+          showTooltip,
+          showLeftLegend,
+          showRightLegend,
+          leftSidebarWidth,
+          rightSidebarWidth,
           timestamp: Date.now()
         }
         localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -745,6 +886,12 @@ function App() {
         coordAutoFade,
         tooltipAutoFade,
         crosshairColor,
+        opacity,
+        showTooltip,
+        showLeftLegend,
+        showRightLegend,
+        leftSidebarWidth,
+        rightSidebarWidth,
         timestamp: Date.now()
       }
       localStorage.setItem('ui-settings', JSON.stringify(settings))
@@ -762,7 +909,13 @@ function App() {
     crosshairClickCapture,
     coordAutoFade,
     tooltipAutoFade,
-    crosshairColor
+    crosshairColor,
+    opacity,
+    showTooltip,
+    showLeftLegend,
+    showRightLegend,
+    leftSidebarWidth,
+    rightSidebarWidth
   ])
 
   // ============================================
@@ -915,12 +1068,12 @@ function App() {
 
         // [S] Left Sidebar toggle
         case 's':
-          setShowLeftLegend((prev) => !prev)
+          setShowLeftLegend((prev: boolean) => !prev)
           break
 
         // [P] Right Panel (sidebar) toggle
         case 'p':
-          setShowRightLegend((prev) => !prev)
+          setShowRightLegend((prev: boolean) => !prev)
           break
 
         // [W] Weather click mode toggle
@@ -963,7 +1116,7 @@ function App() {
         case '?':
         case '/':
           e.preventDefault()
-          setShowHelp((prev) => !prev)
+          setShowHelp((prev: boolean) => !prev)
           break
         case 'escape':
           // Close weather popup first, then panel, then help
@@ -1083,7 +1236,7 @@ function App() {
         map.setLayoutProperty(item.layerId, 'visibility', 'visible')
         map.setLayoutProperty(`${item.layerId}-outline`, 'visibility', 'visible')
       }
-      setLayerStates((prev) => {
+      setLayerStates((prev: Map<string, LayerState>) => {
         const next = new Map(prev)
         next.set(item.layerId, { id: item.layerId, visible: true })
         return next
@@ -1644,6 +1797,10 @@ function App() {
 
         const data = await fetchGeoJSONWithCache<DidFC>(layer.path)
 
+        // DID GeoJSONをキャッシュに保存（衝突検出用）
+        didGeoJSONCacheRef.current.set(layer.id, data as GeoJSON.FeatureCollection)
+        setDidCacheVersion((v) => v + 1)
+
         const newItems: SearchIndexItem[] = []
         data.features.forEach((feature) => {
           const cityName = feature.properties?.CITYNAME
@@ -1656,7 +1813,7 @@ function App() {
             })
           }
         })
-        setSearchIndex((prev) => [...prev, ...newItems])
+        setSearchIndex((prev: SearchIndexItem[]) => [...prev, ...newItems])
 
         // ソースの存在を再確認（非同期処理中に追加された可能性がある）
         if (map.getSource(layer.id)) {
@@ -1689,7 +1846,7 @@ function App() {
           layout: { visibility: initialVisible ? 'visible' : 'none' }
         })
 
-        setLayerStates((prev) => {
+        setLayerStates((prev: Map<string, LayerState>) => {
           const next = new Map(prev)
           next.set(layer.id, { id: layer.id, visible: initialVisible })
           return next
@@ -2063,7 +2220,7 @@ function App() {
       applyDidLayerColor(layer.id, groupMode === 'red' ? '#ff0000' : layer.color)
     }
 
-    setLayerStates((prev) => {
+    setLayerStates((prev: Map<string, LayerState>) => {
       const next = new Map(prev)
       next.set(layer.id, { ...state, visible: newVisibility })
       return next
@@ -2071,7 +2228,7 @@ function App() {
   }
 
   const toggleGroup = (groupName: string) => {
-    setExpandedGroups((prev) => {
+    setExpandedGroups((prev: Set<string>) => {
       const next = new Set(prev)
       if (next.has(groupName)) {
         next.delete(groupName)
@@ -2099,7 +2256,7 @@ function App() {
   const enableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2108,7 +2265,7 @@ function App() {
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates((prev) => {
+          setLayerStates((prev: Map<string, LayerState>) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -2125,7 +2282,7 @@ function App() {
   const enableAllInGroupRed = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'red'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'red'))
 
     group.layers.forEach((layer) => {
       const state = layerStates.get(layer.id)
@@ -2133,7 +2290,7 @@ function App() {
         if (!state.visible) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible')
           map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'visible')
-          setLayerStates((prev) => {
+          setLayerStates((prev: Map<string, LayerState>) => {
             const next = new Map(prev)
             next.set(layer.id, { ...state, visible: true })
             return next
@@ -2151,7 +2308,7 @@ function App() {
   const disableAllInGroup = (group: LayerGroup) => {
     const map = mapRef.current
     if (!map || !mapLoaded) return
-    setDidGroupColorMode((prev) => new Map(prev).set(group.name, 'default'))
+    setDidGroupColorMode((prev: Map<string, 'default' | 'red'>) => new Map(prev).set(group.name, 'default'))
     applyDidGroupColors(group, 'default')
 
     group.layers.forEach((layer) => {
@@ -2159,7 +2316,7 @@ function App() {
       if (state?.visible) {
         map.setLayoutProperty(layer.id, 'visibility', 'none')
         map.setLayoutProperty(`${layer.id}-outline`, 'visibility', 'none')
-        setLayerStates((prev) => {
+        setLayerStates((prev: Map<string, LayerState>) => {
           const next = new Map(prev)
           next.set(layer.id, { ...state, visible: false })
           return next
@@ -2251,7 +2408,7 @@ function App() {
           map.setLayoutProperty(`${overlay.id}-bg`, 'visibility', 'visible')
         }
       }
-      setOverlayStates((prev) => new Map(prev).set(overlay.id, true))
+      setOverlayStates((prev: Map<string, boolean>) => new Map(prev).set(overlay.id, true))
     } else {
       if (map.getLayer(overlay.id)) {
         map.setLayoutProperty(overlay.id, 'visibility', 'none')
@@ -2259,10 +2416,10 @@ function App() {
       if (map.getLayer(`${overlay.id}-outline`)) {
         map.setLayoutProperty(`${overlay.id}-outline`, 'visibility', 'none')
       }
-      if (map.getLayer(`${overlay.id}-bg`)) {
+if (map.getLayer(`${overlay.id}-bg`)) {
         map.setLayoutProperty(`${overlay.id}-bg`, 'visibility', 'none')
       }
-      setOverlayStates((prev) => new Map(prev).set(overlay.id, false))
+      setOverlayStates((prev: Map<string, boolean>) => new Map(prev).set(overlay.id, false))
     }
   }
 
@@ -2317,12 +2474,12 @@ function App() {
           paint: { 'raster-opacity': 0.6 }
         })
       }
-      setWeatherStates((prev) => new Map(prev).set(overlayId, true))
+      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, true))
     } else {
       if (map.getLayer(overlayId)) {
         map.setLayoutProperty(overlayId, 'visibility', 'none')
       }
-      setWeatherStates((prev) => new Map(prev).set(overlayId, false))
+      setWeatherStates((prev: Map<string, boolean>) => new Map(prev).set(overlayId, false))
     }
   }
 
@@ -2846,7 +3003,7 @@ function App() {
         }
 
         if (syncState) {
-          setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
         }
         return
       }
@@ -2856,43 +3013,77 @@ function App() {
 
       if (restrictionId === 'airport-airspace') {
         const zone = getAllRestrictionZones().find((z) => z.id === restrictionId)
+
+        // kokuareaタイルで表示を試みる
+        // 注意: kokuareaタイルはベクタータイルで正確な制限区域を表示するが、
+        // その形状データを直接取得できないため、衝突検出には使用しない。
+        // generateAirportGeoJSON()の円形領域はkokuareaタイルの表示と一致しないため、
+        // kokuarea使用時は空港領域の衝突検出を行わない（DID等他のゾーンは検出可能）
         if (zone?.geojsonTileTemplate) {
           try {
             enableKokuarea(map, zone.geojsonTileTemplate)
             if (syncState) {
-              setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+              setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
             }
+            // kokuareaタイル使用時は衝突検出用キャッシュを設定しない
             return
           } catch (e) {
             console.error('Failed to enable kokuarea tiles, fallback to local/circle:', e)
           }
         }
-        if (zone?.path) {
-          try {
-            geojson = await fetchGeoJSONWithCache(zone.path)
-          } catch (e) {
-            console.error('Failed to load airport GeoJSON:', e)
-            geojson = generateAirportGeoJSON() // Fallback to circle if file fails
-          }
-        } else {
-          geojson = generateAirportGeoJSON()
+
+        // kokuareaタイルが使えない場合はGeoJSONで表示（この場合は衝突検出も有効）
+        const airportGeoJSON: GeoJSON.FeatureCollection = generateAirportGeoJSON()
+        if (airportGeoJSON) {
+          const taggedFeatures = airportGeoJSON.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'AIRPORT' }
+          }))
+          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
+          setDidCacheVersion((v) => v + 1)
         }
+        geojson = airportGeoJSON
         color = RESTRICTION_COLORS.airport
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_RED') {
         geojson = generateRedZoneGeoJSON()
+        // 衝突検出用にゾーンタイプを追加してキャッシュに保存
+        if (geojson) {
+          const taggedFeatures = geojson.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'RED_ZONE' }
+          }))
+          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
+          setDidCacheVersion((v) => v + 1)
+        }
         color = RESTRICTION_COLORS.no_fly_red
       } else if (restrictionId === 'ZONE_IDS.NO_FLY_YELLOW') {
         geojson = generateYellowZoneGeoJSON()
+        // 衝突検出用にゾーンタイプを追加してキャッシュに保存
+        if (geojson) {
+          const taggedFeatures = geojson.features.map((f) => ({
+            ...f,
+            properties: { ...f.properties, zoneType: 'YELLOW_ZONE' }
+          }))
+          const taggedGeoJSON: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: taggedFeatures }
+          restrictionGeoJSONCacheRef.current.set(restrictionId, taggedGeoJSON)
+          setDidCacheVersion((v) => v + 1)
+        }
         color = RESTRICTION_COLORS.no_fly_yellow
       } else if (restrictionId === ZONE_IDS.DID_ALL_JAPAN) {
         // DID全国一括表示モード - 全47都道府県を赤色で表示
         const allLayers = getAllLayers()
         color = '#FF0000'
+        let cacheUpdated = false
 
         for (const layer of allLayers) {
           if (!map.getSource(`${restrictionId}-${layer.id}`)) {
             try {
               const data = await fetchGeoJSONWithCache(layer.path)
+              // 衝突検出用にキャッシュに保存（stateは後でまとめて更新）
+              didGeoJSONCacheRef.current.set(layer.id, data as GeoJSON.FeatureCollection)
+              cacheUpdated = true
               const sourceId = `${restrictionId}-${layer.id}`
 
               map.addSource(sourceId, { type: 'geojson', data })
@@ -2925,8 +3116,12 @@ function App() {
             map.setLayoutProperty(`${restrictionId}-${layer.id}-outline`, 'visibility', 'visible')
           }
         }
+        // キャッシュが更新された場合、1回だけstate更新
+        if (cacheUpdated) {
+          setDidCacheVersion((v) => v + 1)
+        }
         if (syncState) {
-          setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+          setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
         }
         return
       }
@@ -2971,7 +3166,7 @@ function App() {
         }
       }
       if (syncState) {
-        setRestrictionStates((prev) => new Map(prev).set(restrictionId, true))
+        setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, true))
       }
     },
     [mapLoaded, opacity]
@@ -2999,6 +3194,11 @@ function App() {
       } else if (restrictionId === 'airport-airspace') {
         // kokuarea（タイルGeoJSON）表示の場合
         disableKokuarea(map)
+        // 衝突検出用キャッシュからも削除
+        if (restrictionGeoJSONCacheRef.current.has(restrictionId)) {
+          restrictionGeoJSONCacheRef.current.delete(restrictionId)
+          setDidCacheVersion((v) => v + 1)
+        }
       } else {
         if (map.getLayer(restrictionId)) {
           map.setLayoutProperty(restrictionId, 'visibility', 'none')
@@ -3007,9 +3207,14 @@ function App() {
         if (map.getLayer(`${restrictionId}-labels`)) {
           map.setLayoutProperty(`${restrictionId}-labels`, 'visibility', 'none')
         }
+        // 衝突検出用キャッシュからも削除（レッド/イエローゾーン）
+        if (restrictionGeoJSONCacheRef.current.has(restrictionId)) {
+          restrictionGeoJSONCacheRef.current.delete(restrictionId)
+          setDidCacheVersion((v) => v + 1)
+        }
       }
       if (syncState) {
-        setRestrictionStates((prev) => new Map(prev).set(restrictionId, false))
+        setRestrictionStates((prev: Map<string, boolean>) => new Map(prev).set(restrictionId, false))
       }
     },
     [mapLoaded]
@@ -3062,7 +3267,7 @@ function App() {
     }
 
     // Batch update state
-    setRestrictionStates((prev) => {
+    setRestrictionStates((prev: Map<string, boolean>) => {
       const next = new Map(prev)
       ids.forEach((id) => next.set(id, shouldShow))
       return next
@@ -3262,7 +3467,7 @@ function App() {
           }
         })
       }
-      setCustomLayerVisibility((prev) => new Set(prev).add(layer.id))
+      setCustomLayerVisibility((prev: Set<string>) => new Set(prev).add(layer.id))
 
       if (options?.focus) {
         const bounds = getGeoJSONBounds(layer.data)
@@ -3287,7 +3492,7 @@ function App() {
     if (map.getSource(layerId)) {
       map.removeSource(layerId)
     }
-    setCustomLayerVisibility((prev) => {
+    setCustomLayerVisibility((prev: Set<string>) => {
       const next = new Set(prev)
       next.delete(layerId)
       return next
@@ -3388,7 +3593,7 @@ function App() {
         }
       })
 
-      setCustomLayerVisibility((prev) => {
+      setCustomLayerVisibility((prev: Set<string>) => {
         const next = new Set(prev)
         if (visible) {
           next.add(layerId)
@@ -3419,7 +3624,7 @@ function App() {
         }
       }
 
-      setComparisonLayerVisibility((prev) => {
+      setComparisonLayerVisibility((prev: Set<string>) => {
         const next = new Set(prev)
         if (visible) next.add(layerId)
         else next.delete(layerId)
@@ -3431,7 +3636,7 @@ function App() {
   )
 
   const handleComparisonLayerOpacityChange = useCallback((layerId: string, opacity: number) => {
-    setComparisonLayerOpacity((prev) => new Map(prev).set(layerId, opacity))
+    setComparisonLayerOpacity((prev: Map<string, number>) => new Map(prev).set(layerId, opacity))
   }, [])
 
   // ============================================
@@ -3961,6 +4166,7 @@ function App() {
         <DrawingTools
           map={mapRef.current}
           mapLoaded={mapLoaded}
+          prohibitedAreas={prohibitedAreas}
           darkMode={darkMode}
           embedded={true}
           onOpenHelp={() => setShowHelp(true)}
@@ -4084,7 +4290,7 @@ function App() {
               ズーム8未満は空港位置を点で簡易表示（現在 Z{' '}
               {mapZoom !== null ? mapZoom.toFixed(1) : '--'}）
               <div style={{ marginTop: '2px' }}>
-                点の色：緑=民間空港（国際/国内） / 赤=軍用基地 / 橙=ヘリポート
+                点の色：紫=民間空港（国際/国内） / 赤=軍用基地 / 橙=ヘリポート
               </div>
             </div>
           )}

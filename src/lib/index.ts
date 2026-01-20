@@ -169,6 +169,13 @@ export {
   generateRadioInterferenceGeoJSON,
   generateMannedAircraftZonesGeoJSON
 } from './utils/geo'
+export {
+  checkWaypointCollision,
+  checkWaypointCollisionOptimized,
+  checkPathCollision,
+  checkPolygonCollision,
+  createSpatialIndex
+} from './utils/collision'
 
 // kokuarea (airport airspace) helpers
 export {

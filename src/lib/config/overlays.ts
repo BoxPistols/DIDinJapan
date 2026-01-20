@@ -93,7 +93,7 @@ export const SIGNAL_OVERLAYS: GeoOverlay[] = [
 
 // 禁止エリアの色定義
 export const RESTRICTION_COLORS = {
-  airport: '#90EE90', // 薄緑 - 空港など周辺空域
+  airport: '#9C27B0', // 紫 - 空港など周辺空域
   did: '#FFB6C1', // ピンク - 人口集中地区
   emergency: '#FFA500', // オレンジ - 緊急用務空域
   manned: '#87CEEB', // 水色 - 有人機発着エリア
