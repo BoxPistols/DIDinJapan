@@ -1,16 +1,8 @@
 {/* 17_PerformanceOptimization.mdx */}
 import { Meta } from '@storybook/blocks'
+import { TableStyle } from './components/TableStyle'
 
 <Meta title="Learning/17_パフォーマンス最適化" />
-
-export const TableStyle = {
-  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
-  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
-  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
-  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
-  td: { padding: '12px' },
-  code: { backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }
-}
 
 # パフォーマンス最適化戦略
 
@@ -27,8 +19,8 @@ export const TableStyle = {
 ### 問題点（改善前）
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>問題</th>
       <th style={TableStyle.th}>原因</th>
       <th style={TableStyle.th}>症状</th>
@@ -79,8 +71,8 @@ export const TableStyle = {
 ### 実装された改善策（詳細）
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>改善項目</th>
       <th style={TableStyle.th}>実装技術</th>
       <th style={TableStyle.th}>効果</th>
@@ -188,8 +180,8 @@ map.on('mousemove', throttledMouseMove)
 #### パフォーマンス改善
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>指標</th>
       <th style={TableStyle.th}>改善前</th>
       <th style={TableStyle.th}>改善後</th>
@@ -251,8 +243,8 @@ const features = map.queryRenderedFeatures(e.point, {
 #### 効果
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>状況</th>
       <th style={TableStyle.th}>検索対象</th>
       <th style={TableStyle.th}>改善効果</th>
@@ -340,8 +332,8 @@ await processBatch()
 #### 効果
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>指標</th>
       <th style={TableStyle.th}>改善前</th>
       <th style={TableStyle.th}>改善後</th>
@@ -418,8 +410,8 @@ map.on('zoomend', handler)
 #### パフォーマンス改善
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>状況</th>
       <th style={TableStyle.th}>読み込む都道府県数</th>
       <th style={TableStyle.th}>改善効果</th>
@@ -484,8 +476,8 @@ map.on('zoomend', handler)
 ### JavaScript 実行時間（DID全国表示時）
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>操作</th>
       <th style={TableStyle.th}>改善前</th>
       <th style={TableStyle.th}>改善後</th>
@@ -517,8 +509,8 @@ map.on('zoomend', handler)
 ### UX 改善
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>項目</th>
       <th style={TableStyle.th}>改善前</th>
       <th style={TableStyle.th}>改善後</th>

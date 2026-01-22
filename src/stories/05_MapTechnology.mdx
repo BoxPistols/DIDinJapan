@@ -1,15 +1,7 @@
 import { Meta } from '@storybook/blocks'
+import { TableStyle } from './components/TableStyle'
 
 <Meta title="Learning/05_Map技術基礎" />
-
-export const TableStyle = {
-  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
-  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
-  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
-  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
-  td: { padding: '12px' },
-  strong: { fontWeight: 700 }
-}
 
 # Map技術の理論的基礎
 
@@ -28,8 +20,8 @@ export const TableStyle = {
 現代の測地系で採用されている基準楕円体です。
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>パラメータ</th>
       <th style={TableStyle.th}>記号</th>
       <th style={TableStyle.th}>値</th>
@@ -74,8 +66,8 @@ f = (a - b) / a
 2011年東北地方太平洋沖地震（M9.0）による地殻変動を反映した日本の最新測地系です。
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>測地系</th>
       <th style={TableStyle.th}>基準楕円体</th>
       <th style={TableStyle.th}>適用期間</th>
@@ -117,8 +109,8 @@ f = (a - b) / a
 3次元の地球表面を2次元平面に写像する際、以下の幾何学的特性のうち**すべてを同時に保存することは不可能**です（ガウスの驚異的定理, Theorema Egregium）。
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>特性</th>
       <th style={TableStyle.th}>数学的定義</th>
       <th style={TableStyle.th}>保存する投影法</th>
@@ -174,8 +166,8 @@ k(φ) = sec(φ) = 1 / cos(φ)
 ```
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>緯度</th>
       <th style={TableStyle.th}>縮尺係数 k</th>
       <th style={TableStyle.th}>面積拡大率 k²</th>
@@ -229,8 +221,8 @@ Google Maps（2005年）で採用されて以降、事実上のウェブ地図�
 **古典的メルカトルとの差異:**
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>特性</th>
       <th style={TableStyle.th}>古典的メルカトル</th>
       <th style={TableStyle.th}>Web Mercator</th>
@@ -287,8 +279,8 @@ y_max = R · ln[tan(π/4 + 85.05°/2)]
 ```
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>Z</th>
       <th style={TableStyle.th}>タイル総数</th>
       <th style={TableStyle.th}>1タイルの経度幅</th>
@@ -370,8 +362,8 @@ https://cyberjapandata.gsi.go.jp/xyz/{layer}/{z}/{x}/{y}.{ext}
 **座標原点の定義:**
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>軸</th>
       <th style={TableStyle.th}>原点</th>
       <th style={TableStyle.th}>正方向</th>
@@ -397,8 +389,8 @@ https://cyberjapandata.gsi.go.jp/xyz/{layer}/{z}/{x}/{y}.{ext}
 ### 4.2 主要レイヤー
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>レイヤーID</th>
       <th style={TableStyle.th}>形式</th>
       <th style={TableStyle.th}>ズーム範囲</th>
@@ -549,8 +541,8 @@ map.addSource('my-data', {
 ### 6.2 レイヤータイプとシェーダー
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>レイヤータイプ</th>
       <th style={TableStyle.th}>プリミティブ</th>
       <th style={TableStyle.th}>主な用途</th>
@@ -603,8 +595,8 @@ map.addSource('my-data', {
 ### 7.2 ジオメトリタイプ
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>タイプ</th>
       <th style={TableStyle.th}>coordinates構造</th>
       <th style={TableStyle.th}>例</th>
