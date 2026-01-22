@@ -6,7 +6,7 @@ export const TableStyle = {
   // テーブル全体
   table: {
     width: '100%',
-    borderCollapse: 'collapse' as const,
+    borderCollapse: 'collapse',
     margin: '16px 0',
   },
   // テーブルヘッダー（<thead>要素に適用）
@@ -17,7 +17,7 @@ export const TableStyle = {
   // ヘッダーセル（<th>要素に適用）
   th: {
     padding: '12px',
-    textAlign: 'left' as const,
+    textAlign: 'left',
     fontWeight: 600,
   },
   // データ行（<tr>要素に適用）
@@ -31,7 +31,7 @@ export const TableStyle = {
   // 中央揃えデータセル
   tdCenter: {
     padding: '12px',
-    textAlign: 'center' as const,
+    textAlign: 'center',
   },
   // インラインコード
   code: {
