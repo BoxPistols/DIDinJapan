@@ -80,6 +80,22 @@ const ThemedDocsContainer = (props) => {
   return React.createElement(DocsContainer, { ...props, theme })
 }
 
+const withThemeDecorator = (Story, context) => {
+  const theme = getThemeName(context.globals)
+  const isDark = theme === 'dark'
+  
+  return React.createElement('div', {
+    style: {
+      backgroundColor: isDark ? '#0f172a' : '#ffffff',
+      color: isDark ? '#ffffff' : '#1a1a1a',
+      minHeight: '100vh', // Ensure full background coverage
+      padding: '1rem',
+      boxSizing: 'border-box',
+      transition: 'background-color 0.3s, color 0.3s'
+    }
+  }, React.createElement(Story))
+}
+
 const preview = {
   globalTypes: {
     theme: {
@@ -95,6 +111,7 @@ const preview = {
       }
     }
   },
+  decorators: [withThemeDecorator],
   parameters: {
     controls: {
       matchers: {

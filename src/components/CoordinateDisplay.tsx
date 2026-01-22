@@ -83,10 +83,6 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
     return () => clearAutoCloseTimer()
   }, [autoCloseEnabled, clearAutoCloseTimer, onClose, lng, lat])
 
-  if (!showModal) {
-    return null
-  }
-
   const decimalFormat = useMemo(() => formatCoordinates(lng, lat), [lng, lat])
   const dmsFormat = useMemo(() => formatCoordinatesDMS(lng, lat), [lng, lat])
 
@@ -241,6 +237,10 @@ export const CoordinateDisplay: React.FC<CoordinateDisplayProps> = ({
       default:
         return { display: 'none' }
     }
+  }
+
+  if (!showModal) {
+    return null
   }
 
   return (
