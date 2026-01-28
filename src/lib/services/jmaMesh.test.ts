@@ -52,6 +52,13 @@ describe('JMA Mesh Service', () => {
       expect(forecast.temperature).toBeTypeOf('number')
       expect(forecast.timestamp).toBeTypeOf('string')
     })
+
+    it('should default to 24 hours when no hours specified', async () => {
+      const data = await fetchMeshTimeSeries('53393599')
+
+      // 24 hours = 24 * 60 / 5 = 288 intervals
+      expect(data.forecasts.length).toBe(288)
+    })
   })
 
   describe('isMockData', () => {
@@ -63,6 +70,18 @@ describe('JMA Mesh Service', () => {
     it('should detect mock data in time series', async () => {
       const data = await fetchMeshTimeSeries('53393599', 1)
       expect(isMockData(data)).toBe(true)
+    })
+
+    it('should return false for data without (見本) marker', () => {
+      const data = {
+        meshCode: '53393599',
+        windSpeed: 3.5,
+        windDirection: 180,
+        precipitationProbability: 20,
+        temperature: 22,
+        timestamp: '2023-01-01T00:00:00.000Z'
+      }
+      expect(isMockData(data)).toBe(false)
     })
   })
 
@@ -84,6 +103,23 @@ describe('JMA Mesh Service', () => {
       const formatted = formatWeatherData(data)
 
       expect(formatted).toContain('見本')
+    })
+
+    it('should format weather data without prefix for real data', () => {
+      const data = {
+        meshCode: '53393599',
+        windSpeed: 3.5,
+        windDirection: 180,
+        precipitationProbability: 20,
+        temperature: 22,
+        timestamp: '2023-01-01T00:00:00.000Z'
+      }
+      const formatted = formatWeatherData(data)
+
+      expect(formatted).not.toContain('(見本)')
+      expect(formatted).toContain('風速: 3.5m/s')
+      expect(formatted).toContain('気温: 22.0°C')
+      expect(formatted).toContain('降水確率: 20%')
     })
   })
 
