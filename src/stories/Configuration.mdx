@@ -1,5 +1,6 @@
 {/* Configuration.mdx */}
 import { Meta } from '@storybook/blocks'
+import { TableStyle } from './components/TableStyle'
 
 <Meta title="API/Configuration" />
 
@@ -76,57 +77,57 @@ const colors = {
 - 水平表面: #9C27B0 (紫)
 - 円錐表面: #2196F3 (青)
 
-<table>
-  <thead>
+<table style={TableStyle.table}>
+  <thead style={TableStyle.thead}>
     <tr>
-      <th>区分</th>
-      <th>色</th>
-      <th>Hex</th>
-      <th>説明</th>
+      <th style={TableStyle.th}>区分</th>
+      <th style={TableStyle.th}>色</th>
+      <th style={TableStyle.th}>Hex</th>
+      <th style={TableStyle.th}>説明</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>空港周辺空域</td>
-      <td style={{backgroundColor: '#90EE90', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#90EE90</td>
-      <td>航空法による制限 (デフォルト)</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>空港周辺空域</td>
+      <td style={{...TableStyle.td, backgroundColor: '#90EE90', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#90EE90</td>
+      <td style={TableStyle.td}>航空法による制限 (デフォルト)</td>
     </tr>
-    <tr>
-      <td>DID</td>
-      <td style={{backgroundColor: '#FFB6C1', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#FFB6C1</td>
-      <td>人口集中地区</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>DID</td>
+      <td style={{...TableStyle.td, backgroundColor: '#FFB6C1', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#FFB6C1</td>
+      <td style={TableStyle.td}>人口集中地区</td>
     </tr>
-    <tr>
-      <td>緊急用務空域</td>
-      <td style={{backgroundColor: '#FFA500', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#FFA500</td>
-      <td>災害時等の緊急空域</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>緊急用務空域</td>
+      <td style={{...TableStyle.td, backgroundColor: '#FFA500', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#FFA500</td>
+      <td style={TableStyle.td}>災害時等の緊急空域</td>
     </tr>
-    <tr>
-      <td>有人機発着</td>
-      <td style={{backgroundColor: '#87CEEB', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#87CEEB</td>
-      <td>ヘリポート等</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>有人機発着</td>
+      <td style={{...TableStyle.td, backgroundColor: '#87CEEB', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#87CEEB</td>
+      <td style={TableStyle.td}>ヘリポート等</td>
     </tr>
-    <tr>
-      <td>リモートID特定区域</td>
-      <td style={{backgroundColor: '#DDA0DD', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#DDA0DD</td>
-      <td>リモートID免除区域</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>リモートID特定区域</td>
+      <td style={{...TableStyle.td, backgroundColor: '#DDA0DD', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#DDA0DD</td>
+      <td style={TableStyle.td}>リモートID免除区域</td>
     </tr>
-    <tr>
-      <td>飛行禁止（赤）</td>
-      <td style={{backgroundColor: '#FF0000', width: '40px', height: '30px', borderRadius: '4px'}}></td>
-      <td>#FF0000</td>
-      <td>完全飛行禁止</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>飛行禁止（赤）</td>
+      <td style={{...TableStyle.td, backgroundColor: '#FF0000', width: '40px', height: '30px', borderRadius: '4px'}}></td>
+      <td style={TableStyle.td}>#FF0000</td>
+      <td style={TableStyle.td}>完全飛行禁止</td>
     </tr>
-    <tr>
-      <td>注意区域（黄）</td>
-      <td style={{backgroundColor: '#FFFF00', width: '40px', height: '30px', borderRadius: '4px', border: '1px solid #ccc'}}></td>
-      <td>#FFFF00</td>
-      <td>要許可・注意</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>注意区域（黄）</td>
+      <td style={{...TableStyle.td, backgroundColor: '#FFFF00', width: '40px', height: '30px', borderRadius: '4px', border: '1px solid #ccc'}}></td>
+      <td style={TableStyle.td}>#FFFF00</td>
+      <td style={TableStyle.td}>要許可・注意</td>
     </tr>
   </tbody>
 </table>
@@ -150,29 +151,29 @@ const overlays = {
 
 ### オーバーレイ設定
 
-<table>
-  <thead>
+<table style={TableStyle.table}>
+  <thead style={TableStyle.thead}>
     <tr>
-      <th>ID</th>
-      <th>名称</th>
-      <th>用途</th>
+      <th style={TableStyle.th}>ID</th>
+      <th style={TableStyle.th}>名称</th>
+      <th style={TableStyle.th}>用途</th>
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>hillshade</td>
-      <td>陰影起伏図</td>
-      <td>地形の立体感を表現</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>hillshade</td>
+      <td style={TableStyle.td}>陰影起伏図</td>
+      <td style={TableStyle.td}>地形の立体感を表現</td>
     </tr>
-    <tr>
-      <td>elevation</td>
-      <td>標高図</td>
-      <td>標高による色分け</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>elevation</td>
+      <td style={TableStyle.td}>標高図</td>
+      <td style={TableStyle.td}>標高による色分け</td>
     </tr>
-    <tr>
-      <td>slope</td>
-      <td>傾斜量図</td>
-      <td>傾斜の急峻さを表現</td>
+    <tr style={TableStyle.tr}>
+      <td style={TableStyle.td}>slope</td>
+      <td style={TableStyle.td}>傾斜量図</td>
+      <td style={TableStyle.td}>傾斜の急峻さを表現</td>
     </tr>
   </tbody>
 </table>

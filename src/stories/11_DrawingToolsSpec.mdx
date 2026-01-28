@@ -1,15 +1,7 @@
 import { Meta } from '@storybook/blocks'
+import { TableStyle } from './components/TableStyle'
 
 <Meta title="Learning/11_DrawingToolsSpec" />
-
-export const TableStyle = {
-  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
-  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
-  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
-  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
-  td: { padding: '12px' },
-  strong: { fontWeight: 700 }
-}
 
 # Drawing Tools Specification
 
@@ -27,8 +19,8 @@ MapLibre GL上で動作し、Mapbox GL Drawライブラリを拡張して実装�
 システムでは以下の4つの図形タイプをサポートしています。
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>タイプ</th>
       <th style={TableStyle.th}>用途</th>
       <th style={TableStyle.th}>内部データ構造<br/><span style={{fontSize:'0.85em', opacity: 0.7}}>(Mapbox Draw)</span></th>
@@ -90,8 +82,8 @@ MapLibre GL上で動作し、Mapbox GL Drawライブラリを拡張して実装�
 図形タイプごとの「代表点」は以下のルールで決定されます。
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>図形タイプ</th>
       <th style={TableStyle.th}>代表点の位置</th>
       <th style={TableStyle.th}>詳細</th>

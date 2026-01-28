@@ -1,5 +1,6 @@
 {/* Introduction.mdx */}
 import { Meta } from '@storybook/blocks'
+import { TableStyle } from './components/TableStyle'
 
 <Meta title="Introduction" />
 
@@ -15,14 +16,6 @@ export const LinkStyle = {
   fontWeight: 500,
   marginRight: '12px',
   marginBottom: '12px'
-}
-
-export const TableStyle = {
-  table: { width: '100%', borderCollapse: 'collapse', margin: '16px 0' },
-  thead: { backgroundColor: 'rgba(74, 158, 255, 0.1)', borderBottom: '2px solid rgba(74, 158, 255, 0.3)' },
-  th: { padding: '12px', textAlign: 'left', fontWeight: 600 },
-  tr: { borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
-  td: { padding: '12px' }
 }
 
 # Japan Overlay Map
@@ -88,8 +81,8 @@ export const TableStyle = {
 ## データソース
 
 <table style={TableStyle.table}>
-  <thead>
-    <tr style={TableStyle.thead}>
+  <thead style={TableStyle.thead}>
+    <tr>
       <th style={TableStyle.th}>データ種別</th>
       <th style={TableStyle.th}>ソース</th>
       <th style={TableStyle.th}>備考</th>
