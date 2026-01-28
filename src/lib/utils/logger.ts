@@ -36,7 +36,8 @@ export const logger = {
    * Debug level logging (only in development)
    */
   debug: (message: string, options?: LogOptions) => {
-    if (import.meta.env.DEV) {
+    // Use optional chaining to safely access import.meta.env for library builds
+    if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       console.debug(formatMessage('debug', message, options), options?.details ?? '')
     }
   },

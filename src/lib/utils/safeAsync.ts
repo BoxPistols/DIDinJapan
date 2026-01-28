@@ -103,30 +103,38 @@ export async function retryAsync<T>(
     shouldRetry = () => true
   } = options
 
+  // Validate options
+  const validMaxRetries = Math.max(1, maxRetries)
+  const validDelayMs = Math.max(0, delayMs)
+
   let lastError: AppError | null = null
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 1; attempt <= validMaxRetries; attempt++) {
     try {
       return await fn()
     } catch (error) {
       lastError = normalizeError(error)
 
-      if (attempt < maxRetries && shouldRetry(lastError)) {
+      // Check if we should retry
+      if (attempt < validMaxRetries && shouldRetry(lastError)) {
         logger.warn(
-          `Attempt ${attempt}/${maxRetries} failed, retrying in ${delayMs}ms`,
+          `Attempt ${attempt}/${validMaxRetries} failed, retrying in ${validDelayMs}ms`,
           { context: context ?? 'retryAsync', details: { error: lastError.message } }
         )
-        await delay(delayMs)
+        await delay(validDelayMs)
+      } else {
+        // Don't retry: either max attempts reached or shouldRetry returned false
+        break
       }
     }
   }
 
   logger.error(
-    `All ${maxRetries} attempts failed`,
+    `All ${validMaxRetries} attempts failed`,
     lastError,
     { context: context ?? 'retryAsync' }
   )
-  throw lastError
+  throw lastError ?? new AppError('UNKNOWN', 'Unknown error in retryAsync')
 }
 
 /**
@@ -162,11 +170,21 @@ export async function withTimeout<T>(
   } catch (error) {
     clearTimeout(timeoutId)
     const normalizedError = normalizeError(error)
-    logger.error(
-      `Operation timed out after ${timeoutMs}ms`,
-      normalizedError,
-      { context: context ?? 'withTimeout' }
-    )
+
+    // Distinguish timeout vs non-timeout errors for logging
+    if (normalizedError.code === 'TIMEOUT') {
+      logger.error(
+        `Operation timed out after ${timeoutMs}ms`,
+        normalizedError,
+        { context: context ?? 'withTimeout' }
+      )
+    } else {
+      logger.error(
+        'Operation failed',
+        normalizedError,
+        { context: context ?? 'withTimeout' }
+      )
+    }
     throw normalizedError
   }
 }
@@ -195,10 +213,12 @@ export async function batchAsync<T>(
   options: { concurrency?: number; context?: string } = {}
 ): Promise<AsyncResult<T>[]> {
   const { concurrency = 5, context } = options
+  // Validate concurrency to prevent infinite loop
+  const validConcurrency = Math.max(1, concurrency)
   const results: AsyncResult<T>[] = []
 
-  for (let i = 0; i < fns.length; i += concurrency) {
-    const batch = fns.slice(i, i + concurrency)
+  for (let i = 0; i < fns.length; i += validConcurrency) {
+    const batch = fns.slice(i, i + validConcurrency)
     const batchResults = await Promise.all(
       batch.map((fn) => safeAsyncResult(fn, context))
     )

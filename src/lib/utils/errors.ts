@@ -102,7 +102,7 @@ export function normalizeError(error: unknown): AppError {
       return new AppError('TIMEOUT', 'Request was aborted')
     }
 
-    return new AppError('UNKNOWN', error.message, { originalError: error.name })
+    return new AppError('UNKNOWN', error.message, { originalError: { name: error.name, stack: error.stack } })
   }
 
   // Handle non-Error objects
