@@ -6,35 +6,80 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import { fetchWeather, getWeatherDescription, type WeatherData } from '../../lib/services/weatherApi'
 
-// 主要都市（TV天気予報で表示される代表的な都市）
-const MAJOR_CITIES = [
-  // 北海道
-  { id: 'sapporo', name: '札幌', lat: 43.06, lng: 141.35 },
-  { id: 'kushiro', name: '釧路', lat: 42.98, lng: 144.38 },
-  // 東北
+// 全47都道府県 + 地域区分（北海道の道北・道東・道央・道南、沖縄の離島など）
+const WEATHER_LOCATIONS = [
+  // ===== 北海道（地域区分あり）=====
+  { id: 'hokkaido-central', name: '札幌', lat: 43.06, lng: 141.35, region: '道央' },
+  { id: 'hokkaido-north', name: '稚内', lat: 45.42, lng: 141.67, region: '道北' },
+  { id: 'hokkaido-east', name: '釧路', lat: 42.98, lng: 144.38, region: '道東' },
+  { id: 'hokkaido-south', name: '函館', lat: 41.77, lng: 140.73, region: '道南' },
+  { id: 'hokkaido-asahikawa', name: '旭川', lat: 43.77, lng: 142.37, region: '道北' },
+
+  // ===== 東北 =====
   { id: 'aomori', name: '青森', lat: 40.82, lng: 140.74 },
+  { id: 'iwate', name: '盛岡', lat: 39.70, lng: 141.15 },
+  { id: 'miyagi', name: '仙台', lat: 38.27, lng: 140.87 },
   { id: 'akita', name: '秋田', lat: 39.72, lng: 140.10 },
-  { id: 'sendai', name: '仙台', lat: 38.27, lng: 140.87 },
-  // 関東
+  { id: 'yamagata', name: '山形', lat: 38.24, lng: 140.33 },
+  { id: 'fukushima', name: '福島', lat: 37.75, lng: 140.47 },
+
+  // ===== 関東 =====
+  { id: 'ibaraki', name: '水戸', lat: 36.34, lng: 140.45 },
+  { id: 'tochigi', name: '宇都宮', lat: 36.57, lng: 139.88 },
+  { id: 'gunma', name: '前橋', lat: 36.39, lng: 139.06 },
+  { id: 'saitama', name: 'さいたま', lat: 35.86, lng: 139.65 },
+  { id: 'chiba', name: '千葉', lat: 35.61, lng: 140.12 },
   { id: 'tokyo', name: '東京', lat: 35.68, lng: 139.75 },
-  // 中部
+  { id: 'kanagawa', name: '横浜', lat: 35.44, lng: 139.64 },
+
+  // ===== 中部（甲信越）=====
   { id: 'niigata', name: '新潟', lat: 37.90, lng: 139.02 },
-  { id: 'kanazawa', name: '金沢', lat: 36.59, lng: 136.63 },
+  { id: 'toyama', name: '富山', lat: 36.70, lng: 137.21 },
+  { id: 'ishikawa', name: '金沢', lat: 36.59, lng: 136.63 },
+  { id: 'fukui', name: '福井', lat: 36.07, lng: 136.22 },
+  { id: 'yamanashi', name: '甲府', lat: 35.66, lng: 138.57 },
   { id: 'nagano', name: '長野', lat: 36.65, lng: 138.18 },
-  { id: 'nagoya', name: '名古屋', lat: 35.18, lng: 136.91 },
-  // 近畿
+
+  // ===== 中部（東海）=====
+  { id: 'gifu', name: '岐阜', lat: 35.39, lng: 136.72 },
+  { id: 'shizuoka', name: '静岡', lat: 34.98, lng: 138.38 },
+  { id: 'aichi', name: '名古屋', lat: 35.18, lng: 136.91 },
+
+  // ===== 近畿 =====
+  { id: 'mie', name: '津', lat: 34.73, lng: 136.51 },
+  { id: 'shiga', name: '大津', lat: 35.00, lng: 135.87 },
+  { id: 'kyoto', name: '京都', lat: 35.01, lng: 135.77 },
   { id: 'osaka', name: '大阪', lat: 34.69, lng: 135.50 },
-  // 中国
-  { id: 'matsue', name: '松江', lat: 35.47, lng: 133.05 },
-  { id: 'hiroshima', name: '広島', lat: 34.40, lng: 132.46 },
+  { id: 'hyogo', name: '神戸', lat: 34.69, lng: 135.19 },
+  { id: 'nara', name: '奈良', lat: 34.69, lng: 135.83 },
+  { id: 'wakayama', name: '和歌山', lat: 34.23, lng: 135.17 },
+
+  // ===== 中国 =====
+  { id: 'tottori', name: '鳥取', lat: 35.50, lng: 134.24 },
+  { id: 'shimane', name: '松江', lat: 35.47, lng: 133.05 },
   { id: 'okayama', name: '岡山', lat: 34.66, lng: 133.93 },
-  // 四国
+  { id: 'hiroshima', name: '広島', lat: 34.40, lng: 132.46 },
+  { id: 'yamaguchi', name: '山口', lat: 34.19, lng: 131.47 },
+
+  // ===== 四国 =====
+  { id: 'tokushima', name: '徳島', lat: 34.07, lng: 134.56 },
+  { id: 'kagawa', name: '高松', lat: 34.34, lng: 134.05 },
+  { id: 'ehime', name: '松山', lat: 33.84, lng: 132.77 },
   { id: 'kochi', name: '高知', lat: 33.56, lng: 133.53 },
-  // 九州
+
+  // ===== 九州 =====
   { id: 'fukuoka', name: '福岡', lat: 33.60, lng: 130.42 },
+  { id: 'saga', name: '佐賀', lat: 33.25, lng: 130.30 },
+  { id: 'nagasaki', name: '長崎', lat: 32.75, lng: 129.87 },
+  { id: 'kumamoto', name: '熊本', lat: 32.79, lng: 130.74 },
+  { id: 'oita', name: '大分', lat: 33.24, lng: 131.61 },
+  { id: 'miyazaki', name: '宮崎', lat: 31.91, lng: 131.42 },
   { id: 'kagoshima', name: '鹿児島', lat: 31.60, lng: 130.56 },
-  // 沖縄
-  { id: 'naha', name: '那覇', lat: 26.21, lng: 127.68 },
+
+  // ===== 沖縄（地域区分あり）=====
+  { id: 'okinawa-naha', name: '那覇', lat: 26.21, lng: 127.68, region: '沖縄本島' },
+  { id: 'okinawa-miyako', name: '宮古島', lat: 24.80, lng: 125.28, region: '先島' },
+  { id: 'okinawa-ishigaki', name: '石垣島', lat: 24.34, lng: 124.16, region: '先島' },
 ]
 
 interface CityWeatherData {
@@ -42,6 +87,7 @@ interface CityWeatherData {
   name: string
   lat: number
   lng: number
+  region?: string
   weather: WeatherData | null
   loading: boolean
 }
@@ -106,7 +152,7 @@ const WeatherIcons = {
 
 export function NationwideWeatherMap({ map, visible, darkMode = false }: NationwideWeatherMapProps) {
   const [cityWeather, setCityWeather] = useState<CityWeatherData[]>(() =>
-    MAJOR_CITIES.map(city => ({ ...city, weather: null, loading: true }))
+    WEATHER_LOCATIONS.map(city => ({ ...city, weather: null, loading: true }))
   )
   const markersRef = useRef<maplibregl.Marker[]>([])
   const fetchedRef = useRef(false)
@@ -117,7 +163,7 @@ export function NationwideWeatherMap({ map, visible, darkMode = false }: Nationw
     fetchedRef.current = true
 
     const results = await Promise.allSettled(
-      MAJOR_CITIES.map(async (city) => {
+      WEATHER_LOCATIONS.map(async (city) => {
         const weather = await fetchWeather(city.lat, city.lng)
         return { id: city.id, weather }
       })
@@ -125,7 +171,7 @@ export function NationwideWeatherMap({ map, visible, darkMode = false }: Nationw
 
     setCityWeather(prev =>
       prev.map(city => {
-        const result = results.find((_, i) => MAJOR_CITIES[i].id === city.id)
+        const result = results.find((_, i) => WEATHER_LOCATIONS[i].id === city.id)
         if (result && result.status === 'fulfilled') {
           return { ...city, weather: result.value.weather, loading: false }
         }
