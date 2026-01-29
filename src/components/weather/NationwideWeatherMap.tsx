@@ -264,26 +264,60 @@ export function NationwideWeatherMap({ map, visible, darkMode = false }: Nationw
         .setLngLat([city.lng, city.lat])
         .addTo(map)
 
-      // Add popup on click
-      const popup = new maplibregl.Popup({ offset: 25, closeButton: false })
+      // Add popup on click with detailed weather info
+      const precipitation = city.weather.precipitation
+      const windSpeed = city.weather.windSpeed
+      const humidity = city.weather.humidity
+
+      const popup = new maplibregl.Popup({
+        offset: 25,
+        closeButton: true,
+        closeOnClick: true,
+        maxWidth: '280px'
+      })
         .setHTML(`
-          <div style="padding: 8px; font-family: system-ui, sans-serif;">
-            <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${city.name}</div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 24px;">${weatherInfo.icon}</span>
+          <div style="padding: 12px; font-family: system-ui, sans-serif; min-width: 200px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <div style="font-weight: 700; font-size: 16px;">${city.name}</div>
+              ${city.region ? `<span style="font-size: 11px; color: #888; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${city.region}</span>` : ''}
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 8px; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 8px;">
+              <span style="font-size: 36px;">${weatherInfo.icon}</span>
               <div>
-                <div style="font-size: 18px; font-weight: 700;">${temp}°C</div>
-                <div style="font-size: 12px; color: #666;">${weatherInfo.label}</div>
+                <div style="font-size: 28px; font-weight: 700; color: ${temp < 0 ? '#3b82f6' : temp > 30 ? '#ef4444' : '#0f172a'};">${temp}°C</div>
+                <div style="font-size: 13px; color: #64748b;">${weatherInfo.label}</div>
               </div>
             </div>
-            <div style="margin-top: 8px; font-size: 11px; color: #888;">
-              風速: ${city.weather.windSpeed.toFixed(1)}m/s<br/>
-              湿度: ${city.weather.humidity}%
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px;">
+                <span style="font-size: 14px;">💨</span>
+                <div>
+                  <div style="color: #64748b; font-size: 10px;">風速</div>
+                  <div style="font-weight: 600; color: #334155;">${windSpeed.toFixed(1)} m/s</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px;">
+                <span style="font-size: 14px;">💧</span>
+                <div>
+                  <div style="color: #64748b; font-size: 10px;">湿度</div>
+                  <div style="font-weight: 600; color: #334155;">${humidity}%</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f1f5f9; border-radius: 6px; grid-column: span 2;">
+                <span style="font-size: 14px;">🌧️</span>
+                <div>
+                  <div style="color: #64748b; font-size: 10px;">降水量</div>
+                  <div style="font-weight: 600; color: #334155;">${precipitation.toFixed(1)} mm</div>
+                </div>
+              </div>
             </div>
           </div>
         `)
 
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
         marker.setPopup(popup)
         marker.togglePopup()
       })
