@@ -3195,9 +3195,19 @@ function App() {
   const KOKUAREA_TILE_ZOOM = 8
   const KOKUAREA_MIN_MAP_ZOOM = 8
   const KOKUAREA_FETCH_CONCURRENCY = 6
-  const KOKUAREA_TOAST_INTERVAL_MS = 8000
+  const KOKUAREA_TOAST_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24時間（1日1回）
 
   type KokuareaToastKey = 'zoom' | 'tooMany'
+
+  // 空港トーストの最終表示時刻をlocalStorageから読み込み
+  const getKokuareaLastToastAt = (): number => {
+    try {
+      const stored = localStorage.getItem('kokuarea-toast-at')
+      return stored ? parseInt(stored, 10) : 0
+    } catch {
+      return 0
+    }
+  }
 
   const kokuareaRef = useRef<{
     enabled: boolean
@@ -3219,7 +3229,7 @@ function App() {
     detach: null,
     lastKeysSig: null,
     lastToastKey: null,
-    lastToastAt: 0,
+    lastToastAt: getKokuareaLastToastAt(),
     regionalBounds: null
   })
 
@@ -3470,6 +3480,12 @@ function App() {
       if (now - state.lastToastAt < KOKUAREA_TOAST_INTERVAL_MS) return
       state.lastToastKey = key
       state.lastToastAt = now
+      // 24時間間隔をlocalStorageに保存（セッション跨ぎ対応）
+      try {
+        localStorage.setItem('kokuarea-toast-at', String(now))
+      } catch {
+        // ignore
+      }
       toast.info(message)
     }
 
