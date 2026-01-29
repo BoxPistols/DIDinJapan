@@ -44,37 +44,62 @@ const SOURCE_ID = 'weather-mesh-source'
 const LAYER_ID_FILL = 'weather-mesh-fill'
 const LAYER_ID_OUTLINE = 'weather-mesh-outline'
 
+// Wind speed thresholds and colors (based on MLIT regulations)
+const WIND_SPEED_COLORS = {
+  SAFE: '#22c55e', // green - safe (<2 m/s)
+  CAUTION: '#eab308', // yellow - caution (2-5 m/s)
+  WARNING: '#f97316', // orange - warning (5-10 m/s)
+  PROHIBITED: '#991b1b' // dark red - prohibited (>=10 m/s)
+} as const
+
+// Precipitation probability colors (>=50% prohibits flight)
+const PRECIPITATION_COLORS = {
+  SAFE: '#22c55e', // green (<20%)
+  LOW: '#a3e635', // lime (20-40%)
+  MEDIUM: '#eab308', // yellow (40-50%)
+  PROHIBITED: '#991b1b' // dark red - prohibited (>=50%)
+} as const
+
+// Temperature colors
+const TEMPERATURE_COLORS = {
+  COLD: '#3b82f6', // blue (<0°C)
+  COOL: '#06b6d4', // cyan (0-10°C)
+  COMFORTABLE: '#22c55e', // green (10-20°C)
+  WARM: '#eab308', // yellow (20-30°C)
+  HOT: '#ef4444' // red (>=30°C)
+} as const
+
 /**
  * Get color for wind speed
- * Safe: green, Caution: yellow, Warning: orange, Danger: red
+ * Based on MLIT regulations: >=10 m/s prohibits flight
  */
 function getWindSpeedColor(speed: number): string {
-  if (speed < 2) return '#22c55e' // green - safe
-  if (speed < 5) return '#eab308' // yellow - caution
-  if (speed < 10) return '#f97316' // orange - warning
-  return '#ef4444' // red - danger
+  if (speed < 2) return WIND_SPEED_COLORS.SAFE
+  if (speed < 5) return WIND_SPEED_COLORS.CAUTION
+  if (speed < 10) return WIND_SPEED_COLORS.WARNING
+  return WIND_SPEED_COLORS.PROHIBITED
 }
 
 /**
  * Get color for precipitation probability
+ * Based on MLIT regulations: >=50% prohibits flight
  */
 function getPrecipitationColor(probability: number): string {
-  if (probability < 20) return '#22c55e' // green
-  if (probability < 40) return '#a3e635' // lime
-  if (probability < 60) return '#eab308' // yellow
-  if (probability < 80) return '#f97316' // orange
-  return '#3b82f6' // blue - high rain
+  if (probability < 20) return PRECIPITATION_COLORS.SAFE
+  if (probability < 40) return PRECIPITATION_COLORS.LOW
+  if (probability < 50) return PRECIPITATION_COLORS.MEDIUM
+  return PRECIPITATION_COLORS.PROHIBITED
 }
 
 /**
  * Get color for temperature
  */
 function getTemperatureColor(temp: number): string {
-  if (temp < 0) return '#3b82f6' // blue - cold
-  if (temp < 10) return '#06b6d4' // cyan
-  if (temp < 20) return '#22c55e' // green
-  if (temp < 30) return '#eab308' // yellow
-  return '#ef4444' // red - hot
+  if (temp < 0) return TEMPERATURE_COLORS.COLD
+  if (temp < 10) return TEMPERATURE_COLORS.COOL
+  if (temp < 20) return TEMPERATURE_COLORS.COMFORTABLE
+  if (temp < 30) return TEMPERATURE_COLORS.WARM
+  return TEMPERATURE_COLORS.HOT
 }
 
 /**
@@ -119,6 +144,20 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
 }) => {
   const meshCacheRef = useRef<Map<string, MeshWeatherData>>(new Map())
   const isInitializedRef = useRef(false)
+  const mapInstanceRef = useRef<maplibregl.Map | null>(null)
+
+  // Clear mesh cache when forecastHours changes to avoid mixing data
+  useEffect(() => {
+    meshCacheRef.current.clear()
+  }, [forecastHours])
+
+  // Reset initialization flag when map instance changes
+  useEffect(() => {
+    if (map !== mapInstanceRef.current) {
+      isInitializedRef.current = false
+      mapInstanceRef.current = map
+    }
+  }, [map])
 
   /**
    * Generate mesh grid for visible bounds
@@ -190,7 +229,8 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
 
             meshCacheRef.current.set(cell.meshCode, data)
             return { ...cell, data }
-          } catch {
+          } catch (error) {
+            console.error(`Failed to fetch weather data for mesh ${cell.meshCode}:`, error)
             return cell
           }
         })
@@ -218,7 +258,7 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
             windSpeed: cell.data!.windSpeed,
             precipitationProbability: cell.data!.precipitationProbability,
             temperature: cell.data!.temperature,
-            isMock: isMockData({ meshCode: cell.data!.meshCode } as never)
+            isMock: isMockData(cell.data!)
           },
           geometry: {
             type: 'Polygon',
@@ -264,7 +304,7 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
       })
     }
 
-    // Add fill layer
+    // Add fill layer (initial opacity 0.5, updated separately via useEffect)
     if (!map.getLayer(LAYER_ID_FILL)) {
       map.addLayer({
         id: LAYER_ID_FILL,
@@ -272,7 +312,7 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
         source: SOURCE_ID,
         paint: {
           'fill-color': ['get', 'color'],
-          'fill-opacity': opacity
+          'fill-opacity': 0.5
         }
       })
     }
@@ -292,7 +332,7 @@ export const WeatherMapOverlay: React.FC<WeatherMapOverlayProps> = ({
     }
 
     isInitializedRef.current = true
-  }, [map, opacity])
+  }, [map])
 
   /**
    * Handle map click on mesh

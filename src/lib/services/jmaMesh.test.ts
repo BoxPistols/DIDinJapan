@@ -18,7 +18,8 @@ describe('JMA Mesh Service', () => {
       expect(data.precipitationProbability).toBeTypeOf('number')
       expect(data.temperature).toBeTypeOf('number')
       expect(data.timestamp).toBeTypeOf('string')
-      expect(data.meshCode).toContain('53393599')
+      // Mock data returns meshCode with "(見本)" prefix
+      expect(data.meshCode).toBe('(見本)53393599')
     })
   })
 
@@ -27,7 +28,8 @@ describe('JMA Mesh Service', () => {
       const data = await fetchMeshTimeSeries('53393599', 1)
 
       expect(data).toBeDefined()
-      expect(data.meshCode).toContain('53393599')
+      // Mock data returns meshCode with "(見本)" prefix
+      expect(data.meshCode).toBe('(見本)53393599')
       expect(data.forecasts).toBeInstanceOf(Array)
       expect(data.forecasts.length).toBeGreaterThan(0)
     })
