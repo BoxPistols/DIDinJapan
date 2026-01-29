@@ -8,7 +8,8 @@
 // Simple internal logger to avoid circular dependencies
 const storageLogger = {
   warn: (message: string, details?: unknown) => {
-    if (import.meta.env.DEV) {
+    // Use optional chaining to safely access import.meta.env for library builds
+    if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       console.warn(`[Storage] ${message}`, details ?? '')
     }
   },
@@ -263,11 +264,16 @@ export function loadWithExpiration<T>(
 
       // Check expiration
       const now = Date.now()
-      if (expiresAt && now > expiresAt) {
-        removeFromStorage(key)
-        return null
-      }
-      if (timestamp && now - timestamp > expirationMs) {
+
+      // If explicit expiresAt was set by saveWithTimestamp, use that exclusively
+      if (expiresAt !== undefined) {
+        if (now > expiresAt) {
+          removeFromStorage(key)
+          return null
+        }
+        // expiresAt is set and not expired, skip timestamp-based check
+      } else if (timestamp && now - timestamp > expirationMs) {
+        // No expiresAt set, use timestamp-based expiration from loadWithExpiration
         removeFromStorage(key)
         return null
       }
