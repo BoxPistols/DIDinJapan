@@ -84,6 +84,7 @@ import {
   formatDailyDate
 } from './lib/services/weatherApi'
 import { WeatherForecastPanel } from './components/weather/WeatherForecastPanel'
+import { WeatherMapOverlay, type WeatherDataType } from './components/drone/WeatherMapOverlay'
 import { convertDecimalToDMS } from './lib/utils/geo'
 
 // ============================================
@@ -361,6 +362,10 @@ function App() {
   })
   const [rainRadarPath, setRainRadarPath] = useState<string | null>(null)
   const [radarLastUpdate, setRadarLastUpdate] = useState<string>('')
+
+  // Weather Mesh Overlay (全国メッシュ天気)
+  const [showWeatherMesh, setShowWeatherMesh] = useState(false)
+  const [weatherMeshDataType, setWeatherMeshDataType] = useState<WeatherDataType>('wind')
 
   // Search
   const [searchIndex, setSearchIndex] = useState<SearchIndexItem[]>([])
@@ -5775,6 +5780,73 @@ function App() {
             </div>
           )}
 
+          {/* Weather Mesh Overlay Toggle */}
+          <label
+            title="メッシュ天気：ズームレベルに応じた解像度で天気情報を地図上に表示（低ズームで全国表示可）"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showWeatherMesh}
+              onChange={() => setShowWeatherMesh(!showWeatherMesh)}
+            />
+            <span>メッシュ天気</span>
+            {showWeatherMesh && (
+              <span style={{ fontSize: '10px', color: '#888' }}>(見本)</span>
+            )}
+          </label>
+
+          {/* Weather Mesh Data Type Selector */}
+          {showWeatherMesh && (
+            <div
+              style={{
+                marginLeft: '20px',
+                marginBottom: '8px',
+                display: 'flex',
+                gap: '8px',
+                fontSize: '11px'
+              }}
+            >
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <input
+                  type="radio"
+                  name="weatherMeshType"
+                  checked={weatherMeshDataType === 'wind'}
+                  onChange={() => setWeatherMeshDataType('wind')}
+                  style={{ margin: 0 }}
+                />
+                風速
+              </label>
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <input
+                  type="radio"
+                  name="weatherMeshType"
+                  checked={weatherMeshDataType === 'precipitation'}
+                  onChange={() => setWeatherMeshDataType('precipitation')}
+                  style={{ margin: 0 }}
+                />
+                降水
+              </label>
+              <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <input
+                  type="radio"
+                  name="weatherMeshType"
+                  checked={weatherMeshDataType === 'temperature'}
+                  onChange={() => setWeatherMeshDataType('temperature')}
+                  style={{ margin: 0 }}
+                />
+                気温
+              </label>
+            </div>
+          )}
+
           <button
             onClick={() => setShowWeatherForecast(true)}
             style={{
@@ -6886,6 +6958,20 @@ function App() {
             : undefined
         }
       />
+
+      {/* Weather Mesh Overlay - Zoom-adaptive nationwide weather display */}
+      {mapRef.current && (
+        <WeatherMapOverlay
+          map={mapRef.current}
+          dataType={weatherMeshDataType}
+          visible={showWeatherMesh}
+          forecastHours={0}
+          opacity={0.5}
+          onMeshClick={(meshCode, data) => {
+            toast.info(`メッシュ ${meshCode}: 風速 ${data.windSpeed.toFixed(1)}m/s, 気温 ${data.temperature.toFixed(1)}°C`)
+          }}
+        />
+      )}
 
       {/* Weather Forecast Panel */}
       {showWeatherForecast && (
