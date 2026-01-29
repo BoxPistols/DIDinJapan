@@ -84,6 +84,7 @@ import {
   formatDailyDate
 } from './lib/services/weatherApi'
 import { WeatherForecastPanel } from './components/weather/WeatherForecastPanel'
+import { NationwideWeatherMap } from './components/weather/NationwideWeatherMap'
 import { convertDecimalToDMS } from './lib/utils/geo'
 
 // ============================================
@@ -524,6 +525,7 @@ function App() {
   const [showWeatherForecast, setShowWeatherForecast] = useState(false)
   const [selectedPrefectureId, setSelectedPrefectureId] = useState<string | undefined>()
   const [enableWeatherClick, setEnableWeatherClick] = useState(false)
+  const [showNationwideWeather, setShowNationwideWeather] = useState(false)
   // ローディング状態管理（レイヤーID -> 表示名）
   const [loadingLayers, setLoadingLayers] = useState<Map<string, string>>(new Map())
   // プログレスバーの表示状態（フェードアウト用）
@@ -3193,9 +3195,19 @@ function App() {
   const KOKUAREA_TILE_ZOOM = 8
   const KOKUAREA_MIN_MAP_ZOOM = 8
   const KOKUAREA_FETCH_CONCURRENCY = 6
-  const KOKUAREA_TOAST_INTERVAL_MS = 8000
+  const KOKUAREA_TOAST_INTERVAL_MS = 24 * 60 * 60 * 1000 // 24時間（1日1回）
 
   type KokuareaToastKey = 'zoom' | 'tooMany'
+
+  // 空港トーストの最終表示時刻をlocalStorageから読み込み
+  const getKokuareaLastToastAt = (): number => {
+    try {
+      const stored = localStorage.getItem('kokuarea-toast-at')
+      return stored ? parseInt(stored, 10) : 0
+    } catch {
+      return 0
+    }
+  }
 
   const kokuareaRef = useRef<{
     enabled: boolean
@@ -3217,7 +3229,7 @@ function App() {
     detach: null,
     lastKeysSig: null,
     lastToastKey: null,
-    lastToastAt: 0,
+    lastToastAt: getKokuareaLastToastAt(),
     regionalBounds: null
   })
 
@@ -3468,6 +3480,12 @@ function App() {
       if (now - state.lastToastAt < KOKUAREA_TOAST_INTERVAL_MS) return
       state.lastToastKey = key
       state.lastToastAt = now
+      // 24時間間隔をlocalStorageに保存（セッション跨ぎ対応）
+      try {
+        localStorage.setItem('kokuarea-toast-at', String(now))
+      } catch {
+        // ignore
+      }
       toast.info(message)
     }
 
@@ -5775,6 +5793,25 @@ function App() {
             </div>
           )}
 
+          <label
+            title="全国の主要都市の天気と気温を地図上にアイコンで表示"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '8px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showNationwideWeather}
+              onChange={() => setShowNationwideWeather(!showNationwideWeather)}
+            />
+            <span>全国天気マップ</span>
+          </label>
+
           <button
             onClick={() => setShowWeatherForecast(true)}
             style={{
@@ -6886,6 +6923,15 @@ function App() {
             : undefined
         }
       />
+
+      {/* Nationwide Weather Map */}
+      {mapRef.current && (
+        <NationwideWeatherMap
+          map={mapRef.current}
+          visible={showNationwideWeather}
+          darkMode={darkMode}
+        />
+      )}
 
       {/* Weather Forecast Panel */}
       {showWeatherForecast && (
